@@ -1,0 +1,65 @@
+@startuml component_architecture
+!theme plain
+title Komponentenarchitektur der XAI Pipeline
+
+package "Datenschicht" {
+  [ImageNet Dataset]
+  [Annotation Files]
+  [Configuration Files]
+}
+
+package "Modellschicht" {
+  [ResNet50]
+  [VGG16]
+  [EfficientNet]
+  [Model Interface]
+}
+
+package "XAI-Schicht" {
+  [Grad-CAM]
+  [Integrated Gradients]
+  [Guided Backprop]
+  [XAI Interface]
+}
+
+package "Evaluationsschicht" {
+  [IoU Calculator]
+  [Point Game]
+  [Statistical Tests]
+  [Metric Interface]
+}
+
+package "Orchestrierungsschicht" {
+  [Experiment Runner]
+  [Config Manager]
+  [Logger]
+  [Result Storage]
+}
+
+' Interfaces
+[Model Interface] --> [ResNet50]
+[Model Interface] --> [VGG16]
+[Model Interface] --> [EfficientNet]
+
+[XAI Interface] --> [Grad-CAM]
+[XAI Interface] --> [Integrated Gradients]
+[XAI Interface] --> [Guided Backprop]
+
+[Metric Interface] --> [IoU Calculator]
+[Metric Interface] --> [Point Game]
+[Metric Interface] --> [Statistical Tests]
+
+' Datenfluss
+[ImageNet Dataset] --> [Model Interface] : Images
+[Annotation Files] --> [Metric Interface] : Ground Truth
+[Configuration Files] --> [Experiment Runner] : Parameters
+
+[Model Interface] --> [XAI Interface] : Predictions & Activations
+[XAI Interface] --> [Metric Interface] : Heatmaps
+[Metric Interface] --> [Result Storage] : Evaluation Results
+
+[Experiment Runner] ..> [Model Interface] : orchestrates
+[Experiment Runner] ..> [XAI Interface] : orchestrates
+[Experiment Runner] ..> [Metric Interface] : orchestrates
+
+@enduml
