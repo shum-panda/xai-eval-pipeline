@@ -1,0 +1,48 @@
+@startuml sequence_diagram
+!theme plain
+title Evaluationsprozess - Sequenzdiagramm
+
+actor Researcher
+participant "ExperimentManager" as EM
+participant "ConfigManager" as CM
+participant "ImageNetLoader" as DL
+participant "ModelManager" as MM
+participant "XAIMethod" as XAI
+participant "MetricCalculator" as MC
+participant "VisualizationEngine" as VE
+
+Researcher -> EM: start_experiment(config_file)
+EM -> CM: load_configuration(config_file)
+CM -> EM: configuration_object
+
+EM -> DL: initialize(dataset_path)
+DL -> EM: dataset_ready
+
+EM -> MM: load_model(model_name)
+MM -> EM: model_loaded
+
+loop für jedes Bild im Testset
+    EM -> DL: get_next_sample()
+    DL -> EM: image, label, bbox
+
+    EM -> MM: predict(image)
+    MM -> EM: prediction, activations
+
+    loop für jede XAI-Methode
+        EM -> XAI: explain(image, model, prediction)
+        XAI -> EM: heatmap
+
+        EM -> MC: evaluate(heatmap, bbox)
+        MC -> EM: metrics
+    end
+end
+
+EM -> MC: aggregate_results()
+MC -> EM: statistical_summary
+
+EM -> VE: create_visualizations(results)
+VE -> EM: plots, heatmaps
+
+EM -> Researcher: experiment_complete(results)
+
+@enduml
