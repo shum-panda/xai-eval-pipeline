@@ -1,0 +1,48 @@
+@startuml SequenceDiagram_Factory_Usage_Flow
+!theme plain
+title 2. Sequenzdiagramm - Factory Usage Flow
+
+actor Client
+participant XAIFactory
+participant ExplainerRegistry
+participant GradCAMExplainer
+participant AdaptiveBatchProcessor
+
+Client -> XAIFactory : create("gradcam", model, target_layer="layer4")
+activate XAIFactory
+
+XAIFactory -> ExplainerRegistry : get_instance()
+activate ExplainerRegistry
+ExplainerRegistry --> XAIFactory : registry_instance
+deactivate ExplainerRegistry
+
+XAIFactory -> ExplainerRegistry : get("gradcam")
+activate ExplainerRegistry
+ExplainerRegistry --> XAIFactory : GradCAMExplainer class
+deactivate ExplainerRegistry
+
+XAIFactory -> GradCAMExplainer : new(model, target_layer="layer4")
+activate GradCAMExplainer
+
+GradCAMExplainer -> GradCAMExplainer : __init__(model, **kwargs)
+GradCAMExplainer -> GradCAMExplainer : _register_hooks()
+GradCAMExplainer -> AdaptiveBatchProcessor : new()
+activate AdaptiveBatchProcessor
+AdaptiveBatchProcessor --> GradCAMExplainer : processor_instance
+deactivate AdaptiveBatchProcessor
+
+GradCAMExplainer --> XAIFactory : explainer_instance
+deactivate GradCAMExplainer
+
+XAIFactory --> Client : explainer_instance
+deactivate XAIFactory
+
+note over Client, AdaptiveBatchProcessor
+Factory creates explainer with:
+1. Registry lookup for class
+2. Instance creation with parameters
+3. Automatic hook registration
+4. Memory processor initialization
+end note
+
+@enduml

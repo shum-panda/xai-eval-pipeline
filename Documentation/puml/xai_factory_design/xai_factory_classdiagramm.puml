@@ -1,0 +1,91 @@
+@startuml ClassDiagram_XAI_Factory_Core_Architecture
+!theme plain
+title 1. Klassendiagramm - Core Architecture
+
+package "Registry Pattern" {
+    class ExplainerRegistry <<Singleton>> {
+        - {static} _instance : ExplainerRegistry
+        - _registry : dict<str, type>
+        --
+        + {static} get_instance() : ExplainerRegistry
+        + register(name: str, explainer_class: type) : void
+        + get(name: str) : type
+        + list_available() : list<str>
+    }
+}
+
+package "Factory Pattern" {
+    class XAIFactory {
+        + {static} create(name: str, model: torch.nn.Module, **kwargs) : BaseExplainer
+    }
+}
+
+package "Explainer Hierarchy" {
+    abstract class BaseExplainer {
+        # model : torch.nn.Module
+        --
+        + __init__(model: torch.nn.Module, **kwargs) : void
+        + {abstract} explain(images: torch.Tensor) : tuple<torch.Tensor, torch.Tensor, torch.Tensor>
+    }
+
+    class GradCAMExplainer {
+        - target_layer : str
+        - hooks : list
+        - activations : torch.Tensor
+        - gradients : torch.Tensor
+        --
+        + explain(images: torch.Tensor) : tuple<torch.Tensor, torch.Tensor, torch.Tensor>
+        - _register_hooks() : void
+        - _compute_gradcam() : torch.Tensor
+        - _hook_fn() : callable
+    }
+
+    class IntegratedGradientsExplainer {
+        - steps : int
+        - baseline : torch.Tensor
+        --
+        + explain(images: torch.Tensor) : tuple<torch.Tensor, torch.Tensor, torch.Tensor>
+        - _compute_integrated_gradients() : torch.Tensor
+        - _interpolate_images() : torch.Tensor
+    }
+
+    class GuidedBackpropExplainer {
+        - hooks : list
+        --
+        + explain(images: torch.Tensor) : tuple<torch.Tensor, torch.Tensor, torch.Tensor>
+        - _register_guided_hooks() : void
+        - _guided_relu_hook() : callable
+    }
+}
+
+package "Memory Management" {
+    class AdaptiveBatchProcessor {
+        + target_memory_usage : float
+        + kp : float
+        + max_batch_size : int
+        - current_batch_size : int
+        --
+        + get_initial_batch_size(sample: torch.Tensor) : int
+        + adaptive_batch_processing(images: torch.Tensor, explainer: BaseExplainer) : tuple
+        - _adjust_batch_size(memory_usage: float) : void
+        - _estimate_memory_usage(batch_size: int, sample: torch.Tensor) : float
+        - _get_gpu_memory_usage() : float
+    }
+}
+
+' Relationships
+XAIFactory --> ExplainerRegistry : uses
+XAIFactory ..> BaseExplainer : creates
+ExplainerRegistry "1" *-- "*" BaseExplainer : registers
+BaseExplainer <|-- GradCAMExplainer
+BaseExplainer <|-- IntegratedGradientsExplainer
+BaseExplainer <|-- GuidedBackpropExplainer
+BaseExplainer --> AdaptiveBatchProcessor : uses
+AdaptiveBatchProcessor --> BaseExplainer : processes
+
+note right of ExplainerRegistry : Singleton Pattern\nEnsures single registry instance
+note right of XAIFactory : Factory Pattern\nCreates explainers by name
+note right of BaseExplainer : Template Method Pattern\nDefines common interface
+note right of AdaptiveBatchProcessor : Strategy Pattern\nAdaptive memory management
+
+@enduml

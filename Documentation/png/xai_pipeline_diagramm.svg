@@ -1,0 +1,162 @@
+<svg viewBox="0 0 800 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .box { fill: #f0f8ff; stroke: #2c5aa0; stroke-width: 2; }
+      .data-box { fill: #e8f5e8; stroke: #2d8f2d; stroke-width: 2; }
+      .model-box { fill: #fff5e6; stroke: #ff8c00; stroke-width: 2; }
+      .xai-box { fill: #f0e6ff; stroke: #7b68ee; stroke-width: 2; }
+      .eval-box { fill: #ffe6e6; stroke: #dc143c; stroke-width: 2; }
+      .vis-box { fill: #fff0e6; stroke: #ff6347; stroke-width: 2; }
+      .title-text { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-anchor: middle; fill: #333; }
+      .desc-text { font-family: Arial, sans-serif; font-size: 12px; text-anchor: middle; fill: #555; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .data-arrow { stroke: #2d8f2d; stroke-width: 2; fill: none; marker-end: url(#greenarrow); }
+      .process-arrow { stroke: #2c5aa0; stroke-width: 2; fill: none; marker-end: url(#bluearrow); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+    <marker id="greenarrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2d8f2d" />
+    </marker>
+    <marker id="bluearrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2c5aa0" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" class="title-text" style="font-size: 20px;">XAI-Evaluationspipeline Ablaufdiagramm</text>
+  
+  <!-- Data Loading Module -->
+  <rect x="300" y="60" width="200" height="80" rx="10" class="data-box"/>
+  <text x="400" y="85" class="title-text">Datenlade-Modul</text>
+  <text x="400" y="105" class="desc-text">ImageNet Dataset</text>
+  <text x="400" y="120" class="desc-text">Bounding Box Annotationen</text>
+  <text x="400" y="135" class="desc-text">Bild-Preprocessing</text>
+  
+  <!-- Arrow to Model -->
+  <line x1="400" y1="140" x2="400" y2="180" class="data-arrow"/>
+  
+  <!-- ResNet50 Model -->
+  <rect x="300" y="180" width="200" height="80" rx="10" class="model-box"/>
+  <text x="400" y="205" class="title-text">ResNet50 Modell</text>
+  <text x="400" y="225" class="desc-text">Vortrainiert auf ImageNet</text>
+  <text x="400" y="240" class="desc-text">Klassifikation + Feature Maps</text>
+  <text x="400" y="255" class="desc-text">Target Layer: layer4</text>
+  
+  <!-- Arrow branching to XAI modules -->
+  <line x1="400" y1="260" x2="400" y2="300" class="process-arrow"/>
+  <line x1="400" y1="300" x2="150" y2="300" class="process-arrow"/>
+  <line x1="400" y1="300" x2="650" y2="300" class="process-arrow"/>
+  <line x1="150" y1="300" x2="150" y2="330" class="process-arrow"/>
+  <line x1="400" y1="300" x2="400" y2="330" class="process-arrow"/>
+  <line x1="650" y1="300" x2="650" y2="330" class="process-arrow"/>
+  
+  <!-- XAI Modules -->
+  <!-- Grad-CAM -->
+  <rect x="50" y="330" width="200" height="80" rx="10" class="xai-box"/>
+  <text x="150" y="355" class="title-text">Grad-CAM</text>
+  <text x="150" y="375" class="desc-text">Gradient-weighted</text>
+  <text x="150" y="390" class="desc-text">Class Activation Maps</text>
+  <text x="150" y="405" class="desc-text">→ Heatmap</text>
+  
+  <!-- Integrated Gradients -->
+  <rect x="300" y="330" width="200" height="80" rx="10" class="xai-box"/>
+  <text x="400" y="355" class="title-text">Integrated Gradients</text>
+  <text x="400" y="375" class="desc-text">Attributions entlang</text>
+  <text x="400" y="390" class="desc-text">Baseline-zu-Input Pfad</text>
+  <text x="400" y="405" class="desc-text">→ Attributions Map</text>
+  
+  <!-- Guided Backprop -->
+  <rect x="550" y="330" width="200" height="80" rx="10" class="xai-box"/>
+  <text x="650" y="355" class="title-text">Guided Backprop</text>
+  <text x="650" y="375" class="desc-text">Modifizierte ReLU</text>
+  <text x="650" y="390" class="desc-text">Backpropagation</text>
+  <text x="650" y="405" class="desc-text">→ Saliency Map</text>
+  
+  <!-- Arrows from XAI to Evaluation -->
+  <line x1="150" y1="410" x2="150" y2="450" class="process-arrow"/>
+  <line x1="400" y1="410" x2="400" y2="450" class="process-arrow"/>
+  <line x1="650" y1="410" x2="650" y2="450" class="process-arrow"/>
+  <line x1="150" y1="450" x2="400" y2="450" class="process-arrow"/>
+  <line x1="650" y1="450" x2="400" y2="450" class="process-arrow"/>
+  <line x1="400" y1="450" x2="400" y2="490" class="process-arrow"/>
+  
+  <!-- Evaluation Module -->
+  <rect x="250" y="490" width="300" height="120" rx="10" class="eval-box"/>
+  <text x="400" y="515" class="title-text">Evaluationsmodul</text>
+  <text x="400" y="535" class="desc-text">IoU (Intersection over Union)</text>
+  <text x="400" y="550" class="desc-text">Point Game Metrik</text>
+  <text x="400" y="565" class="desc-text">Pixel Precision/Recall</text>
+  <text x="400" y="580" class="desc-text">Statistische Signifikanztests</text>
+  <text x="400" y="595" class="desc-text">Ground Truth Vergleich</text>
+  
+  <!-- Arrow to Results -->
+  <line x1="400" y1="610" x2="400" y2="650" class="process-arrow"/>
+  
+  <!-- Results Processing -->
+  <rect x="300" y="650" width="200" height="60" rx="10" class="box"/>
+  <text x="400" y="675" class="title-text">Ergebnisverarbeitung</text>
+  <text x="400" y="690" class="desc-text">Aggregation & Ranking</text>
+  <text x="400" y="705" class="desc-text">Statistik-Berechnung</text>
+  
+  <!-- Arrow branching to visualizations -->
+  <line x1="400" y1="710" x2="400" y2="750" class="process-arrow"/>
+  <line x1="400" y1="750" x2="150" y2="750" class="process-arrow"/>
+  <line x1="400" y1="750" x2="650" y2="750" class="process-arrow"/>
+  <line x1="150" y1="750" x2="150" y2="780" class="process-arrow"/>
+  <line x1="400" y1="750" x2="400" y2="780" class="process-arrow"/>
+  <line x1="650" y1="750" x2="650" y2="780" class="process-arrow"/>
+  
+  <!-- Visualization Modules -->
+  <!-- Heatmap Viz -->
+  <rect x="50" y="780" width="200" height="80" rx="10" class="vis-box"/>
+  <text x="150" y="805" class="title-text">Heatmap-Overlay</text>
+  <text x="150" y="825" class="desc-text">Original + XAI-Erklärung</text>
+  <text x="150" y="840" class="desc-text">Bounding Box Overlay</text>
+  <text x="150" y="855" class="desc-text">→ PNG/PDF Export</text>
+  
+  <!-- Performance Charts -->
+  <rect x="300" y="780" width="200" height="80" rx="10" class="vis-box"/>
+  <text x="400" y="805" class="title-text">Performance-Charts</text>
+  <text x="400" y="825" class="desc-text">Methodenvergleich</text>
+  <text x="400" y="840" class="desc-text">Box-Plots & Bar-Charts</text>
+  <text x="400" y="855" class="desc-text">→ Interaktive Plots</text>
+  
+  <!-- Report Generation -->
+  <rect x="550" y="780" width="200" height="80" rx="10" class="vis-box"/>
+  <text x="650" y="805" class="title-text">Report-Generierung</text>
+  <text x="650" y="825" class="desc-text">LaTeX/HTML Reports</text>
+  <text x="650" y="840" class="desc-text">Tabellen & Statistiken</text>
+  <text x="650" y="855" class="desc-text">→ PDF-Dokumentation</text>
+  
+  <!-- Data Flow Labels -->
+  <text x="300" y="175" class="desc-text" style="fill: #2d8f2d;">Bilddaten</text>
+  <text x="450" y="320" class="desc-text" style="fill: #2c5aa0;">Feature Maps</text>
+  <text x="520" y="470" class="desc-text" style="fill: #2c5aa0;">XAI-Erklärungen</text>
+  <text x="450" y="640" class="desc-text" style="fill: #2c5aa0;">Metriken</text>
+  <text x="520" y="770" class="desc-text" style="fill: #2c5aa0;">Ergebnisse</text>
+  
+  <!-- Module Type Legend -->
+  <g transform="translate(20, 900)">
+    <text x="0" y="15" class="title-text" style="font-size: 14px;">Modul-Typen:</text>
+    
+    <rect x="0" y="25" width="15" height="15" class="data-box"/>
+    <text x="20" y="37" class="desc-text">Datenverarbeitung</text>
+    
+    <rect x="120" y="25" width="15" height="15" class="model-box"/>
+    <text x="140" y="37" class="desc-text">ML-Modell</text>
+    
+    <rect x="220" y="25" width="15" height="15" class="xai-box"/>
+    <text x="240" y="37" class="desc-text">XAI-Methode</text>
+    
+    <rect x="0" y="45" width="15" height="15" class="eval-box"/>
+    <text x="20" y="57" class="desc-text">Evaluation</text>
+    
+    <rect x="120" y="45" width="15" height="15" class="vis-box"/>
+    <text x="140" y="57" class="desc-text">Visualisierung</text>
+    
+    <rect x="220" y="45" width="15" height="15" class="box"/>
+    <text x="240" y="57" class="desc-text">Verarbeitung</text>
+  </g>
+</svg>
