@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
+from typing import Union, Tuple
+
+import torch
 
 
 class BaseExplainer(ABC):
-    def __init__(self, model, **kwargs):
+    def __init__(self, model):
         self.model = model
-        # Subklassen verarbeiten ihre kwargs hier
 
     @abstractmethod
-    def explain(self, images):  # ← Batch von Bildern
+    def explain(self, images: Union[torch.Tensor, Tuple[torch.Tensor]]) -> torch.Tensor:
         """
         Args:
             images: Batch von Bildern (z.B. torch.Tensor [N, C, H, W])

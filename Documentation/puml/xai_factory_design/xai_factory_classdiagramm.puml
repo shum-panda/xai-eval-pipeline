@@ -24,27 +24,31 @@ package "Explainer Hierarchy" {
     abstract class BaseExplainer {
         # model : torch.nn.Module
         --
-        + __init__(model: torch.nn.Module, **kwargs) : void
-        + {abstract} explain(images: torch.Tensor) : tuple<torch.Tensor, torch.Tensor, torch.Tensor>
+        + __init__(model: torch.nn.Module) : void
+        + {abstract} explain(images: torch.Tensor | tuple<torch.Tensor>) : torch.Tensor | tuple<torch.Tensor, torch.Tensor, torch.Tensor>
     }
 
     class GradCAMExplainer {
-        - target_layer : str
-        - hooks : list
-        - activations : torch.Tensor
-        - gradients : torch.Tensor
+        - grad_cam : LayerGradCam
+        - relu_attributions : bool
+        - attribute_to_layer_input : bool
+        - interpolate_mode : str
+        - additional_forward_args : tuple
+        - batch_processor : BatchProcessor
         --
-        + explain(images: torch.Tensor) : tuple<torch.Tensor, torch.Tensor, torch.Tensor>
-        - _register_hooks() : void
-        - _compute_gradcam() : torch.Tensor
-        - _hook_fn() : callable
+        + __init__(model: torch.nn.Module, batch_processor: BatchProcessor, **kwargs) : void
+        + explain(images: torch.Tensor | tuple<torch.Tensor>) : torch.Tensor
+        + set_batch_processor(processor: BatchProcessor) : void
+        - _compute_gradcam_attributions(images: torch.Tensor) : torch.Tensor
+        - _select_target_layer(model: torch.nn.Module, layer_idx: int) : torch.nn.Module
     }
 
     class IntegratedGradientsExplainer {
         - steps : int
         - baseline : torch.Tensor
         --
-        + explain(images: torch.Tensor) : tuple<torch.Tensor, torch.Tensor, torch.Tensor>
+        + __init__(model: torch.nn.Module, steps: int, baseline: torch.Tensor, **kwargs) : void
+        + explain(images: torch.Tensor | tuple<torch.Tensor>) : torch.Tensor | tuple<torch.Tensor, torch.Tensor, torch.Tensor>
         - _compute_integrated_gradients() : torch.Tensor
         - _interpolate_images() : torch.Tensor
     }
@@ -52,40 +56,59 @@ package "Explainer Hierarchy" {
     class GuidedBackpropExplainer {
         - hooks : list
         --
-        + explain(images: torch.Tensor) : tuple<torch.Tensor, torch.Tensor, torch.Tensor>
+        + __init__(model: torch.nn.Module, **kwargs) : void
+        + explain(images: torch.Tensor | tuple<torch.Tensor>) : torch.Tensor | tuple<torch.Tensor, torch.Tensor, torch.Tensor>
         - _register_guided_hooks() : void
         - _guided_relu_hook() : callable
     }
 }
 
 package "Memory Management" {
+    interface ExplainerCallable <<Protocol>> {
+        + __call__(images: torch.Tensor) : torch.Tensor
+    }
+
+    abstract class BatchProcessor {
+        + {abstract} process_batch(images: torch.Tensor, explain_fn: ExplainerCallable) : torch.Tensor
+    }
+
+    class DirectBatchProcessor {
+        + process_batch(images: torch.Tensor, explain_fn: ExplainerCallable) : torch.Tensor
+    }
+
     class AdaptiveBatchProcessor {
         + target_memory_usage : float
         + kp : float
         + max_batch_size : int
         - current_batch_size : int
+        - memory_history : list
         --
-        + get_initial_batch_size(sample: torch.Tensor) : int
-        + adaptive_batch_processing(images: torch.Tensor, explainer: BaseExplainer) : tuple
+        + process_batch(images: torch.Tensor, explain_fn: ExplainerCallable) : torch.Tensor
+        - _estimate_initial_batch_size(sample: torch.Tensor, explain_fn: ExplainerCallable) : int
         - _adjust_batch_size(memory_usage: float) : void
-        - _estimate_memory_usage(batch_size: int, sample: torch.Tensor) : float
         - _get_gpu_memory_usage() : float
     }
 }
 
-' Relationships
+' Relationships - Strategy Pattern (KEINE zirkulären Abhängigkeiten)
 XAIFactory --> ExplainerRegistry : uses
 XAIFactory ..> BaseExplainer : creates
+XAIFactory ..> BatchProcessor : creates
 ExplainerRegistry "1" *-- "*" BaseExplainer : registers
 BaseExplainer <|-- GradCAMExplainer
 BaseExplainer <|-- IntegratedGradientsExplainer
 BaseExplainer <|-- GuidedBackpropExplainer
-BaseExplainer --> AdaptiveBatchProcessor : uses
-AdaptiveBatchProcessor --> BaseExplainer : processes
 
-note right of ExplainerRegistry : Singleton Pattern\nEnsures single registry instance
-note right of XAIFactory : Factory Pattern\nCreates explainers by name
-note right of BaseExplainer : Template Method Pattern\nDefines common interface
-note right of AdaptiveBatchProcessor : Strategy Pattern\nAdaptive memory management
+' Strategy Pattern - Dependency Injection
+GradCAMExplainer o--> BatchProcessor : uses (injected)
+IntegratedGradientsExplainer o--> BatchProcessor : uses (injected)
+GuidedBackpropExplainer o--> BatchProcessor : uses (injected)
+
+BatchProcessor <|-- DirectBatchProcessor
+BatchProcessor <|-- AdaptiveBatchProcessor
+BatchProcessor ..> ExplainerCallable : uses callback
+
+note right of BatchProcessor : Strategy Pattern\nNo circular dependencies\nUses callbacks only
+note right of GradCAMExplainer : Dependency Injection\nBatchProcessor injected\nNo tight coupling
 
 @enduml
