@@ -1,5 +1,9 @@
 from abc import ABC, abstractmethod
 
+import torch
+
+from xai_methods.MemoryManagement.base.explainer_callable import ExplainerCallable
+
 
 class BatchProcessor(ABC):
     """Abstrakte Basis für Batch Processing Strategien."""

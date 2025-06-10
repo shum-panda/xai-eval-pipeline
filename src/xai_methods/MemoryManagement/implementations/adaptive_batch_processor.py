@@ -3,8 +3,8 @@ import logging
 
 import torch
 
-from xai_methods.MemoryManagement.batch_processor import BatchProcessor
-from xai_methods.MemoryManagement.explainer_callable import ExplainerCallable
+from xai_methods.MemoryManagement.base.batch_processor import BatchProcessor
+from xai_methods.MemoryManagement.base.explainer_callable import ExplainerCallable
 
 
 class AdaptiveBatchProcessor(BatchProcessor):
