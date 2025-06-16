@@ -1,62 +1,59 @@
-import logging
 from abc import ABC, abstractmethod
-from typing import Union, Tuple
 
 import torch
+from torch import nn
 
-from xai_methods.MemoryManagement.base.batch_processor import BatchProcessor
+from utilis.explainer_result import ExplainerResult
+
 
 class BaseExplainer(ABC):
+    """Abstract base class for all XAI explainers - simplified without BatchProcessor"""
 
-    def __init__(self, model, batch_processor: BatchProcessor=None, **kwargs):
-        self.logger = None
-        if batch_processor is None:
-            raise ValueError("BatchProcessor is required. Use DirectBatchProcessor() for no batching.")
-
+    def __init__(self, model: nn.Module, **kwargs):
         self.model = model
+        self.config = kwargs
 
-        # Strategy Pattern: Batch Processor injizieren
-        self.batch_processor = batch_processor
-        self.logger= logging.getLogger(__name__) #fallbacklooger
-
-    def set_batch_processor(self, processor: BatchProcessor) -> None:
-        """Ermöglicht Runtime-Wechsel der Strategy."""
-        self.batch_processor = processor
-        self.logger.info(f"Batch processor changed to: {type(processor).__name__}")
-
-    def explain(self, images: Union[torch.Tensor, Tuple[torch.Tensor]]) -> torch.Tensor:
+    def explain(self, images: torch.Tensor, target_labels: torch.Tensor) -> ExplainerResult:
         """
+        Template method - generates explanations and evaluates predictions
+
         Args:
-            images: Batch von Bildern (z.B. torch.Tensor [N, C, H, W])
+            images: Input images tensor [B, C, H, W]
+            target_labels: Ground truth labels tensor [B]
 
         Returns:
-            heatmaps: Batch von Heatmaps [N, H, W]
-            predictions: Batch von Predictions (List oder Array)
-
-        Hauptmethode - delegiert an Strategy.
-
-        KEINE zirkuläre Abhängigkeit: Processor bekommt nur Callback!
+            ExplainerResult with attributions and evaluation
         """
+        # Generate attributions
+        attributions = self._compute_attributions(images)
 
-        # Callback-Funktion erstellen (kein self-Referenz)
-        def explain_batch(batch_images: torch.Tensor) -> torch.Tensor:
-            return self._compute_attributions(batch_images)
+        # Get predictions
+        predictions = self._get_predictions(images)
 
-        # An Strategy delegieren
-        return self.batch_processor.process_batch(images, explain_batch)
+        return ExplainerResult(
+            attributions=attributions,
+            predictions=predictions,
+            target_labels=target_labels
+        )
+
+    def _get_predictions(self, images: torch.Tensor) -> torch.Tensor:
+        """
+        Default prediction method - can be overridden by explainers
+        that capture predictions during attribution computation
+        """
+        with torch.no_grad():
+            return self.model(images)
 
     @abstractmethod
-    def _compute_attributions(self, batch_images: Union[torch.Tensor, Tuple[torch.Tensor]]) -> torch.Tensor:
+    def _compute_attributions(self, images: torch.Tensor) -> torch.Tensor:
         """
-        Compute attributions for a batch of images.
-
-        This is the method that subclasses must implement.
+        Compute attributions for the input images
 
         Args:
-            batch_images: Batch of input images
+            images: Input images tensor [B, C, H, W]
 
         Returns:
-            Attribution maps for the batch
+            Attribution tensor with same spatial dimensions as input [B, C, H, W] or [B, H, W]
         """
         pass
 
@@ -64,4 +61,3 @@ class BaseExplainer(ABC):
     def get_name(self) -> str:
         """Return the name identifier of this explainer"""
         pass
-

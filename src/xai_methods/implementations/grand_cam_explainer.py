@@ -1,47 +1,55 @@
 import logging
 from dataclasses import dataclass
-from captum.attr import LayerGradCam
-import torch
 
-from xai_methods.MemoryManagement.base.batch_processor import BatchProcessor
+import torch
+from captum.attr import LayerGradCam
+
+from utilis.explainer_result import ExplainerResult
 from xai_methods.base.base_explainer import BaseExplainer
+
 
 @dataclass
 class GradCAMConfig:
-    target_layer: int = -1
+    target_layer: int = -1  # -1 for last conv layer
     relu_attributions: bool = True
     interpolate_mode: str = 'bilinear'
 
+
 class GradCamExplainer(BaseExplainer):
     """
-    GradCAM Explainer ohne zirkuläre Abhängigkeiten.
+    GradCAM Explainer - simplified without BatchProcessor.
 
-    Verwendet Strategy Pattern für Memory Management.
+    Processes images directly and handles predictions efficiently.
     """
 
-
-    def __init__(self, model, batch_processor: BatchProcessor = None, config: GradCAMConfig = None, **kwargs):
+    def __init__(self, model, config: GradCAMConfig = None, **kwargs):
         """
-        todo
-        :param model:
-        :param batch_processor:
-        :param config:
-        :param kwargs:
-        """
+        Initialize GradCAM explainer
 
+        Args:
+            model: PyTorch model
+            config: GradCAM configuration
+            **kwargs: Additional arguments
+        """
         config = config or GradCAMConfig()
-        super().__init__(model, batch_processor, **kwargs)
+        super().__init__(model, **kwargs)
+
+        # GradCAM specific configuration
         self.layer = config.target_layer
         self.relu_attributions = config.relu_attributions
         self.interpolate_mode = config.interpolate_mode
 
-        # GradCAM Setup (vereinfacht)
+        # Setup target layer and GradCAM
         self.target_layer = self._select_target_layer(model, config.target_layer)
+        self.gradcam = LayerGradCam(model, self.target_layer)
+
+        # Logger
         self.logger = logging.getLogger(__name__)
 
-        self.gradcam = LayerGradCam(model, self.target_layer)
-        # Set model to evaluation mode
+        # Ensure model is in evaluation mode
         self.model.eval()
+
+        self.logger.info(f"GradCAM initialized with target layer: {self.target_layer}")
 
     def _compute_attributions(self, images: torch.Tensor) -> torch.Tensor:
         """
@@ -61,13 +69,12 @@ class GradCamExplainer(BaseExplainer):
             # Ensure model is in eval mode
             self.model.eval()
 
-            # Get the predicted class for each image (or use target class if specified)
+            # Get predictions and target classes
             with torch.no_grad():
                 predictions = self.model(images)
                 target_classes = predictions.argmax(dim=1)
 
             # Compute GradCAM attributions
-            # LayerGradCam.attribute returns attributions for the target layer
             attributions = self.gradcam.attribute(
                 inputs=images,
                 target=target_classes,
@@ -88,7 +95,6 @@ class GradCamExplainer(BaseExplainer):
                 attributions = torch.relu(attributions)
 
             self.logger.debug(f"Computed GradCAM attributions with shape: {attributions.shape}")
-
             return attributions
 
         except Exception as e:
@@ -101,9 +107,97 @@ class GradCamExplainer(BaseExplainer):
             return attributions
 
     def _select_target_layer(self, model, layer_idx):
-        """Layer-Selektion (vereinfacht)."""
-        layers = list(model.children())
-        return layers[layer_idx] if layers else model
+        """
+        Select target layer for GradCAM.
+
+        Args:
+            model: PyTorch model
+            layer_idx: Layer index (-1 for last layer)
+
+        Returns:
+            Selected layer module
+        """
+        if isinstance(layer_idx, int):
+            # Get all modules that could be target layers (Conv2d)
+            conv_modules = []
+            for name, module in model.named_modules():
+                if isinstance(module, torch.nn.Conv2d):
+                    conv_modules.append((name, module))
+
+            if not conv_modules:
+                self.logger.warning("No Conv2d layers found, using model itself")
+                return model
+
+            if layer_idx == -1:
+                # Use last conv layer
+                selected = conv_modules[-1]
+                self.logger.info(f"Selected last conv layer: {selected[0]}")
+                return selected[1]
+            elif 0 <= layer_idx < len(conv_modules):
+                selected = conv_modules[layer_idx]
+                self.logger.info(f"Selected conv layer {layer_idx}: {selected[0]}")
+                return selected[1]
+            else:
+                self.logger.warning(f"Layer index {layer_idx} out of range, using last layer")
+                return conv_modules[-1][1]
+        else:
+            # Assume it's already a module
+            return layer_idx
+
+    def explain_with_target_class(self, images: torch.Tensor, target_classes: torch.Tensor,
+                                  target_labels: torch.Tensor) -> ExplainerResult:
+        """
+        Explain with specific target classes instead of predicted classes.
+
+        Args:
+            images: Input images
+            target_classes: Specific classes to explain
+            target_labels: Ground truth labels for evaluation
+
+        Returns:
+            ExplainerResult with attributions and evaluation
+        """
+        try:
+            # Clear GPU cache
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+            self.model.eval()
+
+            # Get predictions for evaluation (but use target_classes for explanation)
+            predictions = self._get_predictions(images)
+
+            # Compute GradCAM with specific target classes
+            attributions = self.gradcam.attribute(
+                inputs=images,
+                target=target_classes,
+                relu_attributions=self.relu_attributions
+            )
+
+            # Interpolate to input size
+            if attributions.shape[-2:] != images.shape[-2:]:
+                attributions = torch.nn.functional.interpolate(
+                    attributions,
+                    size=images.shape[-2:],
+                    mode=self.interpolate_mode,
+                    align_corners=False
+                )
+
+            if self.relu_attributions and not hasattr(self.gradcam, 'relu_attributions'):
+                attributions = torch.relu(attributions)
+
+            return ExplainerResult(
+                attributions=attributions,
+                predictions=predictions,
+                target_labels=target_labels
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error in targeted GradCAM: {str(e)}")
+            # Fallback to standard explanation
+            self.logger.warning("Falling back to standard GradCAM explanation")
+            return self.explain(images, target_labels)
 
     def get_name(self) -> str:
+        """Return explainer name"""
         return "gradcam"

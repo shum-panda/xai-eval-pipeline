@@ -2,8 +2,6 @@ from typing import List
 
 from torch import nn
 
-from xai_methods.MemoryManagement.base.batch_processor import BatchProcessor
-from xai_methods.MemoryManagement.implementations.direct_batch_processor import DirectBatchProcessor
 from xai_methods.base.base_explainer import BaseExplainer
 from xai_methods.explainer_registry import ExplainerRegistry
 from xai_methods.implementations.grand_cam_explainer import GradCamExplainer
@@ -20,8 +18,7 @@ class XAIFactory:
         """Register default explainer implementations"""
         self.registry.register("gradcam", GradCamExplainer)
 
-    def create_explainer(self, name: str, model: nn.Module,
-                         batch_processor: BatchProcessor = None, **kwargs) -> BaseExplainer:
+    def create_explainer(self, name: str, model: nn.Module, **kwargs) -> BaseExplainer:
         """
         Create an explainer instance
 
@@ -36,12 +33,8 @@ class XAIFactory:
             :param model:
             :param batch_processor:
         """
-        # Factory ist verantwortlich für vollständige Konfiguration
-        if batch_processor is None:
-            batch_processor = DirectBatchProcessor()
-
         explainer_class = self.registry.get(name)
-        return explainer_class(model, batch_processor, **kwargs)
+        return explainer_class(model **kwargs)
 
     def list_available_explainers(self) -> List[str]:
         """List all available explainer types"""
