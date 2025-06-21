@@ -34,7 +34,7 @@ class XAIFactory:
             :param batch_processor:
         """
         explainer_class = self.registry.get(name)
-        return explainer_class(model **kwargs)
+        return explainer_class(model, **kwargs)
 
     def list_available_explainers(self) -> List[str]:
         """List all available explainer types"""
