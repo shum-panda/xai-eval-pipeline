@@ -1,7 +1,7 @@
 import torch
 
-from xai_methods.MemoryManagement.base.batch_processor import BatchProcessor
-from xai_methods.MemoryManagement.base.explainer_callable import ExplainerCallable
+from archive.MemoryManagement.base.batch_processor import BatchProcessor
+from archive.MemoryManagement.base.explainer_callable import ExplainerCallable
 
 
 class DirectBatchProcessor(BatchProcessor):
