@@ -34,6 +34,9 @@ class GradCamExplainer(BaseExplainer):
         config = config or GradCAMConfig()
         super().__init__(model, **kwargs)
 
+        # Logger
+        self.logger = logging.getLogger(__name__)
+
         # GradCAM specific configuration
         self.layer = config.target_layer
         self.relu_attributions = config.relu_attributions
@@ -42,9 +45,6 @@ class GradCamExplainer(BaseExplainer):
         # Setup target layer and GradCAM
         self.target_layer = self._select_target_layer(model, config.target_layer)
         self.gradcam = LayerGradCam(model, self.target_layer)
-
-        # Logger
-        self.logger = logging.getLogger(__name__)
 
         # Ensure model is in evaluation mode
         self.model.eval()
