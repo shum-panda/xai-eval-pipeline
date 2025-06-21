@@ -4,13 +4,14 @@ import torch
 from torch import nn
 
 from utilis.explainer_result import ExplainerResult
+from xai_methods.base.xai_interface import XAIInterface
 
 
-class BaseExplainer(ABC):
+class BaseExplainer(ABC, XAIInterface):
     """Abstract base class for all XAI explainers - simplified without BatchProcessor"""
 
     def __init__(self, model: nn.Module, **kwargs):
-        self.model = model
+        self.model = model.cuda()
         self.config = kwargs
 
     def explain(self, images: torch.Tensor, target_labels: torch.Tensor) -> ExplainerResult:
@@ -55,9 +56,9 @@ class BaseExplainer(ABC):
         Returns:
             Attribution tensor with same spatial dimensions as input [B, C, H, W] or [B, H, W]
         """
-        pass
+
 
     @abstractmethod
     def get_name(self) -> str:
         """Return the name identifier of this explainer"""
-        pass
+
