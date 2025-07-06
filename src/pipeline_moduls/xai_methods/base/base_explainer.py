@@ -1,13 +1,13 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 import torch
 from torch import nn
 
-from utilis.explainer_result import ExplainerResult
-from xai_methods.base.xai_interface import XAIInterface
+from control.dataclasses.explainer_result import ExplainerResult
+from pipeline_moduls.xai_methods.base.xai_interface import XAIInterface
 
 
-class BaseExplainer(ABC, XAIInterface):
+class BaseExplainer(XAIInterface):
     """Abstract base class for all XAI explainers - simplified without BatchProcessor"""
 
     def __init__(self, model: nn.Module, **kwargs):
@@ -57,8 +57,8 @@ class BaseExplainer(ABC, XAIInterface):
             Attribution tensor with same spatial dimensions as input [B, C, H, W] or [B, H, W]
         """
 
-
+    @classmethod
     @abstractmethod
-    def get_name(self) -> str:
+    def get_name(cls) -> str:
         """Return the name identifier of this explainer"""
 

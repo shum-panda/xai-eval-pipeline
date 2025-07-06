@@ -1,7 +1,7 @@
 import threading
 from typing import List, Type, Dict, Optional
 
-from xai_methods.base.base_explainer import BaseExplainer
+from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 
 
 class ExplainerRegistry:
@@ -34,7 +34,7 @@ class ExplainerRegistry:
         """Get the singleton registry instance"""
         return cls()
 
-    def register(self, name: str, explainer_class: Type[BaseExplainer]) -> None:
+    def register(self, name: Optional[str], explainer_class: Type[BaseExplainer]) -> None:
         """
         Register an explainer class in the registry
 
@@ -45,7 +45,10 @@ class ExplainerRegistry:
         if not issubclass(explainer_class, BaseExplainer):
             raise TypeError(f"Explainer class must inherit from BaseExplainer")
 
+        if not name:
+            name=explainer_class.get_name()
         self._registry[name] = explainer_class
+
 
     def get(self, name: str) -> Type[BaseExplainer]:
         """
@@ -67,3 +70,4 @@ class ExplainerRegistry:
     def list_available(self) -> List[str]:
         """Return list of all registered explainer names"""
         return list(self._registry.keys())
+

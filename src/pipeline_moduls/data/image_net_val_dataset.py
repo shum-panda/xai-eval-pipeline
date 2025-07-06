@@ -8,9 +8,10 @@ import warnings
 
 from torchvision.models.detection.transform import resize_boxes
 
-from data.utils.auto_batchsize_test import auto_batchsize_test
-from data.utils.bbox_to_mask import parse_bbox
-
+from pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
+from pipeline_moduls.data.utils.auto_batchsize_test import auto_batchsize_test
+from pipeline_moduls.data.utils.bbox_to_mask import parse_bbox
+from pipeline_moduls.data.utils.collate_fn import explain_collate_fn
 
 class ImageNetValDataset(Dataset):
     """
@@ -100,7 +101,7 @@ class ImageNetValDataset(Dataset):
     def __len__(self) -> int:
         return len(self.image_files)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> ImageNetSample:
         """
         Lädt ein Sample bestehend aus Bild, Label und Bounding Boxes.
 
@@ -111,7 +112,6 @@ class ImageNetValDataset(Dataset):
         """
         image_path = self.image_files[idx]
         label = self.labels[idx]
-
         # Lade Bild
         image = Image.open(image_path).convert('RGB')
         orig_size = image.size  # (W, H)
@@ -128,7 +128,18 @@ class ImageNetValDataset(Dataset):
         label_tensor = torch.tensor(label, dtype=torch.long)
         boxes_tensor = boxes.clone().detach().float()
 
-        return image, label_tensor, boxes_tensor
+        # Dataclass befüllen und zurückgeben
+        sample = ImageNetSample(
+            image_name=image_path.name,
+            image_path=image_path,
+            image_tensor=image,
+            label=label,
+            label_tensor=label_tensor,
+            bbox_path=xml_path,
+            bbox_tensor=boxes_tensor
+        )
+        return sample
+
 
     def _get_boxes(self, xml_path: Path, orig_size: Tuple[int, int]) -> torch.Tensor:
         """Lädt und verarbeitet Bounding Boxes aus XML-Datei."""
@@ -166,31 +177,6 @@ class ImageNetValDataset(Dataset):
         }
 
 
-def collate_fn(batch: List[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]) -> Tuple[
-    torch.Tensor, torch.Tensor, List[torch.Tensor]]:
-    """
-    Custom Collate Function für variable Anzahl von Bounding Boxes.
-
-    Args:
-        batch: Liste von (image, label, boxes) Tupeln
-
-    Returns:
-        images: Tensor [B, 3, H, W]
-        labels: Tensor [B]
-        boxes: Liste von Tensoren [N_i, 4]
-    """
-    images, labels, boxes = zip(*batch)
-
-    # Staple Bilder und Labels
-    images = torch.stack(images)
-    labels = torch.stack(labels)
-
-    # Behalte Bounding Boxes als Liste (variable Länge)
-    boxes = list(boxes)
-
-    return images, labels, boxes
-
-
 def create_dataloader(
         image_dir: Path,
         annot_dir: Path,
@@ -200,7 +186,8 @@ def create_dataloader(
         pin_memory: bool = True,
         shuffle: bool = False,
         target_size: Optional[Tuple[int, int]] = (224, 224),
-        transform: Optional[transforms.Compose] = None
+        transform: Optional[transforms.Compose] = None,
+        custom_collate_fn=explain_collate_fn
 ) -> DataLoader:
     """
     Erstellt einen konfigurierten DataLoader für ImageNet Validation.
@@ -215,6 +202,7 @@ def create_dataloader(
         shuffle: Ob Daten gemischt werden sollen
         target_size: Zielgröße für Bilder
         transform: Optional custom Transform
+        custom_collate_fn: Collate_fn for the dataset
 
     Returns:
         DataLoader: Konfigurierter DataLoader
@@ -227,20 +215,17 @@ def create_dataloader(
         target_size=target_size
     )
 
-    dataloader = DataLoader(
+    image_net_dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
         pin_memory=pin_memory,
-        collate_fn=collate_fn,
+        collate_fn=custom_collate_fn,
         drop_last=False
     )
 
-    return dataloader
-
-
-
+    return image_net_dataloader
 
 
 # Beispiel für Verwendung
@@ -274,3 +259,4 @@ if __name__ == "__main__":
     #Optional: Teste optimale Batch-Größe
     optimal_batch_size = auto_batchsize_test(dataloader)
     print(optimal_batch_size)
+

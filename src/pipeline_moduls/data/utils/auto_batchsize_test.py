@@ -63,3 +63,4 @@ def auto_batchsize_test(
 
     print(f"Empfohlene maximale Batch-Größe: {successful_batch_size}")
     return successful_batch_size
+

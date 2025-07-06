@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import torch
 from captum.attr import LayerGradCam
 
-from utilis.explainer_result import ExplainerResult
-from xai_methods.base.base_explainer import BaseExplainer
+from control.dataclasses.explainer_result import ExplainerResult
+from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 
 
 @dataclass
@@ -27,7 +27,7 @@ class GradCamExplainer(BaseExplainer):
         Initialize GradCAM explainer
 
         Args:
-            model: PyTorch model
+            model: PyTorch model_name
             config: GradCAM configuration
             **kwargs: Additional arguments
         """
@@ -46,7 +46,7 @@ class GradCamExplainer(BaseExplainer):
         self.target_layer = self._select_target_layer(model, config.target_layer)
         self.gradcam = LayerGradCam(model, self.target_layer)
 
-        # Ensure model is in evaluation mode
+        # Ensure model_name is in evaluation mode
         self.model.eval()
 
         self.logger.info(f"GradCAM initialized with target layer: {self.target_layer}")
@@ -66,7 +66,7 @@ class GradCamExplainer(BaseExplainer):
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
-            # Ensure model is in eval mode
+            # Ensure model_name is in eval mode
             self.model.eval()
 
             # Get predictions and target classes
@@ -98,7 +98,7 @@ class GradCamExplainer(BaseExplainer):
             return attributions
 
         except Exception as e:
-            self.logger.error(f"Error computing GradCAM attributions: {str(e)}")
+            self.logger.error(f"Error computing GradCAM attributions: {str(e)}")#todo add correct Exception Handling
             # Fallback to dummy attributions for robustness
             self.logger.warning("Falling back to dummy attributions")
             attributions = torch.randn_like(images)
@@ -111,7 +111,7 @@ class GradCamExplainer(BaseExplainer):
         Select target layer for GradCAM.
 
         Args:
-            model: PyTorch model
+            model: PyTorch model_name
             layer_idx: Layer index (-1 for last layer)
 
         Returns:
@@ -125,7 +125,7 @@ class GradCamExplainer(BaseExplainer):
                     conv_modules.append((name, module))
 
             if not conv_modules:
-                self.logger.warning("No Conv2d layers found, using model itself")
+                self.logger.warning("No Conv2d layers found, using model_name itself")
                 return model
 
             if layer_idx == -1:
@@ -198,6 +198,8 @@ class GradCamExplainer(BaseExplainer):
             self.logger.warning("Falling back to standard GradCAM explanation")
             return self.explain(images, target_labels)
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls)-> str:
         """Return explainer name"""
         return "gradcam"
+

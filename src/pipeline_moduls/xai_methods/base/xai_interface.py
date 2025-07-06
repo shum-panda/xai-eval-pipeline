@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from utilis.explainer_result import ExplainerResult
+from control.dataclasses.explainer_result import ExplainerResult
 
 
 class XAIInterface(ABC):
@@ -23,3 +23,4 @@ class XAIInterface(ABC):
     @abstractmethod
     def get_name(self) -> str:
         """Return the name identifier of this explainer"""
+
