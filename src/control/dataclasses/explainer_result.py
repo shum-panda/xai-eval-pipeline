@@ -38,3 +38,4 @@ class ExplainerResult:
             'total': self.num_total,
             'attribution_shape': tuple(self.attributions.shape)
         }
+
