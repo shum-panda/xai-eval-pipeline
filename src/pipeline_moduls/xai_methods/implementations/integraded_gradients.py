@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import torch
 from captum.attr import IntegratedGradients
 
-from control.dataclasses.explainer_result import ExplainerResult
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 
 

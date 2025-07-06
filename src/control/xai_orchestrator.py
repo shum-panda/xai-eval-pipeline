@@ -16,8 +16,8 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from control.config_dataclasses.master_config import MasterConfig
-from control.dataclasses.xai_explanation_result import XAIExplanationResult
+from control.utils.config_dataclasses import MasterConfig
+from control.utils.dataclasses import XAIExplanationResult
 from control.utils.describe_batch import describe_batch
 from pipeline_moduls.data.image_net_val_dataset import create_dataloader
 from pipeline_moduls.data.utils.collate_fn import explain_collate_fn

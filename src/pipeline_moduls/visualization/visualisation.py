@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from pipeline_moduls.evaluation.metric_calculator import bbox_to_mask_tensor
 from pipeline_moduls.evaluation.dataclass.xai_metrics import XAIMetrics
-from control.dataclasses.xai_explanation_result import XAIExplanationResult
+from control.utils.dataclasses import XAIExplanationResult
 
 
 class Visualiser:

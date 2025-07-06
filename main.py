@@ -1,7 +1,7 @@
 import hydra
 from omegaconf import OmegaConf
 
-from control.config_dataclasses.master_config import MasterConfig
+from control.utils.config_dataclasses import MasterConfig
 from control.xai_orchestrator import XAIOrchestrator
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")

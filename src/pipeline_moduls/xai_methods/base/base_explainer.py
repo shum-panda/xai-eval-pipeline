@@ -3,7 +3,7 @@ from abc import abstractmethod
 import torch
 from torch import nn
 
-from control.dataclasses.explainer_result import ExplainerResult
+from control.utils.dataclasses import ExplainerResult
 from pipeline_moduls.xai_methods.base.xai_interface import XAIInterface
 
 
