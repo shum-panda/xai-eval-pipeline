@@ -8,266 +8,286 @@
 
 title XAI Pipeline Architecture - Module Dependencies and Data Flow
 
-' ==== DEINE BESTEHENDEN MODULE ====
-package "Existing Infrastructure" <<Cloud>> {
-
-  class ModelFactory <<Singleton>> FACTORY_COLOR {
-    - instance: ModelFactory
-    - current_model: ModelInterface
-    --
-    + get_instance(): ModelFactory
-    + load_model(name: str): ModelInterface
-    + has_model_loaded(): bool
-    + get_current_model_info(): Dict
-  }
-
-  class ModelInterface FACTORY_COLOR {
-    + model_name: str
-    + get_pytorch_model(): nn.Module
-    + get_model_info(): Dict
-    + get_conv_layers(): List[str]
-    + get_layer_by_name(name: str): nn.Module
-  }
-
-  class XAIFactory FACTORY_COLOR {
-    - registry: ExplainerRegistry
-    --
-    + create_explainer(name: str, model: nn.Module, **kwargs): BaseExplainer
-    + list_available_explainers(): List[str]
-  }
-
-  class BaseExplainer FACTORY_COLOR {
-    + model: nn.Module
-    + batch_processor: BatchProcessor
-    --
-    + explain(inputs: Tensor, targets: Tensor): ExplainerResult
-  }
-
-  class ExplainerResult FACTORY_COLOR {
-    + attributions: Tensor
-    + predictions: Tensor
-    + target_labels: Tensor
-    --
-    + get_summary(): Dict
-  }
-}
-
-' ==== DATASET MODULE ====
-package "Dataset Management" DATA_COLOR {
-
-  class ImageNetValidationDataset DATA_COLOR {
-    - images_dir: Path
-    - bbox_dir: Path
-    - labels: List[int]
-    - data: List[Dict]
-    --
-    + __len__(): int
-    + __getitem__(idx: int): Dict
-    + get_items_with_bbox(): List[Dict]
-    + get_items_with_labels(): List[Dict]
-    + _load_image_as_tensor(path: Path): Tensor
-    + _parse_bbox_xml(path: Path): Dict
-  }
-
-  note right of ImageNetValidationDataset
-    **Dataset Item Structure:**
-    {
-      "image_path": Path,
-      "image_name": str,
-      "image_idx": int,
-      "label": int,
-      "bbox": Dict | None
-    }
-  end note
-}
 
 ' ==== ORCHESTRATOR MODULE ====
-package "XAI Orchestration" COMPONENT_COLOR {
+package "Control"  {
 
   class XAIOrchestrator COMPONENT_COLOR {
-    - model_factory: ModelFactory
-    - xai_factory: XAIFactory
-    - pytorch_model: nn.Module
-    - device: torch.device
-    - model_name: str
-    --
-    + setup_dataset(): ImageNetValidationDataset
-    + create_explainer(name: str, **kwargs): BaseExplainer
-    + predict_single(image_tensor: Tensor): Dict
-    + explain_single(dataset_item: Dict, explainer: BaseExplainer): XAIExplanationResult
-    + process_dataset(dataset, explainer, max_samples): Iterator[XAIExplanationResult]
-    + batch_process(dataset, explainer_names, **kwargs): Dict[str, List[XAIExplanationResult]]
-    + switch_model(model_name: str): void
+        - looger:Logger
+        - config_manager: ConfigurationManager
+        - config: SimpleConfig
+        - model_factory: ModelFactory
+        - xai_factory: XAIFactory
+        - model_name: str
+        - model_hub: PytorchModelHub
+        - pytorch_model: nn.Module
+        - device: torch.device
+        - model_name: str
+        --
+        + setup_dataset(): ImageNetValidationDataset
+        + create_explainer(name: str, **kwargs): BaseExplainer
+        + predict_single(image_tensor: Tensor): Dict
+        + explain_single(dataset_item: Dict, explainer: BaseExplainer): XAIExplanationResult
+        + process_dataset(dataset, explainer, max_samples): Iterator[XAIExplanationResult]
+        + batch_process(dataset, explainer_names, **kwargs): Dict[str, List[XAIExplanationResult]]
+        + switch_model(model_name: str): void
   }
 
   class XAIExplanationResult RESULT_COLOR {
-    + image_name: str
-    + image_path: Path
-    + predicted_class: int
-    + true_label: int
-    + confidence: float
-    + prediction_correct: bool
-    + attribution: Tensor
-    + explainer_result: ExplainerResult
-    + explainer_name: str
-    + has_bbox: bool
-    + bbox_info: Dict
-    + model_name: str
-    + processing_time: float
+        + image_name: str
+        + image_path: Path
+        + predicted_class: int
+        + true_label: int
+        + confidence: float
+        + prediction_correct: bool
+        + attribution: Tensor
+        + explainer_result: ExplainerResult
+        + explainer_name: str
+        + has_bbox: bool
+        + bbox_info: Dict
+        + model_name: str
+        + processing_time: float
+  }
+
+  package Config {
+
+        class ConfigurationManager COMPONENT_COLOR {
+        - config: SimpleYMALConfig
+
+        --
+        + run_single_explainer_evaluation(explainer_name: str, **kwargs): Dict
+        + run_explainer_comparison(explainer_names: List[str], **kwargs): Dict
+        + run_model_comparison(model_names: List[str], explainer_name: str): Dict
+        + quick_test(explainer_name: str, num_samples: int): Dict
+        + get_pipeline_status(): Dict
+        }
+
+        class SimpleYMALConfig CONFIG_COLOR {
+        + model_name: str = "resnet50"
+        + max_samples: int = None
+        + filter_with_bbox: bool = True
+        + explainer_names: List[str] = None
+        + explainer_kwargs: Dict = None
+        + pointing_threshold: float = 0.15
+        + iou_threshold: float = 0.5
+        + coverage_percentile: float = 90
+        + save_results: bool = True
+        + output_dir: Path = None
+        + create_visualizations: bool = False
+        + visualize_first_n: int = 5
+        }
   }
 
   note bottom of XAIExplanationResult
-    **Zentrale Datenstruktur**
-    Verbindet Model Predictions,
-    XAI Explanations und
-    Ground Truth Annotations
+        **Zentrale Datenstruktur**
+        Verbindet Model Predictions,
+        XAI Explanations und
+        Ground Truth Annotations
   end note
 }
 
-' ==== EVALUATOR MODULE ====
-package "XAI Evaluation" COMPONENT_COLOR {
+package "pipelineModuls"{
+' ==== PIPELINE MODULE ====
 
-  class XAIEvaluator COMPONENT_COLOR {
-    --
-    + evaluate_single_result(result: XAIExplanationResult, **kwargs): XAIMetrics
-    + evaluate_batch_results(results: List[XAIExplanationResult]): EvaluationSummary
-    + compare_explainers(explainer_results: Dict): Dict[str, EvaluationSummary]
-    + save_evaluation_results(summary, results, output_dir): void
-    + create_visualization(result, metrics, show, save_path): void
-    - _compute_pointing_game(attribution, bbox_mask, threshold): Dict
-    - _compute_iou(attribution, bbox_mask, threshold): float
-    - _compute_coverage(attribution, bbox_mask, percentile): float
-  }
+    package "Model"{
+        class PytorchModelFactory <<Singleton>> FACTORY_COLOR {
+        - instance: ModelFactory
+        - current_model: ModelInterface
+        --
+        + get_instance(): ModelFactory
+        + load_model(name: str): ModelInterface
+        + has_model_loaded(): bool
+        + get_current_model_info(): Dict
+        }
 
-  class XAIMetrics RESULT_COLOR {
-    + pointing_game_hit: bool
-    + pointing_game_threshold: float
-    + iou_score: float
-    + iou_threshold: float
-    + coverage_score: float
-    + coverage_percentile: float
-    + intersection_area: float
-    + bbox_area: float
-    + attribution_area: float
-    + precision: float
-    + recall: float
-  }
+        class PytorchModel FACTORY_COLOR {
+        + model_name: str
+        + get_pytorch_model(): nn.Module
+        + get_model_info(): Dict
+        + get_conv_layers(): List[str]
+        + get_layer_by_name(name: str): nn.Module
+        }
+    }
 
-  class EvaluationSummary RESULT_COLOR {
-    + explainer_name: str
-    + model_name: str
-    + total_samples: int
-    + samples_with_bbox: int
-    + prediction_accuracy: float
-    + pointing_game_score: float
-    + average_iou: float
-    + average_coverage: float
-    + average_precision: float
-    + average_recall: float
-    + average_processing_time: float
-    + evaluation_timestamp: str
-  }
-}
+    package "XAI"{
+        class XAIFactory FACTORY_COLOR {
+            - registry: ExplainerRegistry
+            --
+            + create_explainer(name: str, model: nn.Module, **kwargs): BaseExplainer
+            + list_available_explainers(): List[str]
+        }
 
-' ==== COORDINATOR MODULE ====
-package "Pipeline Coordination" COMPONENT_COLOR {
+        class BaseExplainer FACTORY_COLOR {
+            + model: nn.Module
+            + batch_processor: BatchProcessor
+            --
+            + explain(inputs: Tensor, targets: Tensor): ExplainerResult
+        }
+        class ExplainerResult FACTORY_COLOR {
+            + attributions: Tensor
+            + predictions: Tensor
+            + target_labels: Tensor
+            --
+            + get_summary(): Dict
+        }
+    }
 
-  class XAIPipelineCoordinator COMPONENT_COLOR {
-    - config: PipelineConfig
-    - orchestrator: XAIOrchestrator
-    - evaluator: XAIEvaluator
-    - dataset: ImageNetValidationDataset
-    --
-    + run_single_explainer_evaluation(explainer_name: str, **kwargs): Dict
-    + run_explainer_comparison(explainer_names: List[str], **kwargs): Dict
-    + run_model_comparison(model_names: List[str], explainer_name: str): Dict
-    + quick_test(explainer_name: str, num_samples: int): Dict
-    + get_pipeline_status(): Dict
-  }
 
-  class PipelineConfig CONFIG_COLOR {
-    + model_name: str = "resnet50"
-    + max_samples: int = None
-    + filter_with_bbox: bool = True
-    + explainer_names: List[str] = None
-    + explainer_kwargs: Dict = None
-    + pointing_threshold: float = 0.15
-    + iou_threshold: float = 0.5
-    + coverage_percentile: float = 90
-    + save_results: bool = True
-    + output_dir: Path = None
-    + create_visualizations: bool = False
-    + visualize_first_n: int = 5
-  }
+    ' ==== DATASET MODULE ====
+    package "Dataset Management"  {
+
+        class ImageNetValidationDataset DATA_COLOR {
+            - images_dir: Path
+            - bbox_dir: Path
+            - labels: List[int]
+            - data: List[Dict]
+            --
+            + __len__(): int
+            + __getitem__(idx: int): Dict
+            + get_items_with_bbox(): List[Dict]
+            + get_items_with_labels(): List[Dict]
+            + _load_image_as_tensor(path: Path): Tensor
+            + _parse_bbox_xml(path: Path): Dict
+        }
+
+        note right of ImageNetValidationDataset
+            **Dataset Item Structure:**
+            {
+                "image_path": Path,
+                "image_name": str,
+                "image_idx": int,
+                "label": int,
+                "bbox": Dict | None
+            }
+        end note
+    }
+
+    ' ==== EVALUATOR MODULE ====
+    package "XAI Evaluation"  {
+
+        class XAIEvaluator COMPONENT_COLOR {
+            --
+            + evaluate_single_result(result: XAIExplanationResult, **kwargs): XAIMetrics
+            + evaluate_batch_results(results: List[XAIExplanationResult]): EvaluationSummary
+            + compare_explainers(explainer_results: Dict): Dict[str, EvaluationSummary]
+            + save_evaluation_results(summary, results, output_dir): void
+            + create_visualization(result, metrics, show, save_path): void
+            - _compute_pointing_game(attribution, bbox_mask, threshold): Dict
+            - _compute_iou(attribution, bbox_mask, threshold): float
+            - _compute_coverage(attribution, bbox_mask, percentile): float
+           }
+
+        class XAIMetrics RESULT_COLOR {
+            + pointing_game_hit: bool
+            + pointing_game_threshold: float
+            + iou_score: float
+            + iou_threshold: float
+            + coverage_score: float
+            + coverage_percentile: float
+            + intersection_area: float
+            + bbox_area: float
+            + attribution_area: float
+            + precision: float
+            + recall: float
+        }
+
+        class EvaluationSummary RESULT_COLOR {
+            + explainer_name: str
+            + model_name: str
+            + total_samples: int
+            + samples_with_bbox: int
+            + prediction_accuracy: float
+            + pointing_game_score: float
+            + average_iou: float
+            + average_coverage: float
+            + average_precision: float
+            + average_recall: float
+            + average_processing_time: float
+            + evaluation_timestamp: str
+        }
+    }
+
+    package Visualization {
+        class Visualiser COMPONENT_COLOR {
+            - show: bool
+            - save_path: Path
+            + __init__(show: bool = True, save_path: Path = None)
+            + create_visualization(result: XAIExplanationResult,
+                                   metrics: XAIMetrics = None)
+        }
+        }
 }
 
 ' ==== RELATIONSHIPS ====
 
-' Coordinator Dependencies
-XAIPipelineCoordinator *-- PipelineConfig : contains
-XAIPipelineCoordinator *-- XAIOrchestrator : orchestrates
-XAIPipelineCoordinator *-- XAIEvaluator : evaluates
-XAIPipelineCoordinator *-- ImageNetValidationDataset : processes
-
 ' Orchestrator Dependencies
-XAIOrchestrator *-- ModelFactory : uses
+XAIOrchestrator *-- PytorchModelFactory : uses
 XAIOrchestrator *-- XAIFactory : uses
 XAIOrchestrator ..> ImageNetValidationDataset : processes
 XAIOrchestrator ..> BaseExplainer : creates & uses
 XAIOrchestrator ..> XAIExplanationResult : produces
+XAIOrchestrator *-- XAIEvaluator : evaluates
+XAIOrchestrator *-- ConfigurationManager
+XAIOrchestrator *-- Visualiser
 
+'Config Dependencies
+ConfigurationManager..> SimpleYMALConfig
 ' Evaluator Dependencies
 XAIEvaluator ..> XAIExplanationResult : evaluates
 XAIEvaluator ..> XAIMetrics : produces
 XAIEvaluator ..> EvaluationSummary : produces
 
 ' Factory Dependencies
-ModelFactory ..> ModelInterface : creates
+PytorchModelFactory ..> PytorchModel : creates
 XAIFactory ..> BaseExplainer : creates
 BaseExplainer ..> ExplainerResult : produces
 
 ' Data Flow Dependencies
-ModelInterface ..> XAIOrchestrator : provides model
+PytorchModel ..> XAIOrchestrator : provides model
 BaseExplainer ..> XAIOrchestrator : provides explanations
 ExplainerResult ..> XAIExplanationResult : contributes to
+
+' Visualisation Dependencies
+Visualiser --> XAIExplanationResult : uses
+Visualiser --> XAIMetrics : optional
 
 ' ==== DATA FLOW ANNOTATIONS ====
 
 note as DataFlow1
-  **Primary Data Flow:**
-  1. Dataset Item → Orchestrator
-  2. Model Prediction → XAIExplanationResult
-  3. XAI Attribution → XAIExplanationResult
-  4. XAIExplanationResult → Evaluator
-  5. Evaluation Metrics → Summary
+    **Primary Data Flow:**
+    1. Dataset Item → Orchestrator
+    2. Model Prediction → XAIExplanationResult
+    3. XAI Attribution → XAIExplanationResult
+    4. XAIExplanationResult → Evaluator
+    5. Evaluation Metrics → Summary
 end note
 
 note as DataFlow2
-  **Key Data Structures:**
-  • **Dataset Item**: Raw image + metadata
-  • **XAIExplanationResult**: Complete result with predictions + explanations
-  • **XAIMetrics**: Individual evaluation metrics
-  • **EvaluationSummary**: Aggregated statistics
+    **Key Data Structures:**
+    • **Dataset Item**: Raw image + metadata
+    • **XAIExplanationResult**: Complete result with predictions + explanations
+    • **XAIMetrics**: Individual evaluation metrics
+    • **EvaluationSummary**: Aggregated statistics
 end note
 
 DataFlow1 .right. XAIOrchestrator
-DataFlow2 .left. XAIEvaluator
+DataFlow2 .. XAIEvaluator
 
 ' ==== WORKFLOW ANNOTATION ====
 
 note as Workflow
-  **Typical Workflow:**
+    **Typical Workflow:**
 
-  1. **Setup**: Coordinator initializes Orchestrator + Evaluator
-  2. **Data Loading**: Dataset provides image paths + metadata
-  3. **Model Loading**: ModelFactory provides trained model
-  4. **Explainer Creation**: XAIFactory creates explainer instance
-  5. **Explanation Generation**: Orchestrator produces XAIExplanationResults
-  6. **Metric Calculation**: Evaluator computes XAI metrics
-  7. **Aggregation**: Evaluator creates summary statistics
-  8. **Storage**: Results saved as JSON + visualizations
+    1. **Setup**: Coordinator initializes Orchestrator + Evaluator
+    2. **Data Loading**: Dataset provides image paths + metadata
+    3. **Model Loading**: ModelFactory provides trained model
+    4. **Explainer Creation**: XAIFactory creates explainer instance
+    5. **Explanation Generation**: Orchestrator produces XAIExplanationResults
+    6. **Metric Calculation**: Evaluator computes XAI metrics
+    7. **Aggregation**: Evaluator creates summary statistics
+    8. **Storage**: Results saved as JSON + visualizations
 end note
 
-Workflow .up. XAIPipelineCoordinator
+Workflow .up. XAIOrchestrator
 
 @enduml

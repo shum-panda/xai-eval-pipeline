@@ -23,20 +23,20 @@ skinparam activity {
 }
 
 start
-
-:Datenlade-Modul
-----
-• ImageNet Dataset laden
-• Bounding Box Annotationen
-• Bild-Preprocessing
-• Daten-Normalisierung;<<Data>>
-
-:ResNet50 Modell
-----
-• Vortrainiert auf ImageNet
-• Bildklassifikation
-• Feature Maps extrahieren
-• Target Layer: layer4;<<Model>>
+ partition "Prepare"
+    fork
+    :Datenlade-Modul
+    ----
+    • ImageNet Dataset laden
+    • Bounding Box Annotationen
+    • Bild-Preprocessing
+    • Daten-Normalisierung;<<Data>>
+    :ResNet50 Modell
+    ----
+    • Vortrainiert auf ImageNet
+    • Bildklassifikation
+    • Feature Maps extrahieren
+    • Target Layer: layer4;<<Model>>
 
 partition "XAI-Methoden (parallel)" {
   fork
@@ -67,13 +67,6 @@ partition "XAI-Methoden (parallel)" {
 • Pixel Precision/Recall
 • Ground Truth Vergleich
 • Statistische Tests;<<Eval>>
-
-:Ergebnisverarbeitung
-----
-• Metriken aggregieren
-• Rankings erstellen
-• Statistiken berechnen
-• Signifikanz testen;<<Process>>
 
 partition "Visualisierung & Output" {
   fork
