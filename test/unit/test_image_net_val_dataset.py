@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from PIL import Image
 import xml.etree.ElementTree as ET
 
-from data.image_net_val_dataset import create_dataloader, collate_fn, parse_bbox, ImageNetValDataset
+
 
 
 class TestImageNetValDataset(unittest.TestCase):
