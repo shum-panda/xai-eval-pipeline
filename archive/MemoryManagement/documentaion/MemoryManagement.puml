@@ -1,0 +1,41 @@
+@startuml
+package "Memory Management" {
+    interface ExplainerCallable <<Protocol>> {
+        + __call__(images: torch.Tensor) : torch.Tensor
+    }
+
+    abstract class BatchProcessor {
+        + {abstract} process_batch(images: torch.Tensor, explain_fn: ExplainerCallable) : torch.Tensor
+    }
+
+    class DirectBatchProcessor {
+        + process_batch(images: torch.Tensor, explain_fn: ExplainerCallable) : torch.Tensor
+    }
+
+    class AdaptiveBatchProcessor {
+        + target_memory_usage : float
+        + kp : float
+        + max_batch_size : int
+        - current_batch_size : int
+        - memory_history : list
+        --
+        + process_batch(images: torch.Tensor, explain_fn: ExplainerCallable) : torch.Tensor
+        - _estimate_initial_batch_size(sample: torch.Tensor, explain_fn: ExplainerCallable) : int
+        - _adjust_batch_size(memory_usage: float) : void
+        - _get_gpu_memory_usage() : float
+    }
+}
+
+
+
+' Strategy Pattern - Dependency Injection
+GradCAMExplainer o--> BatchProcessor : uses (injected)
+IntegratedGradientsExplainer o--> BatchProcessor : uses (injected)
+GuidedBackpropExplainer o--> BatchProcessor : uses (injected)
+
+BatchProcessor <|-- DirectBatchProcessor
+BatchProcessor <|-- AdaptiveBatchProcessor
+BatchProcessor ..> ExplainerCallable : uses callback
+
+note right of BatchProcessor : Strategy Pattern\nNo circular dependencies\nUses callbacks only
+@enduml

@@ -1,0 +1,89 @@
+@startuml SimpleXAIModelFactory
+
+' Base Model Interface for XAI
+interface XAIModel {
+    + get_conv_layers() : List[str]
+    + get_layer_by_name(layer_name: str) : nn.Module
+    + get_model_info() : dict
+    + get_pytorch_model() : nn.Module
+}
+
+' Concrete Model Implementations
+class PytorchModel {
+    - model: torch.nn.Module
+    - model_name: str
+    - logger: Logger
+    + __init__(model: nn.Module, model_name: str)
+    + get_conv_layers() : List[str]
+    + get_layer_by_name(layer_name: str) : nn.Module
+    + get_model_info() : dict
+    + get_pytorch_model() : nn.Module
+    - _setup_for_xai() : void
+}
+
+class CustomPytorchModel {
+    - model: torch.nn.Module
+    - model_name: str
+    - config: dict
+    + __init__(model: nn.Module, model_name: str, config: dict)
+    + get_conv_layers() : List[str]
+    + get_layer_by_name(layer_name: str) : nn.Module
+    + get_model_info() : dict
+    + get_pytorch_model() : nn.Module
+    + load_custom_weights(path: str) : void
+}
+
+' Main Factory with integrated Registry
+class SimpleXAIModelFactory {
+    - _loaders: Dict[str, callable]
+    - _current_model: Optional[XAIModel]
+    - logger: Logger
+    + __init__()
+    + register_custom_model(name: str, loader: callable) : void
+    + register_from_class(name: str, model_class: type, **kwargs) : void
+    + register_from_file(name: str, weights_path: str, model_factory: callable) : void
+    + create_model(model_key: str, config: dict = None) : XAIModel
+    + list_available_models() : List[str]
+    + get_current_model() : Optional[XAIModel]
+    + unload_current_model() : void
+    - _setup_pytorch_hub() : void
+    - _cleanup_current_model() : void
+}
+
+' Model Loader Functions (stored in _loaders dict)
+class "Model Loaders" as ML {
+    pytorch_hub_loaders: callable
+    custom_model_loaders: callable
+    file_based_loaders: callable
+    class_based_loaders: callable
+}
+
+' Relationships
+XAIModel <|.. PytorchModel
+XAIModel <|.. CustomPytorchModel
+
+SimpleXAIModelFactory *-- ML : stores in _loaders dict
+SimpleXAIModelFactory ..> XAIModel : creates
+SimpleXAIModelFactory ..> PytorchModel : creates via loaders
+SimpleXAIModelFactory ..> CustomPytorchModel : creates via loaders
+
+' Usage Examples
+note right of SimpleXAIModelFactory : "USAGE EXAMPLES:\n\n// Auto-setup PyTorch Hub models\nfactory = SimpleXAIModelFactory()\nmodel = factory.create_model('resnet50')\n\n// Register custom model\ndef my_loader(config):\n    return CustomPytorchModel(MyNet(), 'my_net', config)\nfactory.register_custom_model('my_net', my_loader)\n\n// Register from class\nfactory.register_from_class('simple_net', MyNetClass, num_classes=10)\n\n// Register from file\nfactory.register_from_file('trained_net', 'weights.pth', model_factory)\n\n// Use models\nmodel1 = factory.create_model('resnet50')    // PyTorch Hub\nmodel2 = factory.create_model('my_net')      // Custom\nmodel3 = factory.create_model('simple_net')  // From class"
+
+note left of ML : "LOADER FUNCTIONS:\n\n_loaders = {\n  'resnet50': pytorch_hub_loader,\n  'vgg16': pytorch_hub_loader,\n  'my_net': custom_loader,\n  'simple_net': class_loader,\n  'trained_net': file_loader\n}\n\nEach loader is a callable:\n(config: dict) -> XAIModel"
+
+note bottom of SimpleXAIModelFactory : "FEATURES:\n• PyTorch Hub models auto-registered\n• Memory management (one model at a time)\n• Multiple registration methods\n• Simple string-based model keys\n• No complex namespace parsing\n• Extensible for any model type"
+
+' Styling
+skinparam class {
+    BackgroundColor<<Factory>> LightBlue
+    BackgroundColor<<Model>> LightGreen
+    BackgroundColor<<Interface>> LightYellow
+}
+
+class SimpleXAIModelFactory <<Factory>>
+class PytorchModel <<Model>>
+class CustomPytorchModel <<Model>>
+interface XAIModel <<Interface>>
+
+@enduml
