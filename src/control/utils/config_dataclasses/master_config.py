@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from control.utils.config_dataclasses.data_config import DataConfig
 from control.utils.config_dataclasses.experiment_config import ExperimentConfig
@@ -13,12 +13,12 @@ from control.utils.config_dataclasses.xai_config import XAIConfig
 
 @dataclass
 class MasterConfig:
-    experiment: ExperimentConfig = ExperimentConfig()
-    hardware: HardwareConfig = HardwareConfig()
-    model: ModelConfig = ModelConfig()
-    data: DataConfig = DataConfig()
-    xai: XAIConfig = XAIConfig()
-    metrics: MetricsConfig = MetricsConfig()
-    visualization: VisualizationConfig = VisualizationConfig()
-    logging: LoggingConfig = LoggingConfig()
-    reporting: ReportingConfig = ReportingConfig()
+    experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
+    hardware: HardwareConfig = field(default_factory=HardwareConfig)
+    model: ModelConfig = field(default_factory=ModelConfig)
+    data: DataConfig = field(default_factory=DataConfig)
+    xai: XAIConfig = field(default_factory=XAIConfig)
+    metrics: MetricsConfig = field(default_factory=MetricsConfig)
+    visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    reporting: ReportingConfig = field(default_factory=ReportingConfig)
