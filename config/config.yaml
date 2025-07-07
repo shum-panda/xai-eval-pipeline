@@ -24,7 +24,7 @@ data:
     horizontal_flip: false          # Apply random horizontal flips during training
     random_crop: false              # Apply random crops during training
   max_samples: 200                  # Maximum number of samples to process
-  batch_size: 32                    # Number of samples per batch
+  batch_size: 16                    # Number of samples per batch
   max_batches: null                 # Limit number of batches processed (null for no limit)
   num_workers: 4                    # Number of workers for data loading
   pin_memory: true                  # Whether to use pinned memory (recommended with CUDA)

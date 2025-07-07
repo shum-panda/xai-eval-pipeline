@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Type
 
 from pipeline_moduls.models.base.interface.xai_model import XAIModel
 from pipeline_moduls.models.base.model_registry import ModelRegistry
-from pipeline_moduls.models.implementation.pytorch_model import PytorchHubModel
+from pipeline_moduls.models.implementation.pytorch_hub_model import PytorchHubModel
 
 
 class XAIModelFactory:
@@ -120,7 +120,8 @@ class XAIModelFactory:
             pass
 
     def _ensure_builtin_models_registered(self) -> None:
-        """Ensure builtin models are registered in this factory's registry"""
+        """Ensure builtin models are registered in this factory's registry
+        todo should extracted"""
         # Common PyTorch Hub models
         hub_models = [
             'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152',

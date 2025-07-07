@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from control.utils.dataclasses import ExplainerResult
+from control.utils.dataclasses.explainer_result import ExplainerResult
 
 
 class XAIInterface(ABC):

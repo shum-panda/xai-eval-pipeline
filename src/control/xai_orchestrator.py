@@ -16,9 +16,10 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from control.utils.config_dataclasses import MasterConfig
-from control.utils.dataclasses import XAIExplanationResult
+from control.utils.config_dataclasses.master_config import MasterConfig
+from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from control.utils.describe_batch import describe_batch
+from pipeline_moduls.ResultManager.result_manager import ResultManager
 from pipeline_moduls.data.image_net_val_dataset import create_dataloader
 from pipeline_moduls.data.utils.collate_fn import explain_collate_fn
 from pipeline_moduls.evaluation.metric_calculator import XAIEvaluator
@@ -47,7 +48,8 @@ class XAIOrchestrator:
             config: MasterConfig object loaded by Hydra.
         """
         self.logger = logging.getLogger(__name__)
-        self.config = config  # Directly store the Hydra-loaded config
+        self.config = config
+        self.result_manager = ResultManager()
 
         # Setup factories
         self.model_factory: XAIModelFactory = XAIModelFactory()
@@ -278,7 +280,7 @@ class XAIOrchestrator:
                     explainer=explainer,
                     max_batches=max_batches
                 ))
-
+                self.result_manager.add_results(explainer_results)
                 results[explainer_name] = explainer_results
 
             except Exception as e:
@@ -332,6 +334,8 @@ class XAIOrchestrator:
                 self.logger.error(f"Type error in batch {batch_idx}: {e}")
             except Exception as e:
                 self.logger.error(f"Unexpected error in batch {batch_idx}: {e}")
+            finally:
+                torch.cuda.empty_cache()
 
     def switch_model(self, model_name: str):
         """
@@ -360,84 +364,84 @@ class XAIOrchestrator:
 
     def run(self) -> Dict[str, Any]:
         """
-        Main execution method for the XAI pipeline. Loads data, runs explanation,
-        evaluates results, and creates visualizations.
+        Main entry point for running the XAI pipeline.
         """
-        self.logger.info(f"🚀 Starting experiment: {self.config.experiment.name}")
+        self.logger.info(f"Starting experiment: {self.config.experiment.name}")
 
-        # 1. DataLoader setup
-        dataloader = self.setup_dataloader(
-            batch_size=self.config.data.batch_size,
-            num_workers=self.config.data.num_workers,
-            pin_memory=self.config.data.pin_memory,
-            shuffle=self.config.data.shuffle,
-            target_size=self.config.data.resize
-        )
+        # 1. Setup dataloader
+        dataloader = self.setup_dataloader()
 
-        # 2. Explainer setup
+        # 2. Create explainer
         explainer = self.create_explainer(
             explainer_name=self.config.xai.name,
-            **(self.config.xai.kwargs or {})
+            **self.config.xai.kwargs
         )
 
-        # 3. Run explanation
-        self.logger.info(f"📊 Processing with explainer: {self.config.xai.name}...")
-        results = list(self.process_dataloader(
-            dataloader=dataloader,
-            explainer=explainer,
-            max_batches=self.config.data.max_batches
-        ))
+        # 3. Process data and collect results
+        self.logger.info(f"Processing samples with {self.config.xai.name}...")
+        processed_samples = 0
+
+        for _ in self.process_dataloader(
+                dataloader=dataloader,
+                explainer=explainer,
+                max_batches=self.config.data.max_batches):
+            processed_samples += 1
+
+        self.logger.info(f"Processed {processed_samples} samples")
 
         # 4. Evaluate results
-        self.logger.info("📈 Calculating evaluation metrics...")
-        summary = self.evaluator.evaluate_batch_results(results)
+        results_df = self.result_manager.get_dataframe()  # Zugriff auf alle Ergebnisse
+        self.logger.info("Calculating evaluation metrics...")
+        summary = self.evaluator.evaluate_batch_results(results_df)
 
-        # 5. Save results
+        # 5. Save results dataframe and summary
         output_dir = Path(self.config.experiment.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        self.logger.info(f"💾 Saving results to: {output_dir}")
 
-        self.evaluator.save_evaluation_results(
-            summary=summary,
-            detailed_results=results,
-            output_dir=output_dir
-        )
+        csv_path = output_dir / "results.csv"
+        self.result_manager.save_dataframe(str(csv_path))
+        self.logger.info(f"Results saved to {csv_path}")
 
-        # 6. Create visualizations if enabled
+        summary_path = output_dir / "metrics_summary.yaml"
+        with open(summary_path, "w") as f:
+            import yaml
+            yaml.dump(summary, f)
+        self.logger.info(f"Metrics summary saved to {summary_path}")
+
+        # 6. Generate visualizations if enabled
         if self.config.visualization.save:
-            self.logger.info("🎨 Creating visualizations...")
-            bbox_results = [r for r in results if r.has_bbox]
-            for result in bbox_results:
+            self.logger.info("Generating visualizations...")
+            for _, row in results_df.iterrows():
+                result = XAIExplanationResult.from_dict(row.to_dict())
                 metrics = self.evaluator.evaluate_single_result(result)
-                self.visualiser.create_visualization(
-                    result=result,
-                    metrics=metrics
-                )
+                self.visualiser.create_visualization(result=result, metrics=metrics)
 
-        # 7. Return experiment summary
-        self.logger.info("✅ Experiment completed successfully!")
+        self.logger.info("Experiment complete!")
+
         return {
             'experiment_name': self.config.experiment.name,
             'explainer': self.config.xai.name,
-            'total_samples': len(results),
+            'total_samples': processed_samples,
             'summary': summary,
             'output_dir': str(output_dir),
+            'results_csv': str(csv_path),
+            'metrics_summary': str(summary_path)
         }
 
     def quick_test(self, n_samples: int = 5) -> Dict[str, Any]:
         """Schneller Test mit wenigen Samples"""
-        original_max = self.config.max_samples
-        original_viz = self.config.save_visualizations
+        original_max = self.config.data.max_samples
+        original_viz = self.config.visualization.save
 
         # Temporär anpassen
-        self.config.max_samples = n_samples
-        self.config.save_visualizations = False
+        self.config.data.max_samples = n_samples
+        self.config.visualization.save = False
 
         try:
             result = self.run()
             return result
         finally:
             # Restore
-            self.config.max_samples = original_max
-            self.config.save_visualizations = original_viz
+            self.config.data.max_samples = original_max
+            self.config.visualization.save = original_viz
 

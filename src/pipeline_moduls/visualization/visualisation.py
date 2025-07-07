@@ -6,9 +6,9 @@ from PIL import Image
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from pipeline_moduls.evaluation.metric_calculator import bbox_to_mask_tensor
 from pipeline_moduls.evaluation.dataclass.xai_metrics import XAIMetrics
-from control.utils.dataclasses import XAIExplanationResult
 
 
 class Visualiser:

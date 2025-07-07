@@ -4,14 +4,16 @@ XAI Evaluator - Evaluiert XAI Ergebnisse vom Orchestrator
 Getrennt von der Orchestrierung
 """
 import logging
+
+import pandas as pd
 import torch
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import json
 from datetime import datetime
 
-from control.utils.dataclasses import XAIExplanationResult
+from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from pipeline_moduls.evaluation.dataclass.evaluation_summary import EvaluationSummary
 from pipeline_moduls.evaluation.dataclass.xai_metrics import XAIMetrics
 
@@ -78,24 +80,32 @@ class XAIEvaluator:
             recall=recall
         )
 
-    def evaluate_batch_results(self, results: List[XAIExplanationResult],
+    def evaluate_batch_results(self, results: Union[List[XAIExplanationResult], pd.DataFrame],
                                **metric_kwargs) -> EvaluationSummary:
         """
-        Evaluiere eine Liste von XAI Ergebnissen
+        Evaluiere eine Liste oder DataFrame von XAI Ergebnissen
 
         Args:
-            results: Liste von XAI Explanation Results
+            results: Liste von XAIExplanationResult ODER DataFrame
             **metric_kwargs: Parameter für Metriken
 
         Returns:
-            Evaluation Summary
+            EvaluationSummary
         """
+        if isinstance(results, pd.DataFrame):
+            if results.empty:
+                raise ValueError("Leerer DataFrame übergeben")
+            # Konvertiere DataFrame → List[XAIExplanationResult]
+            results = [
+                XAIExplanationResult.from_dict(row.to_dict())
+                for _, row in results.iterrows()
+            ]
+
         if not results:
             raise ValueError("Keine Ergebnisse zum Evaluieren")
 
         self.logger.info(f"Evaluiere {len(results)} Ergebnisse...")
 
-        # Evaluiere jedes Ergebnis
         metrics_list = []
         correct_predictions = 0
         total_processing_time = 0
@@ -105,15 +115,13 @@ class XAIEvaluator:
             if result.prediction_correct is not None and result.prediction_correct:
                 correct_predictions += 1
 
-            # Processing Time
             total_processing_time += result.processing_time
 
-            # XAI Metrics (nur für Items mit BBox)
+            # XAI Metriken
             metrics = self.evaluate_single_result(result, **metric_kwargs)
             if metrics:
                 metrics_list.append(metrics)
 
-        # Aggregiere Metriken
         summary = self._aggregate_metrics(
             results=results,
             metrics_list=metrics_list,
@@ -244,8 +252,6 @@ class XAIEvaluator:
             json.dump(comparison_dict, f, indent=2)
 
         self.logger.info(f"Vergleich gespeichert: {comparison_file}")
-
-
 
 
     def _compute_pointing_game(self, attribution: torch.Tensor,
