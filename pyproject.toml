@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "xai-eval-pipeline"
+version = "0.1.0"
+description = "Projektbeschreibung hier"
+authors = ["Shium Rahman <shium.m.r@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "~1.26.4"
+sympy = "~1.14.0"
+pillow = "~11.2.1"
+matplotlib = "~3.10.3"
+PyYAML = "~6.0.2"
+captum = "~0.8.0"
+setuptools = "~80.9.0"
+mlflow = "~3.1.1"
+pandas = "~2.2.3"
+seaborn = "~0.13.2"
+hydra-core = "~1.3.2"
+omegaconf = "~2.3.0"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.0"
+isort = "^5.13.2"
+flake8 = "^7.0.0"
+mypy = "^1.10.0"
+pytest = "^8.2.2"
+types-PyYAML = "*"
+types-setuptools = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = 3.10
+ignore_missing_imports = true
+strict_optional = true
+check_untyped_defs = true
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
