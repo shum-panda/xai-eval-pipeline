@@ -3,9 +3,7 @@ from torch.utils.data import DataLoader
 
 
 def auto_batchsize_test(
-        dataloader:DataLoader,
-        max_batch_size: int = 128,
-        device: str = 'cuda'
+    dataloader: DataLoader, max_batch_size: int = 128, device: str = "cuda"
 ) -> int:
     """
     Testet automatisch die maximale Batch-Größe für die verfügbare GPU.
@@ -19,7 +17,7 @@ def auto_batchsize_test(
         int: Empfohlene maximale Batch-Größe
 
     """
-    if not torch.cuda.is_available() and device == 'cuda':
+    if not torch.cuda.is_available() and device == "cuda":
         print("CUDA nicht verfügbar, verwende CPU")
         return 16
 
@@ -34,11 +32,10 @@ def auto_batchsize_test(
         try:
             print(f"  Teste Batch-Größe {batch_size}...")
 
-
             # Teste einen Batch
             images, labels, boxes = next(iter(dataloader))
 
-            if device == 'cuda':
+            if device == "cuda":
                 images = images.cuda()
                 labels = labels.cuda()
 
@@ -63,4 +60,3 @@ def auto_batchsize_test(
 
     print(f"Empfohlene maximale Batch-Größe: {successful_batch_size}")
     return successful_batch_size
-

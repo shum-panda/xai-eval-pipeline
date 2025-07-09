@@ -10,11 +10,13 @@ from archive.MemoryManagement.base.explainer_callable import ExplainerCallable
 class AdaptiveBatchProcessor(BatchProcessor):
     """Adaptive Batch-Verarbeitung mit Memory Management."""
 
-    def __init__(self,
-                 target_memory_usage: float = 0.8,
-                 kp: float = 0.1,
-                 max_batch_size: int = 32,
-                 min_batch_size: int = 1):
+    def __init__(
+        self,
+        target_memory_usage: float = 0.8,
+        kp: float = 0.1,
+        max_batch_size: int = 32,
+        min_batch_size: int = 1,
+    ):
         self.target_memory_usage = target_memory_usage
         self.kp = kp
         self.max_batch_size = max_batch_size
@@ -25,9 +27,9 @@ class AdaptiveBatchProcessor(BatchProcessor):
         self.memory_history = []
         self.max_history = 5
 
-    def process_batch(self,
-                      images: torch.Tensor,
-                      explain_fn: ExplainerCallable) -> torch.Tensor:
+    def process_batch(
+        self, images: torch.Tensor, explain_fn: ExplainerCallable
+    ) -> torch.Tensor:
         """
         Verarbeitet Bilder mit adaptivem Batching.
 
@@ -38,7 +40,9 @@ class AdaptiveBatchProcessor(BatchProcessor):
 
         # Initial batch size bestimmen
         if self.current_batch_size == self.min_batch_size:
-            self.current_batch_size = self._estimate_initial_batch_size(images[0:1], explain_fn)
+            self.current_batch_size = self._estimate_initial_batch_size(
+                images[0:1], explain_fn
+            )
 
         all_results = []
         processed_count = 0
@@ -68,11 +72,14 @@ class AdaptiveBatchProcessor(BatchProcessor):
 
             except RuntimeError as e:
                 if "out of memory" in str(e).lower():
-                    self.logger.warning(f"OOM: reducing batch size from {self.current_batch_size}")
+                    self.logger.warning(
+                        f"OOM: reducing batch size from {self.current_batch_size}"
+                    )
                     torch.cuda.empty_cache()
                     gc.collect()
-                    self.current_batch_size = max(self.min_batch_size,
-                                                  self.current_batch_size // 2)
+                    self.current_batch_size = max(
+                        self.min_batch_size, self.current_batch_size // 2
+                    )
                     continue
                 else:
                     raise e
@@ -80,9 +87,9 @@ class AdaptiveBatchProcessor(BatchProcessor):
         # Ergebnisse concatenieren
         return torch.cat(all_results, dim=0)
 
-    def _estimate_initial_batch_size(self,
-                                     sample: torch.Tensor,
-                                     explain_fn: ExplainerCallable) -> int:
+    def _estimate_initial_batch_size(
+        self, sample: torch.Tensor, explain_fn: ExplainerCallable
+    ) -> int:
         """Schätzt sichere Initial-Batch-Size."""
         try:
             # Test mit Sample
@@ -97,8 +104,9 @@ class AdaptiveBatchProcessor(BatchProcessor):
             available_memory = (1.0 - memory_before) * self.target_memory_usage
             estimated_batch_size = int(available_memory / memory_per_sample)
 
-            return max(self.min_batch_size,
-                       min(estimated_batch_size, self.max_batch_size))
+            return max(
+                self.min_batch_size, min(estimated_batch_size, self.max_batch_size)
+            )
 
         except Exception as e:
             self.logger.warning(f"Error estimating batch size: {e}")
@@ -116,11 +124,14 @@ class AdaptiveBatchProcessor(BatchProcessor):
         if abs(target_diff) > threshold:
             adjustment_factor = 1.0 + (self.kp * target_diff)
             new_batch_size = int(self.current_batch_size * adjustment_factor)
-            new_batch_size = max(self.min_batch_size,
-                                 min(new_batch_size, self.max_batch_size))
+            new_batch_size = max(
+                self.min_batch_size, min(new_batch_size, self.max_batch_size)
+            )
 
             if new_batch_size != self.current_batch_size:
-                self.logger.debug(f"Batch size: {self.current_batch_size} -> {new_batch_size}")
+                self.logger.debug(
+                    f"Batch size: {self.current_batch_size} -> {new_batch_size}"
+                )
                 self.current_batch_size = new_batch_size
 
     def _get_gpu_memory_usage(self) -> float:

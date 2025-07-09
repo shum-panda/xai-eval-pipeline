@@ -6,6 +6,7 @@ class XAIMetrics:
     """
     Strukturierte XAI Evaluation Metriken
     """
+
     # Pointing Game
     pointing_game_hit: bool
     pointing_game_threshold: float

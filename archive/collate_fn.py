@@ -3,10 +3,9 @@ from typing import List, Tuple
 from sympy.printing.pytorch import torch
 
 
-
-
-def train_collate_fn(batch: List[ImageNetSample]) -> Tuple[
-    torch.Tensor, torch.Tensor, List[torch.Tensor]]:
+def train_collate_fn(
+    batch: List[ImageNetSample],
+) -> Tuple[torch.Tensor, torch.Tensor, List[torch.Tensor]]:
     """
     Custom Collate Function für variable Anzahl von Bounding Boxes.
 

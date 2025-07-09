@@ -1,6 +1,6 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Union, Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 
@@ -19,6 +19,7 @@ class XAIExplanationResult:
     has_bbox: bool
     predicted_class: int
     attribution: torch.Tensor
+    attribution_path: Optional[str] = None
 
     # Optional fields (with defaults)
     bbox: Optional[torch.Tensor] = None
@@ -29,8 +30,12 @@ class XAIExplanationResult:
     true_label: Optional[int] = None
     true_label_name: Optional[str] = None
     prediction_correct: bool = False
-    prediction_confidence: Optional[float] = None  # e.g., softmax prob for predicted class
-    topk_predictions: Optional[List[int]] = None  # list of top-k predicted class indices
+    prediction_confidence: Optional[float] = (
+        None  # e.g., softmax prob for predicted class
+    )
+    topk_predictions: Optional[List[int]] = (
+        None  # list of top-k predicted class indices
+    )
     topk_confidences: Optional[List[float]] = None  # confidences for top-k predictions
 
     explainer_result: Optional[Any] = None  # explainer-specific return
@@ -48,13 +53,15 @@ class XAIExplanationResult:
     timestamp: Optional[str] = None  # e.g., ISO time when result was created
 
     def to_dict(self) -> Dict:
-        data = asdict(self)
-        if isinstance(data["image_path"], Path):
-            data["image_path"] = str(data["image_path"])
-        data["image"] = f"<Tensor shape={tuple(self.image.shape)}>"
-        data["attribution"] = f"<Tensor shape={tuple(self.attribution.shape)}>"
-        if isinstance(data.get("bbox"), torch.Tensor):
-            data["bbox"] = f"<Tensor shape={tuple(self.bbox.shape)}>"
+        data = {}
+        for field in self.__dataclass_fields__:
+            value = getattr(self, field)
+            if isinstance(value, torch.Tensor):
+                data[field] = f"<Tensor shape={tuple(value.shape)}>"
+            elif isinstance(value, Path):
+                data[field] = str(value)
+            else:
+                data[field] = value
         return data
 
     @staticmethod
@@ -62,5 +69,5 @@ class XAIExplanationResult:
         return XAIExplanationResult(
             image=None,
             attribution=None,
-            **{k: v for k, v in d.items() if k not in ["image", "attribution"]}
+            **{k: v for k, v in d.items() if k not in ["image", "attribution"]},
         )

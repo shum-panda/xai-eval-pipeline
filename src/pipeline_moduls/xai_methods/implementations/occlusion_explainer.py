@@ -10,7 +10,7 @@ from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 @dataclass
 class OcclusionConfig:
     sliding_window_shape: tuple = (3, 15, 15)  # channels, height, width
-    stride: tuple = (3, 8, 8)                  # channels, height, width
+    stride: tuple = (3, 8, 8)  # channels, height, width
 
 
 class OcclusionExplainer(BaseExplainer):
@@ -37,7 +37,10 @@ class OcclusionExplainer(BaseExplainer):
         self.occlusion = Occlusion(self.model)
         self.model.eval()
 
-        self.logger.info(f"Occlusion initialized with sliding_window_shape={self.sliding_window_shape}, stride={self.stride}")
+        self.logger.info(
+            "Occlusion initialized with sliding_window_shape="
+            f"{self.sliding_window_shape}, stride={self.stride}"
+        )
 
     def _compute_attributions(self, images: torch.Tensor) -> torch.Tensor:
         """
@@ -62,10 +65,12 @@ class OcclusionExplainer(BaseExplainer):
                 inputs=images,
                 strides=self.stride,
                 sliding_window_shapes=self.sliding_window_shape,
-                target=target_classes
+                target=target_classes,
             )
 
-            self.logger.debug(f"Computed Occlusion attributions with shape: {attributions.shape}")
+            self.logger.debug(
+                f"Computed Occlusion attributions with shape: {attributions.shape}"
+            )
             return attributions
 
         except Exception as e:

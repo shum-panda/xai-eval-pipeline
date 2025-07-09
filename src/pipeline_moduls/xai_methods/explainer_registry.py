@@ -1,5 +1,5 @@
 import threading
-from typing import List, Type, Dict, Optional
+from typing import Dict, List, Optional, Type
 
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 
@@ -13,7 +13,7 @@ class ExplainerRegistry:
         _registry: Dictionary mapping explainer names to classes
     """
 
-    _instance: Optional['ExplainerRegistry'] = None
+    _instance: Optional["ExplainerRegistry"] = None
     _lock = threading.Lock()
 
     def __new__(cls):
@@ -25,16 +25,18 @@ class ExplainerRegistry:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, '_initialized') or not self._initialized:
+        if not hasattr(self, "_initialized") or not self._initialized:
             self._registry: Dict[str, Type[BaseExplainer]] = {}
             self._initialized = True
 
     @classmethod
-    def get_instance(cls) -> 'ExplainerRegistry':
+    def get_instance(cls) -> "ExplainerRegistry":
         """Get the singleton registry instance"""
         return cls()
 
-    def register(self, name: Optional[str], explainer_class: Type[BaseExplainer]) -> None:
+    def register(
+        self, name: Optional[str], explainer_class: Type[BaseExplainer]
+    ) -> None:
         """
         Register an explainer class in the registry
 
@@ -43,12 +45,11 @@ class ExplainerRegistry:
             explainer_class: Class that inherits from BaseExplainer
         """
         if not issubclass(explainer_class, BaseExplainer):
-            raise TypeError(f"Explainer class must inherit from BaseExplainer")
+            raise TypeError("Explainer class must inherit from BaseExplainer")
 
         if not name:
-            name=explainer_class.get_name()
+            name = explainer_class.get_name()
         self._registry[name] = explainer_class
-
 
     def get(self, name: str) -> Type[BaseExplainer]:
         """
@@ -70,4 +71,3 @@ class ExplainerRegistry:
     def list_available(self) -> List[str]:
         """Return list of all registered explainer names"""
         return list(self._registry.keys())
-

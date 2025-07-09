@@ -12,7 +12,7 @@ from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 class GradCAMConfig:
     target_layer: int = -1  # -1 for last conv layer
     relu_attributions: bool = True
-    interpolate_mode: str = 'bilinear'
+    interpolate_mode: str = "bilinear"
 
 
 class GradCamExplainer(BaseExplainer):
@@ -78,7 +78,7 @@ class GradCamExplainer(BaseExplainer):
             attributions = self.gradcam.attribute(
                 inputs=images,
                 target=target_classes,
-                relu_attributions=self.relu_attributions
+                relu_attributions=self.relu_attributions,
             )
 
             # Interpolate attributions to match input image size
@@ -87,18 +87,24 @@ class GradCamExplainer(BaseExplainer):
                     attributions,
                     size=images.shape[-2:],
                     mode=self.interpolate_mode,
-                    align_corners=False
+                    align_corners=False,
                 )
 
             # Ensure attributions are non-negative if relu_attributions is True
-            if self.relu_attributions and not hasattr(self.gradcam, 'relu_attributions'):
+            if self.relu_attributions and not hasattr(
+                self.gradcam, "relu_attributions"
+            ):
                 attributions = torch.relu(attributions)
 
-            self.logger.debug(f"Computed GradCAM attributions with shape: {attributions.shape}")
+            self.logger.debug(
+                f"Computed GradCAM attributions with shape: {attributions.shape}"
+            )
             return attributions
 
         except Exception as e:
-            self.logger.error(f"Error computing GradCAM attributions: {str(e)}")#todo add correct Exception Handling
+            self.logger.error(
+                f"Error computing GradCAM attributions: {str(e)}"
+            )  # todo add correct Exception Handling
             # Fallback to dummy attributions for robustness
             self.logger.warning("Falling back to dummy attributions")
             attributions = torch.randn_like(images)
@@ -138,14 +144,20 @@ class GradCamExplainer(BaseExplainer):
                 self.logger.info(f"Selected conv layer {layer_idx}: {selected[0]}")
                 return selected[1]
             else:
-                self.logger.warning(f"Layer index {layer_idx} out of range, using last layer")
+                self.logger.warning(
+                    f"Layer index {layer_idx} out of range, using last layer"
+                )
                 return conv_modules[-1][1]
         else:
             # Assume it's already a module
             return layer_idx
 
-    def explain_with_target_class(self, images: torch.Tensor, target_classes: torch.Tensor,
-                                  target_labels: torch.Tensor) -> ExplainerResult:
+    def explain_with_target_class(
+        self,
+        images: torch.Tensor,
+        target_classes: torch.Tensor,
+        target_labels: torch.Tensor,
+    ) -> ExplainerResult:
         """
         Explain with specific target classes instead of predicted classes.
 
@@ -171,7 +183,7 @@ class GradCamExplainer(BaseExplainer):
             attributions = self.gradcam.attribute(
                 inputs=images,
                 target=target_classes,
-                relu_attributions=self.relu_attributions
+                relu_attributions=self.relu_attributions,
             )
 
             # Interpolate to input size
@@ -180,16 +192,18 @@ class GradCamExplainer(BaseExplainer):
                     attributions,
                     size=images.shape[-2:],
                     mode=self.interpolate_mode,
-                    align_corners=False
+                    align_corners=False,
                 )
 
-            if self.relu_attributions and not hasattr(self.gradcam, 'relu_attributions'):
+            if self.relu_attributions and not hasattr(
+                self.gradcam, "relu_attributions"
+            ):
                 attributions = torch.relu(attributions)
 
             return ExplainerResult(
                 attributions=attributions,
                 predictions=predictions,
-                target_labels=target_labels
+                target_labels=target_labels,
             )
 
         except Exception as e:
@@ -199,7 +213,6 @@ class GradCamExplainer(BaseExplainer):
             return self.explain(images, target_labels)
 
     @classmethod
-    def get_name(cls)-> str:
+    def get_name(cls) -> str:
         """Return explainer name"""
         return "gradcam"
-

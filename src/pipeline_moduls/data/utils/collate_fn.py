@@ -1,20 +1,22 @@
+from pathlib import Path
 from typing import List, Tuple
 
 import torch
 from torch import Tensor
-from pathlib import Path
 
 from pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
 
 
-def explain_collate_fn(batch: List[ImageNetSample]) -> Tuple[
-    Tensor,       # images stacked [B, C, H, W]
-    Tensor,       # labels stacked [B]
-    List[Tensor], # bounding box tensors, variable length per sample
-    List[Path],   # full image paths
-    List[str],    # image file names (only the name)
-    List[Path],   # bounding box annotation paths
-    List[int]     # labels as integers
+def explain_collate_fn(
+    batch: List[ImageNetSample],
+) -> Tuple[
+    Tensor,  # images stacked [B, C, H, W]
+    Tensor,  # labels stacked [B]
+    List[Tensor],  # bounding box tensors, variable length per sample
+    List[Path],  # full image paths
+    List[str],  # image file names (only the name)
+    List[Path],  # bounding box annotation paths
+    List[int],  # labels as integers
 ]:
     """
     Custom collate function for batching ImageNetSample dataclasses.
@@ -47,7 +49,6 @@ def explain_collate_fn(batch: List[ImageNetSample]) -> Tuple[
         image_paths,
         image_names,
         bbox_paths,
-        labels
+        labels,
     )
     return result
-

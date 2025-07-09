@@ -3,7 +3,9 @@ from typing import Tuple
 import numpy as np
 
 
-def resize_boxes(boxes: np.ndarray, orig_size: Tuple[int, int], new_size: Tuple[int, int]) -> np.ndarray:
+def resize_boxes(
+    boxes: np.ndarray, orig_size: Tuple[int, int], new_size: Tuple[int, int]
+) -> np.ndarray:
     """
     Skaliert Bounding Boxes entsprechend der Bildgrößenänderung.
 

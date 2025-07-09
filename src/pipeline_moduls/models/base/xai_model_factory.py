@@ -1,6 +1,6 @@
 import logging
 import threading
-from typing import Optional, List, Dict, Type
+from typing import Dict, List, Optional, Type
 
 from pipeline_moduls.models.base.interface.xai_model import XAIModel
 from pipeline_moduls.models.base.model_registry import ModelRegistry
@@ -49,7 +49,9 @@ class XAIModelFactory:
                 # Create the model instance
                 self._current_model = model_class(model_name=name, **kwargs)
 
-                self.logger.info(f"Successfully created model '{name}' of type {model_class.__name__}")
+                self.logger.info(
+                    f"Successfully created model '{name}' of type {model_class.__name__}"
+                )
                 return self._current_model
 
             except Exception as e:
@@ -96,9 +98,9 @@ class XAIModelFactory:
             # Get model info before cleanup
             try:
                 model_info = self._current_model.get_model_info()
-                model_name = model_info.get('name', 'unknown')
+                model_name = model_info.get("name", "unknown")
             except:
-                model_name = 'unknown'
+                model_name = "unknown"
 
             # Cleanup memory
             self._cleanup_memory()
@@ -109,11 +111,13 @@ class XAIModelFactory:
     def _cleanup_memory(self) -> None:
         """Cleanup memory (can be extended for specific cleanup logic)"""
         import gc
+
         gc.collect()
 
         # Clear CUDA cache if available
         try:
             import torch
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except ImportError:
@@ -124,17 +128,35 @@ class XAIModelFactory:
         todo should extracted"""
         # Common PyTorch Hub models
         hub_models = [
-            'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152',
-            'vgg11', 'vgg13', 'vgg16', 'vgg19',
-            'densenet121', 'densenet169', 'densenet201',
-            'mobilenet_v2', 'mobilenet_v3_large', 'mobilenet_v3_small',
-            'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2',
-            'alexnet', 'googlenet', 'inception_v3',
-            'squeezenet1_0', 'squeezenet1_1'
+            "resnet18",
+            "resnet34",
+            "resnet50",
+            "resnet101",
+            "resnet152",
+            "vgg11",
+            "vgg13",
+            "vgg16",
+            "vgg19",
+            "densenet121",
+            "densenet169",
+            "densenet201",
+            "mobilenet_v2",
+            "mobilenet_v3_large",
+            "mobilenet_v3_small",
+            "efficientnet_b0",
+            "efficientnet_b1",
+            "efficientnet_b2",
+            "alexnet",
+            "googlenet",
+            "inception_v3",
+            "squeezenet1_0",
+            "squeezenet1_1",
         ]
 
         for model_name in hub_models:
             if not self.registry.is_registered(model_name):
                 self.registry.register(model_name, PytorchHubModel)
 
-        self.logger.debug(f"Ensured {len(hub_models)} builtin PyTorch Hub models are registered")
+        self.logger.debug(
+            f"Ensured {len(hub_models)} builtin PyTorch Hub models are registered"
+        )

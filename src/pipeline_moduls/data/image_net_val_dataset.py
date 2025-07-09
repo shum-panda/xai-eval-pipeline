@@ -1,17 +1,18 @@
-from typing import List, Tuple, Optional, Dict, Any
-from pathlib import Path
-import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-from PIL import Image
 import warnings
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
+import torch
+from PIL import Image
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
 from torchvision.models.detection.transform import resize_boxes
 
 from pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
 from pipeline_moduls.data.utils.auto_batchsize_test import auto_batchsize_test
 from pipeline_moduls.data.utils.bbox_to_mask import parse_bbox
 from pipeline_moduls.data.utils.collate_fn import explain_collate_fn
+
 
 class ImageNetValDataset(Dataset):
     """
@@ -27,13 +28,13 @@ class ImageNetValDataset(Dataset):
     """
 
     def __init__(
-            self,
-            image_dir: Path,
-            annot_dir: Path,
-            label_file: Path,
-            transform: Optional[transforms.Compose] = None,
-            target_size: Optional[Tuple[int, int]] = None,
-            cache_annotations: bool = True
+        self,
+        image_dir: Path,
+        annot_dir: Path,
+        label_file: Path,
+        transform: Optional[transforms.Compose] = None,
+        target_size: Optional[Tuple[int, int]] = None,
+        cache_annotations: bool = True,
     ):
         self.image_dir = image_dir
         self.annot_dir = annot_dir
@@ -44,34 +45,43 @@ class ImageNetValDataset(Dataset):
         self.labels = self._load_labels(label_file)
 
         # Finde alle verfügbaren Bilder
-        self.image_files = sorted([f for f in self.image_dir.glob('*.JPEG')])
+        self.image_files = sorted([f for f in self.image_dir.glob("*.JPEG")])
 
         # Überprüfe Konsistenz
         if len(self.image_files) != len(self.labels):
-            warnings.warn(f"Anzahl Bilder ({len(self.image_files)}) != Anzahl Labels ({len(self.labels)})")
+            warnings.warn(
+                f"Anzahl Bilder ({len(self.image_files)}) != Anzahl Labels "
+                f"({len(self.labels)})"
+            )
 
         # Standard Transform falls nicht angegeben
         if transform is None:
             if target_size:
-                self.transform = transforms.Compose([
-                    transforms.Resize(target_size),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])
-                ])
+                self.transform = transforms.Compose(
+                    [
+                        transforms.Resize(target_size),
+                        transforms.ToTensor(),
+                        transforms.Normalize(
+                            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                        ),
+                    ]
+                )
             else:
-                self.transform = transforms.Compose([
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])
-                ])
+                self.transform = transforms.Compose(
+                    [
+                        transforms.ToTensor(),
+                        transforms.Normalize(
+                            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                        ),
+                    ]
+                )
         else:
             self.transform = transform
 
         # Cache für Annotationen
         self._annotation_cache = {} if cache_annotations else None
 
-        print(f"ImageNet Validation Dataset initialized:")
+        print("ImageNet Validation Dataset initialized:")
         print(f"  - {len(self.image_files)} images found")
         print(f"  - {len(self.labels)} labels loaded")
         print(f"  - Target size: {target_size}")
@@ -91,7 +101,7 @@ class ImageNetValDataset(Dataset):
             List[int]: Liste von 0-indexierten Klassenlabels
         """
         labels = []
-        with label_file.open('r') as f:
+        with label_file.open("r") as f:
             for line in f:
                 # Labels sind 1-indexiert, konvertiere zu 0-indexiert
                 label = int(line.strip()) - 1
@@ -113,7 +123,7 @@ class ImageNetValDataset(Dataset):
         image_path = self.image_files[idx]
         label = self.labels[idx]
         # Lade Bild
-        image = Image.open(image_path).convert('RGB')
+        image = Image.open(image_path).convert("RGB")
         orig_size = image.size  # (W, H)
 
         # Lade Bounding Boxes
@@ -136,15 +146,17 @@ class ImageNetValDataset(Dataset):
             label=label,
             label_tensor=label_tensor,
             bbox_path=xml_path,
-            bbox_tensor=boxes_tensor
+            bbox_tensor=boxes_tensor,
         )
         return sample
-
 
     def _get_boxes(self, xml_path: Path, orig_size: Tuple[int, int]) -> torch.Tensor:
         """Lädt und verarbeitet Bounding Boxes aus XML-Datei."""
         # Prüfe Cache
-        if self._annotation_cache is not None and str(xml_path) in self._annotation_cache:
+        if (
+            self._annotation_cache is not None
+            and str(xml_path) in self._annotation_cache
+        ):
             boxes = self._annotation_cache[str(xml_path)]
         else:
             try:
@@ -170,24 +182,24 @@ class ImageNetValDataset(Dataset):
         xml_path = self.annot_dir / f"{image_path.stem}.xml"
 
         return {
-            'image_path': str(image_path),
-            'xml_path': str(xml_path),
-            'label': self.labels[idx],
-            'exists_xml': xml_path.exists()
+            "image_path": str(image_path),
+            "xml_path": str(xml_path),
+            "label": self.labels[idx],
+            "exists_xml": xml_path.exists(),
         }
 
 
 def create_dataloader(
-        image_dir: Path,
-        annot_dir: Path,
-        label_file: Path,
-        batch_size: int = 16,
-        num_workers: int = 4,
-        pin_memory: bool = True,
-        shuffle: bool = False,
-        target_size: Optional[Tuple[int, int]] = (224, 224),
-        transform: Optional[transforms.Compose] = None,
-        custom_collate_fn=explain_collate_fn
+    image_dir: Path,
+    annot_dir: Path,
+    label_file: Path,
+    batch_size: int = 16,
+    num_workers: int = 4,
+    pin_memory: bool = True,
+    shuffle: bool = False,
+    target_size: Optional[Tuple[int, int]] = (224, 224),
+    transform: Optional[transforms.Compose] = None,
+    custom_collate_fn=explain_collate_fn,
 ) -> DataLoader:
     """
     Erstellt einen konfigurierten DataLoader für ImageNet Validation.
@@ -212,7 +224,7 @@ def create_dataloader(
         annot_dir=annot_dir,
         label_file=label_file,
         transform=transform,
-        target_size=target_size
+        target_size=target_size,
     )
 
     image_net_dataloader = DataLoader(
@@ -222,7 +234,7 @@ def create_dataloader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         collate_fn=custom_collate_fn,
-        drop_last=False
+        drop_last=False,
     )
 
     return image_net_dataloader
@@ -243,7 +255,7 @@ if __name__ == "__main__":
         label_file=label_file,
         batch_size=16,
         num_workers=4,
-        target_size=(224, 224)
+        target_size=(224, 224),
     )
 
     print(f"DataLoader erstellt mit {len(dataloader)} Batches")
@@ -256,7 +268,6 @@ if __name__ == "__main__":
         print(f"  Boxes: {len(boxes)} samples, shapes: {[b.shape for b in boxes[:3]]}")
         break
 
-    #Optional: Teste optimale Batch-Größe
+    # Optional: Teste optimale Batch-Größe
     optimal_batch_size = auto_batchsize_test(dataloader)
     print(optimal_batch_size)
-

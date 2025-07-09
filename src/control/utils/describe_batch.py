@@ -11,7 +11,9 @@ def describe_batch(batch):
             item_type = type(item).__name__
             if isinstance(item, list):
                 inner_types = {type(x).__name__ for x in item}
-                description.append(f"Item {i}: list[{', '.join(inner_types)}] (len={len(item)})")
+                description.append(
+                    f"Item {i}: list[{', '.join(inner_types)}] (len={len(item)})"
+                )
             elif isinstance(item, torch.Tensor):
                 description.append(f"Item {i}: Tensor {tuple(item.shape)}")
             else:

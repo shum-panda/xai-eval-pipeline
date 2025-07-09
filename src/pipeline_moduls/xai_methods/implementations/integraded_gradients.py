@@ -37,7 +37,10 @@ class IntegratedGradientsExplainer(BaseExplainer):
         self.ig = IntegratedGradients(self.model)
         self.model.eval()
 
-        self.logger.info(f"IntegratedGradients initialized with n_steps={self.n_steps}, baseline={self.baseline_type}")
+        self.logger.info(
+            f"IntegratedGradients initialized with n_steps={self.n_steps}, "
+            f"baseline={self.baseline_type}"
+        )
 
     def _compute_attributions(self, images: torch.Tensor) -> torch.Tensor:
         """
@@ -72,10 +75,13 @@ class IntegratedGradientsExplainer(BaseExplainer):
                 inputs=images,
                 baselines=baselines,
                 target=target_classes,
-                n_steps=self.n_steps
+                n_steps=self.n_steps,
             )
 
-            self.logger.debug(f"Computed Integrated Gradients attributions with shape: {attributions.shape}")
+            self.logger.debug(
+                "Computed Integrated Gradients attributions with shape: "
+                f"{attributions.shape}"
+            )
             return attributions
 
         except Exception as e:

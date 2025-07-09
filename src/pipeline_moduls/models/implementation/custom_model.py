@@ -1,4 +1,4 @@
-from typing import Type, Any, List
+from typing import Any, List, Type
 
 import torch
 
@@ -8,7 +8,13 @@ from pipeline_moduls.models.base.interface.xai_model import XAIModel
 class CustomModel(XAIModel):
     """XAI Model for custom PyTorch models"""
 
-    def __init__(self, model_name: str, model_class: Type = None, model_instance: Any = None, **kwargs):
+    def __init__(
+        self,
+        model_name: str,
+        model_class: Type = None,
+        model_instance: Any = None,
+        **kwargs,
+    ):
         super().__init__(model_name)
 
         if model_instance is not None:
@@ -33,35 +39,38 @@ class CustomModel(XAIModel):
         self.model.eval()
 
         # Move to appropriate device
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(device)
 
         self.logger.info(f"Custom model '{self.model_name}' ready for XAI on {device}")
 
     def load_weights(self, weights_path: str) -> None:
         """Load weights into the model"""
-        import torch
         import os
+
+        import torch
 
         if not os.path.exists(weights_path):
             raise FileNotFoundError(f"Weights file not found: {weights_path}")
 
         try:
             # Load state dict
-            state_dict = torch.load(weights_path, map_location='cpu')
+            state_dict = torch.load(weights_path, map_location="cpu")
 
             # Handle different save formats
-            if 'model_state_dict' in state_dict:
-                state_dict = state_dict['model_state_dict']
-            elif 'state_dict' in state_dict:
-                state_dict = state_dict['state_dict']
+            if "model_state_dict" in state_dict:
+                state_dict = state_dict["model_state_dict"]
+            elif "state_dict" in state_dict:
+                state_dict = state_dict["state_dict"]
 
             # Load into model
             self.model.load_state_dict(state_dict, strict=False)
             self.logger.info(f"Loaded weights from '{weights_path}'")
 
         except Exception as e:
-            raise RuntimeError(f"Failed to load weights from '{weights_path}': {str(e)}") from e
+            raise RuntimeError(
+                f"Failed to load weights from '{weights_path}': {str(e)}"
+            ) from e
 
     def get_conv_layers(self) -> List[str]:
         """Get all convolutional layer names for XAI target selection"""
@@ -80,7 +89,9 @@ class CustomModel(XAIModel):
                 return module
 
         available_layers = [name for name, _ in self.model.named_modules() if name]
-        raise ValueError(f"Layer '{layer_name}' not found. Available layers: {available_layers[:10]}...")
+        raise ValueError(
+            f"Layer '{layer_name}' not found. Available layers: {available_layers[:10]}..."
+        )
 
     def get_model_info(self) -> dict:
         """Get basic model information"""
@@ -88,14 +99,16 @@ class CustomModel(XAIModel):
         conv_layers = self.get_conv_layers()
 
         return {
-            'name': self.model_name,
-            'type': 'custom',
-            'class': type(self.model).__name__,
-            'total_parameters': total_params,
-            'num_conv_layers': len(conv_layers),
-            'device': str(next(self.model.parameters()).device),
-            'sample_conv_layers': conv_layers[-3:] if conv_layers else [],  # Last 3 for GradCAM
-            'config': self.config
+            "name": self.model_name,
+            "type": "custom",
+            "class": type(self.model).__name__,
+            "total_parameters": total_params,
+            "num_conv_layers": len(conv_layers),
+            "device": str(next(self.model.parameters()).device),
+            "sample_conv_layers": (
+                conv_layers[-3:] if conv_layers else []
+            ),  # Last 3 for GradCAM
+            "config": self.config,
         }
 
     def get_pytorch_model(self) -> torch.nn.Module:

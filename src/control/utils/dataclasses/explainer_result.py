@@ -6,6 +6,7 @@ from torch import Tensor
 @dataclass
 class ExplainerResult:
     """Clean result object containing everything needed for evaluation"""
+
     attributions: Tensor
     predictions: Tensor
     target_labels: Tensor
@@ -33,9 +34,8 @@ class ExplainerResult:
     def get_summary(self) -> dict:
         """Get evaluation summary"""
         return {
-            'accuracy': self.accuracy,
-            'correct': self.num_correct,
-            'total': self.num_total,
-            'attribution_shape': tuple(self.attributions.shape)
+            "accuracy": self.accuracy,
+            "correct": self.num_correct,
+            "total": self.num_total,
+            "attribution_shape": tuple(self.attributions.shape),
         }
-

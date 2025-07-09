@@ -1,6 +1,7 @@
-from unittest.mock import Mock
-import torch
 from pathlib import Path
+from unittest.mock import Mock
+
+import torch
 
 from control.xai_orchestrator import XAIOrchestrator
 
@@ -18,7 +19,15 @@ def test_explain_batch_with_mock():
     bbox_paths = [Path(f"/tmp/bbox_{i}.json") for i in range(B)]
     labels_int = [1, 2]
 
-    batch = (images_tensor, labels_tensor, boxes_list, image_paths, image_names, bbox_paths, labels_int)
+    batch = (
+        images_tensor,
+        labels_tensor,
+        boxes_list,
+        image_paths,
+        image_names,
+        bbox_paths,
+        labels_int,
+    )
 
     # 🔸 Mock für explainer + Rückgabeobjekt
     mock_explainer = Mock()

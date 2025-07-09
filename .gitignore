@@ -1,5 +1,12 @@
-*.json
+# ide
 .idea
+
+#data and results
 results
 data
 /outputs/
+*.json
+
+# MLflow
+mlruns/
+mlartifacts/

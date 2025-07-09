@@ -6,6 +6,7 @@ class EvaluationSummary:
     """
     Summary einer kompletten Evaluation
     """
+
     # Basic Info
     explainer_name: str
     model_name: str

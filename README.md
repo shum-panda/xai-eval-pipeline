@@ -14,7 +14,7 @@ The torch package version 2.7.1+cu118 and torchvision are **not installed direct
 
 1. Install the regular dependencies:
    ```bash
-   poetry install
+   poetry install --no-root
    ```
 
 2. Manually install `torch` and `torchvision` using `pip` from the official PyTorch CUDA index:

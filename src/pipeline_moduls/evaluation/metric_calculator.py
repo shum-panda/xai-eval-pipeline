@@ -3,15 +3,15 @@
 XAI Evaluator - Evaluiert XAI Ergebnisse vom Orchestrator
 Getrennt von der Orchestrierung
 """
+import json
 import logging
-
-import pandas as pd
-import torch
-import numpy as np
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-import json
-from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import torch
 
 from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from pipeline_moduls.evaluation.dataclass.evaluation_summary import EvaluationSummary
@@ -28,10 +28,13 @@ class XAIEvaluator:
         self.logger = logging.getLogger(__name__)
         self.logger.info("XAI Evaluator initialisiert")
 
-    def evaluate_single_result(self, result: XAIExplanationResult,
-                               pointing_threshold: float = 0.15,
-                               iou_threshold: float = 0.5,
-                               coverage_percentile: float = 90) -> Optional[XAIMetrics]:
+    def evaluate_single_result(
+        self,
+        result: XAIExplanationResult,
+        pointing_threshold: float = 0.15,
+        iou_threshold: float = 0.5,
+        coverage_percentile: float = 90,
+    ) -> Optional[XAIMetrics]:
         """
         Evaluiere ein einzelnes XAI Ergebnis
 
@@ -55,33 +58,40 @@ class XAIEvaluator:
         attribution = result.attribution
 
         # Pointing Game
-        pointing_metrics = self._compute_pointing_game(attribution, bbox_mask, pointing_threshold)
+        pointing_metrics = self._compute_pointing_game(
+            attribution, bbox_mask, pointing_threshold
+        )
 
         # IoU Score
         iou_score = self._compute_iou(attribution, bbox_mask, iou_threshold)
 
         # Coverage Score
-        coverage_score = self._compute_coverage(attribution, bbox_mask, coverage_percentile)
+        coverage_score = self._compute_coverage(
+            attribution, bbox_mask, coverage_percentile
+        )
 
         # Precision/Recall
-        precision, recall = self._compute_precision_recall(attribution, bbox_mask, iou_threshold)
+        precision, recall = self._compute_precision_recall(
+            attribution, bbox_mask, iou_threshold
+        )
 
         return XAIMetrics(
-            pointing_game_hit=pointing_metrics['hit']==1,
+            pointing_game_hit=pointing_metrics["hit"] == 1,
             pointing_game_threshold=pointing_threshold,
             iou_score=iou_score,
             iou_threshold=iou_threshold,
             coverage_score=coverage_score,
             coverage_percentile=coverage_percentile,
-            intersection_area=pointing_metrics['intersection'],
-            bbox_area=pointing_metrics['bbox_area'],
-            attribution_area=pointing_metrics['attr_area'],
+            intersection_area=pointing_metrics["intersection"],
+            bbox_area=pointing_metrics["bbox_area"],
+            attribution_area=pointing_metrics["attr_area"],
             precision=precision,
-            recall=recall
+            recall=recall,
         )
 
-    def evaluate_batch_results(self, results: Union[List[XAIExplanationResult], pd.DataFrame],
-                               **metric_kwargs) -> EvaluationSummary:
+    def evaluate_batch_results(
+        self, results: Union[List[XAIExplanationResult], pd.DataFrame], **metric_kwargs
+    ) -> EvaluationSummary:
         """
         Evaluiere eine Liste oder DataFrame von XAI Ergebnissen
 
@@ -126,14 +136,15 @@ class XAIEvaluator:
             results=results,
             metrics_list=metrics_list,
             correct_predictions=correct_predictions,
-            total_processing_time=total_processing_time
+            total_processing_time=total_processing_time,
         )
 
         self._log_summary(summary)
         return summary
 
-    def compare_explainers(self, explainer_results: Dict[str, List[XAIExplanationResult]],
-                           **metric_kwargs) -> Dict[str, EvaluationSummary]:
+    def compare_explainers(
+        self, explainer_results: Dict[str, List[XAIExplanationResult]], **metric_kwargs
+    ) -> Dict[str, EvaluationSummary]:
         """
         Vergleiche mehrere Explainer
 
@@ -161,9 +172,12 @@ class XAIEvaluator:
 
         return comparison_results
 
-    def save_evaluation_results(self, summary: EvaluationSummary,
-                                detailed_results: Optional[List[XAIExplanationResult]] = None,
-                                output_dir: Optional[Path] = None):
+    def save_evaluation_results(
+        self,
+        summary: EvaluationSummary,
+        detailed_results: Optional[List[XAIExplanationResult]] = None,
+        output_dir: Optional[Path] = None,
+    ):
         """
         Speichere Evaluation Ergebnisse
 
@@ -181,40 +195,48 @@ class XAIEvaluator:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Summary speichern
-        summary_file = output_dir / f"evaluation_summary_{summary.explainer_name}_{timestamp}.json"
+        summary_file = (
+            output_dir / f"evaluation_summary_{summary.explainer_name}_{timestamp}.json"
+        )
 
         summary_dict = {
-            'explainer_name': summary.explainer_name,
-            'model_name': summary.model_name,
-            'total_samples': summary.total_samples,
-            'samples_with_bbox': summary.samples_with_bbox,
-            'prediction_accuracy': summary.prediction_accuracy,
-            'pointing_game_score': summary.pointing_game_score,
-            'average_iou': summary.average_iou,
-            'average_coverage': summary.average_coverage,
-            'average_precision': summary.average_precision,
-            'average_recall': summary.average_recall,
-            'average_processing_time': summary.average_processing_time,
-            'evaluation_timestamp': summary.evaluation_timestamp
+            "explainer_name": summary.explainer_name,
+            "model_name": summary.model_name,
+            "total_samples": summary.total_samples,
+            "samples_with_bbox": summary.samples_with_bbox,
+            "prediction_accuracy": summary.prediction_accuracy,
+            "pointing_game_score": summary.pointing_game_score,
+            "average_iou": summary.average_iou,
+            "average_coverage": summary.average_coverage,
+            "average_precision": summary.average_precision,
+            "average_recall": summary.average_recall,
+            "average_processing_time": summary.average_processing_time,
+            "evaluation_timestamp": summary.evaluation_timestamp,
         }
 
-        with open(summary_file, 'w') as f:
+        with open(summary_file, "w") as f:
             json.dump(summary_dict, f, indent=2)
 
         self.logger.info(f"Summary gespeichert: {summary_file}")
 
         # Detaillierte Ergebnisse (optional)
         if detailed_results:
-            details_file = output_dir / f"evaluation_details_{summary.explainer_name}_{timestamp}.json"
+            details_file = (
+                output_dir
+                / f"evaluation_details_{summary.explainer_name}_{timestamp}.json"
+            )
             details_dict = self._serialize_detailed_results(detailed_results)
 
-            with open(details_file, 'w') as f:
+            with open(details_file, "w") as f:
                 json.dump(details_dict, f, indent=2)
 
             self.logger.info(f"Details gespeichert: {details_file}")
 
-    def save_comparison_results(self, comparison_results: Dict[str, EvaluationSummary],
-                                output_dir: Optional[Path] = None):
+    def save_comparison_results(
+        self,
+        comparison_results: Dict[str, EvaluationSummary],
+        output_dir: Optional[Path] = None,
+    ):
         """
         Speichere Explainer Vergleich
 
@@ -235,28 +257,27 @@ class XAIEvaluator:
         comparison_dict = {}
         for explainer_name, summary in comparison_results.items():
             comparison_dict[explainer_name] = {
-                'explainer_name': summary.explainer_name,
-                'model_name': summary.model_name,
-                'total_samples': summary.total_samples,
-                'samples_with_bbox': summary.samples_with_bbox,
-                'prediction_accuracy': summary.prediction_accuracy,
-                'pointing_game_score': summary.pointing_game_score,
-                'average_iou': summary.average_iou,
-                'average_coverage': summary.average_coverage,
-                'average_precision': summary.average_precision,
-                'average_recall': summary.average_recall,
-                'average_processing_time': summary.average_processing_time
+                "explainer_name": summary.explainer_name,
+                "model_name": summary.model_name,
+                "total_samples": summary.total_samples,
+                "samples_with_bbox": summary.samples_with_bbox,
+                "prediction_accuracy": summary.prediction_accuracy,
+                "pointing_game_score": summary.pointing_game_score,
+                "average_iou": summary.average_iou,
+                "average_coverage": summary.average_coverage,
+                "average_precision": summary.average_precision,
+                "average_recall": summary.average_recall,
+                "average_processing_time": summary.average_processing_time,
             }
 
-        with open(comparison_file, 'w') as f:
+        with open(comparison_file, "w") as f:
             json.dump(comparison_dict, f, indent=2)
 
         self.logger.info(f"Vergleich gespeichert: {comparison_file}")
 
-
-    def _compute_pointing_game(self, attribution: torch.Tensor,
-                               bbox_mask: torch.Tensor,
-                               threshold: float) -> Dict[str, float]:
+    def _compute_pointing_game(
+        self, attribution: torch.Tensor, bbox_mask: torch.Tensor, threshold: float
+    ) -> Dict[str, float]:
         """Berechne Pointing Game Metrik"""
         # Top threshold% der Attribution
         flat_attr = attribution.flatten()
@@ -266,7 +287,7 @@ class XAIEvaluator:
         top_attr_mask = (attribution >= threshold_val).float()
 
         # Intersection mit BBox
-        intersection = torch.sum(top_attr_mask *bbox_mask)
+        intersection = torch.sum(top_attr_mask * bbox_mask)
         bbox_area = torch.sum(bbox_mask)
         attr_area = torch.sum(top_attr_mask)
 
@@ -274,15 +295,15 @@ class XAIEvaluator:
         hit = intersection > 0
 
         return {
-            'hit': hit.item(),
-            'intersection': intersection.item(),
-            'bbox_area': bbox_area.item(),
-            'attr_area': attr_area.item()
+            "hit": hit.item(),
+            "intersection": intersection.item(),
+            "bbox_area": bbox_area.item(),
+            "attr_area": attr_area.item(),
         }
 
-    def _compute_iou(self, attribution: torch.Tensor,
-                     bbox_mask: torch.Tensor,
-                     threshold: float) -> float:
+    def _compute_iou(
+        self, attribution: torch.Tensor, bbox_mask: torch.Tensor, threshold: float
+    ) -> float:
         """Berechne IoU Score"""
         # Binarisiere Attribution
         attr_binary = (attribution >= threshold).float()
@@ -294,9 +315,9 @@ class XAIEvaluator:
         iou = (intersection / union) if union > 0 else 0
         return iou.item()
 
-    def _compute_coverage(self, attribution: torch.Tensor,
-                          bbox_mask: torch.Tensor,
-                          percentile: float) -> float:
+    def _compute_coverage(
+        self, attribution: torch.Tensor, bbox_mask: torch.Tensor, percentile: float
+    ) -> float:
         """Berechne Coverage Score"""
         # Top percentile der Attribution
 
@@ -310,15 +331,15 @@ class XAIEvaluator:
         coverage = (intersection / bbox_area) if bbox_area > 0 else 0
         return coverage.item()
 
-    def _compute_precision_recall(self, attribution: torch.Tensor,
-                                  bbox_mask: torch.Tensor,
-                                  threshold: float) -> tuple:
+    def _compute_precision_recall(
+        self, attribution: torch.Tensor, bbox_mask: torch.Tensor, threshold: float
+    ) -> tuple:
         """Berechne Precision und Recall"""
         attr_binary = (attribution >= threshold).float()
 
         # True Positives, False Positives, False Negatives
         tp = torch.sum(attr_binary * bbox_mask)
-        fp = torch.sum(attr_binary * (1.0-bbox_mask))
+        fp = torch.sum(attr_binary * (1.0 - bbox_mask))
         fn = torch.sum((1 - attr_binary) * bbox_mask)
 
         precision = (tp / (tp + fp)) if (tp + fp) > 0 else 0
@@ -326,11 +347,13 @@ class XAIEvaluator:
 
         return precision, recall
 
-
-    def _aggregate_metrics(self, results: List[XAIExplanationResult],
-                           metrics_list: List[XAIMetrics],
-                           correct_predictions: int,
-                           total_processing_time: float) -> EvaluationSummary:
+    def _aggregate_metrics(
+        self,
+        results: List[XAIExplanationResult],
+        metrics_list: List[XAIMetrics],
+        correct_predictions: int,
+        total_processing_time: float,
+    ) -> EvaluationSummary:
         """Aggregiere Metriken zu Summary"""
 
         # Basic Info
@@ -370,7 +393,7 @@ class XAIEvaluator:
             average_recall=float(average_recall),
             average_processing_time=float(average_processing_time),
             total_processing_time=float(total_processing_time),
-            evaluation_timestamp=datetime.now().isoformat()
+            evaluation_timestamp=datetime.now().isoformat(),
         )
 
     def _log_summary(self, summary: EvaluationSummary):
@@ -382,9 +405,13 @@ class XAIEvaluator:
         self.logger.info(f"  Pointing Game Score: {summary.pointing_game_score:.3f}")
         self.logger.info(f"  Average IoU: {summary.average_iou:.3f}")
         self.logger.info(f"  Average Coverage: {summary.average_coverage:.3f}")
-        self.logger.info(f"  Average Processing Time: {summary.average_processing_time:.3f}s")
+        self.logger.info(
+            f"  Average Processing Time: {summary.average_processing_time:.3f}s"
+        )
 
-    def _create_comparison_table(self, comparison_results: Dict[str, EvaluationSummary]):
+    def _create_comparison_table(
+        self, comparison_results: Dict[str, EvaluationSummary]
+    ):
         """Erstelle Vergleichstabelle"""
         if not comparison_results:
             return
@@ -410,26 +437,30 @@ class XAIEvaluator:
 
         self.logger.info(f"{'=' * 80}")
 
-    def _serialize_detailed_results(self, results: List[XAIExplanationResult]) -> List[Dict]:
+    def _serialize_detailed_results(
+        self, results: List[XAIExplanationResult]
+    ) -> List[Dict]:
         """Serialisiere detaillierte Ergebnisse für JSON"""
         serialized = []
 
         for result in results:
             item = {
-                #todo Imagepath
-                'image_name': result.image_name,
-                'predicted_class': result.predicted_class,
-                'true_label': result.true_label,
-                'prediction_correct': result.prediction_correct,
-                'explainer_name': result.explainer_name,
-                'model_name': result.model_name,
-                'has_bbox': result.has_bbox,
-                'processing_time': result.processing_time
+                # todo Imagepath
+                "image_name": result.image_name,
+                "predicted_class": result.predicted_class,
+                "true_label": result.true_label,
+                "prediction_correct": result.prediction_correct,
+                "explainer_name": result.explainer_name,
+                "model_name": result.model_name,
+                "has_bbox": result.has_bbox,
+                "processing_time": result.processing_time,
                 # Note: attribution und explainer_result werden nicht serialisiert (zu groß)
             }
             serialized.append(item)
 
         return serialized
+
+
 def bbox_to_mask_tensor(bbox, shape=(224, 224)):
     """
     Wandelt eine einzelne Bounding Box (Tensor [1, 4]) in eine Binärmaske [1, H, W] um.
@@ -438,4 +469,3 @@ def bbox_to_mask_tensor(bbox, shape=(224, 224)):
     x1, y1, x2, y2 = bbox[0].int()  # [1, 4] → [4]
     mask[0, y1:y2, x1:x2] = 1.0
     return mask
-

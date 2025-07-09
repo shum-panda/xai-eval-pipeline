@@ -14,7 +14,9 @@ class BaseExplainer(XAIInterface):
         self.model = model.cuda()
         self.config = kwargs
 
-    def explain(self, images: torch.Tensor, target_labels: torch.Tensor) -> ExplainerResult:
+    def explain(
+        self, images: torch.Tensor, target_labels: torch.Tensor
+    ) -> ExplainerResult:
         """
         Template method - generates explanations and evaluates predictions
 
@@ -34,7 +36,7 @@ class BaseExplainer(XAIInterface):
         return ExplainerResult(
             attributions=attributions,
             predictions=predictions,
-            target_labels=target_labels
+            target_labels=target_labels,
         )
 
     def _get_predictions(self, images: torch.Tensor) -> torch.Tensor:
@@ -61,4 +63,3 @@ class BaseExplainer(XAIInterface):
     @abstractmethod
     def get_name(cls) -> str:
         """Return the name identifier of this explainer"""
-

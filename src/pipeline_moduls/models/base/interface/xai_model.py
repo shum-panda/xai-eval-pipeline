@@ -1,6 +1,6 @@
 import logging
-from abc import abstractmethod, ABC
-from typing import List, Any
+from abc import ABC, abstractmethod
+from typing import Any, List
 
 import torch
 

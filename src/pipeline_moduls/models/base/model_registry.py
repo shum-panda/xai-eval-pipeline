@@ -1,6 +1,6 @@
 import logging
 import threading
-from typing import Optional, Dict, Type, List
+from typing import Dict, List, Optional, Type
 
 from pipeline_moduls.models.base.interface.xai_model import XAIModel
 
@@ -8,7 +8,7 @@ from pipeline_moduls.models.base.interface.xai_model import XAIModel
 class ModelRegistry:
     """Singleton registry for XAI model classes (consistent with ExplainerRegistry)"""
 
-    _instance: Optional['ModelRegistry'] = None
+    _instance: Optional["ModelRegistry"] = None
     _lock = threading.Lock()
 
     def __init__(self):
@@ -22,7 +22,7 @@ class ModelRegistry:
         self._register_builtin_models()
 
     @classmethod
-    def get_instance(cls) -> 'ModelRegistry':
+    def get_instance(cls) -> "ModelRegistry":
         """Get the singleton registry instance"""
         if cls._instance is None:
             with cls._lock:
@@ -38,7 +38,9 @@ class ModelRegistry:
             model_class: XAIModel subclass to register
         """
         if not issubclass(model_class, XAIModel):
-            raise ValueError(f"Model class must inherit from XAIModel, got {model_class}")
+            raise ValueError(
+                f"Model class must inherit from XAIModel, got {model_class}"
+            )
 
         if name in self._registry:
             self.logger.warning(f"Overwriting existing model registration for '{name}'")
@@ -60,7 +62,9 @@ class ModelRegistry:
         """
         if name not in self._registry:
             available = list(self._registry.keys())
-            raise ValueError(f"Model '{name}' not registered. Available models: {available}")
+            raise ValueError(
+                f"Model '{name}' not registered. Available models: {available}"
+            )
 
         return self._registry[name]
 

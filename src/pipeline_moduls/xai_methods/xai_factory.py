@@ -4,9 +4,15 @@ from torch import nn
 
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from pipeline_moduls.xai_methods.explainer_registry import ExplainerRegistry
-from pipeline_moduls.xai_methods.implementations.grand_cam_explainer import GradCamExplainer
-from pipeline_moduls.xai_methods.implementations.integraded_gradients import IntegratedGradientsExplainer
-from pipeline_moduls.xai_methods.implementations.occlusion_explainer import OcclusionExplainer
+from pipeline_moduls.xai_methods.implementations.grand_cam_explainer import (
+    GradCamExplainer,
+)
+from pipeline_moduls.xai_methods.implementations.integraded_gradients import (
+    IntegratedGradientsExplainer,
+)
+from pipeline_moduls.xai_methods.implementations.occlusion_explainer import (
+    OcclusionExplainer,
+)
 
 
 class XAIFactory:
@@ -40,4 +46,3 @@ class XAIFactory:
     def list_available_explainers(self) -> List[str]:
         """List all available explainer types"""
         return self.registry.list_available()
-

@@ -1,15 +1,21 @@
-import unittest
-import tempfile
-import shutil
 import os
+import shutil
+import tempfile
+import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
+
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 from PIL import Image
-import xml.etree.ElementTree as ET
+from torch.utils.data import DataLoader
 
-
+from pipeline_moduls.data.image_net_val_dataset import (
+    ImageNetValDataset,
+    create_dataloader,
+)
+from pipeline_moduls.data.utils.bbox_to_mask import parse_bbox
+from pipeline_moduls.data.utils.collate_fn import explain_collate_fn
 
 
 class TestImageNetValDataset(unittest.TestCase):
@@ -38,7 +44,7 @@ class TestImageNetValDataset(unittest.TestCase):
         # Erstelle 3 Test-Bilder
         self.test_images = []
         for i in range(3):
-            img = Image.new('RGB', (100, 80), color=(i * 80, i * 60, i * 40))
+            img = Image.new("RGB", (100, 80), color=(i * 80, i * 60, i * 40))
             img_path = self.image_dir / f"ILSVRC2012_val_{i:08d}.JPEG"
             img.save(img_path)
             self.test_images.append(img_path)
@@ -48,7 +54,7 @@ class TestImageNetValDataset(unittest.TestCase):
         test_boxes = [
             [[10, 10, 50, 50], [60, 20, 90, 70]],  # 2 Boxen
             [[20, 15, 80, 65]],  # 1 Box
-            []  # Keine Boxen
+            [],  # Keine Boxen
         ]
 
         for i, boxes in enumerate(test_boxes):
@@ -57,7 +63,7 @@ class TestImageNetValDataset(unittest.TestCase):
             self.test_annotations.append(xml_path)
 
         # Erstelle Label-Datei (1-indexiert wie ImageNet)
-        with open(self.label_file, 'w') as f:
+        with open(self.label_file, "w") as f:
             f.write("1\n2\n3\n")  # Labels für 3 Bilder
 
     def _create_xml_annotation(self, xml_path: Path, boxes: list, image_size: tuple):
@@ -89,7 +95,7 @@ class TestImageNetValDataset(unittest.TestCase):
         dataset = ImageNetValDataset(
             image_dir=self.image_dir,
             annot_dir=self.annot_dir,
-            label_file=self.label_file
+            label_file=self.label_file,
         )
 
         self.assertEqual(len(dataset), 3)
@@ -102,7 +108,7 @@ class TestImageNetValDataset(unittest.TestCase):
             image_dir=self.image_dir,
             annot_dir=self.annot_dir,
             label_file=self.label_file,
-            target_size=(224, 224)
+            target_size=(224, 224),
         )
 
         # Test erstes Sample
@@ -128,7 +134,7 @@ class TestImageNetValDataset(unittest.TestCase):
         dataset = ImageNetValDataset(
             image_dir=self.image_dir,
             annot_dir=self.annot_dir,
-            label_file=self.label_file
+            label_file=self.label_file,
         )
 
         # Sample mit fehlender XML sollte leere Bounding Box Liste haben
@@ -142,18 +148,18 @@ class TestImageNetValDataset(unittest.TestCase):
         dataset = ImageNetValDataset(
             image_dir=self.image_dir,
             annot_dir=self.annot_dir,
-            label_file=self.label_file
+            label_file=self.label_file,
         )
 
         info = dataset.get_sample_info(0)
 
-        self.assertIn('image_path', info)
-        self.assertIn('xml_path', info)
-        self.assertIn('label', info)
-        self.assertIn('exists_xml', info)
+        self.assertIn("image_path", info)
+        self.assertIn("xml_path", info)
+        self.assertIn("label", info)
+        self.assertIn("exists_xml", info)
 
-        self.assertEqual(info['label'], 0)
-        self.assertTrue(info['exists_xml'])
+        self.assertEqual(info["label"], 0)
+        self.assertTrue(info["exists_xml"])
 
 
 class TestParseBbox(unittest.TestCase):
@@ -220,10 +226,10 @@ class TestCollateFn(unittest.TestCase):
         batch = [
             (torch.randn(3, 224, 224), torch.tensor(0), torch.randn(2, 4)),
             (torch.randn(3, 224, 224), torch.tensor(1), torch.randn(1, 4)),
-            (torch.randn(3, 224, 224), torch.tensor(2), torch.randn(3, 4))
+            (torch.randn(3, 224, 224), torch.tensor(2), torch.randn(3, 4)),
         ]
 
-        images, labels, boxes = collate_fn(batch)
+        images, labels, boxes = explain_collate_fn(batch)
 
         # Prüfe Ausgabe-Formen
         self.assertEqual(images.shape, (3, 3, 224, 224))
@@ -237,10 +243,10 @@ class TestCollateFn(unittest.TestCase):
         """Test Collate Function mit leeren Bounding Boxes."""
         batch = [
             (torch.randn(3, 224, 224), torch.tensor(0), torch.empty(0, 4)),
-            (torch.randn(3, 224, 224), torch.tensor(1), torch.randn(2, 4))
+            (torch.randn(3, 224, 224), torch.tensor(1), torch.randn(2, 4)),
         ]
 
-        images, labels, boxes = collate_fn(batch)
+        images, labels, boxes = explain_collate_fn(batch)
 
         self.assertEqual(len(boxes), 2)
         self.assertEqual(len(boxes[0]), 0)  # Erste Box-Liste ist leer
@@ -261,7 +267,7 @@ class TestCreateDataLoader(unittest.TestCase):
         self.annot_dir.mkdir()
 
         # Erstelle ein Test-Bild und XML
-        img = Image.new('RGB', (100, 100), color='red')
+        img = Image.new("RGB", (100, 100), color="red")
         img.save(self.image_dir / "test.JPEG")
 
         # Erstelle XML
@@ -277,7 +283,7 @@ class TestCreateDataLoader(unittest.TestCase):
         tree.write(self.annot_dir / "test.xml")
 
         # Erstelle Label-Datei
-        with open(self.label_file, 'w') as f:
+        with open(self.label_file, "w") as f:
             f.write("1\n")
 
     def tearDown(self):
@@ -290,7 +296,7 @@ class TestCreateDataLoader(unittest.TestCase):
             annot_dir=self.annot_dir,
             label_file=self.label_file,
             batch_size=1,
-            num_workers=0  # Keine Multiprocessing für Test
+            num_workers=0,  # Keine Multiprocessing für Test
         )
 
         self.assertIsInstance(dataloader, DataLoader)
@@ -319,7 +325,7 @@ class TestIntegration(unittest.TestCase):
 
         # Erstelle 5 Test-Bilder
         for i in range(5):
-            img = Image.new('RGB', (200, 150), color=(i * 50, i * 40, i * 30))
+            img = Image.new("RGB", (200, 150), color=(i * 50, i * 40, i * 30))
             img.save(self.image_dir / f"img_{i:03d}.JPEG")
 
             # Erstelle entsprechende XML
@@ -336,7 +342,7 @@ class TestIntegration(unittest.TestCase):
             tree.write(self.annot_dir / f"img_{i:03d}.xml")
 
         # Erstelle Labels
-        with open(self.label_file, 'w') as f:
+        with open(self.label_file, "w") as f:
             for i in range(5):
                 f.write(f"{i + 1}\n")
 
@@ -352,7 +358,7 @@ class TestIntegration(unittest.TestCase):
             label_file=self.label_file,
             batch_size=2,
             num_workers=0,
-            target_size=(128, 128)
+            target_size=(128, 128),
         )
 
         # Teste alle Batches
@@ -382,7 +388,7 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(total_samples, 5)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Führe alle Tests aus
     unittest.main(verbosity=2)
 
@@ -435,7 +441,9 @@ class BenchmarkTests:
 
         if times:
             avg_time = sum(times) / len(times)
-            print(f"Durchschnittliche Batch-Verarbeitungszeit: {avg_time * 1000:.2f} ms")
+            print(
+                f"Durchschnittliche Batch-Verarbeitungszeit: {avg_time * 1000:.2f} ms"
+            )
 
 
 # Hilfsfunktionen für Tests
@@ -451,7 +459,7 @@ def create_mock_imagenet_structure(base_path: str, num_images: int = 10):
     # Erstelle Mock-Bilder und Annotationen
     for i in range(num_images):
         # Bild
-        img = Image.new('RGB', (224, 224), color=(i * 25, i * 20, i * 15))
+        img = Image.new("RGB", (224, 224), color=(i * 25, i * 20, i * 15))
         img.save(image_dir / f"ILSVRC2012_val_{i:08d}.JPEG")
 
         # XML-Annotation
@@ -468,7 +476,7 @@ def create_mock_imagenet_structure(base_path: str, num_images: int = 10):
 
     # Labels
     label_file = base_path / "labels.txt"
-    with open(label_file, 'w') as f:
+    with open(label_file, "w") as f:
         for i in range(num_images):
             f.write(f"{(i % 1000) + 1}\n")
 

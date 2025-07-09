@@ -7,7 +7,9 @@ from control.utils.dataclasses.explainer_result import ExplainerResult
 
 class XAIInterface(ABC):
     @abstractmethod
-    def explain(self, images: torch.Tensor, target_labels: torch.Tensor) -> ExplainerResult:
+    def explain(
+        self, images: torch.Tensor, target_labels: torch.Tensor
+    ) -> ExplainerResult:
         """
         Template method - generates explanations and evaluates predictions
 
@@ -19,8 +21,6 @@ class XAIInterface(ABC):
             ExplainerResult with attributions and evaluation
         """
 
-
     @abstractmethod
     def get_name(self) -> str:
         """Return the name identifier of this explainer"""
-
