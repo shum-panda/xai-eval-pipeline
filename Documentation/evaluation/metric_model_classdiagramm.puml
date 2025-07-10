@@ -1,0 +1,28 @@
+@startuml
+interface MetricInterface {
+    + calculate(heatmap: torch.Tensor, ground_truth: torch.Tensor): float
+    + get_name(): str
+}
+
+class IoUMetric {
+    - threshold: float
+    + calculate(heatmap, ground_truth): float
+    + _threshold_heatmap(): torch.Tensor
+}
+
+class PointGameMetric {
+    + calculate(heatmap, ground_truth): float
+    + _find_max_point(): Tuple[int, int]
+    + _point_in_bbox(): bool
+}
+
+class PixelPrecisionRecall {
+    - threshold: float
+    + calculate(heatmap, ground_truth): Dict[str, float]
+    + _compute_confusion_matrix(): torch.Tensor
+}
+
+MetricInterface <|.. IoUMetric
+MetricInterface <|.. PointGameMetric
+MetricInterface <|.. PixelPrecisionRecall
+@enduml

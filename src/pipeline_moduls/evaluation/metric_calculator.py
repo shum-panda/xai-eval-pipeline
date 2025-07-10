@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-XAI Evaluator - Evaluiert XAI Ergebnisse vom Orchestrator
-Getrennt von der Orchestrierung
-"""
 import json
 import logging
 from datetime import datetime
@@ -17,16 +12,14 @@ from control.utils.dataclasses.xai_explanation_result import XAIExplanationResul
 from pipeline_moduls.evaluation.dataclass.evaluation_summary import EvaluationSummary
 from pipeline_moduls.evaluation.dataclass.xai_metrics import XAIMetrics
 
-
 class XAIEvaluator:
     """
     Evaluiert XAI Ergebnisse mit verschiedenen Metriken
-    Arbeitet mit XAIExplanationResult vom Orchestrator
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        self.logger.info("XAI Evaluator initialisiert")
+        self._logger = logging.getLogger(__name__)
+        self._logger.info("XAI Evaluator initialisiert")
 
     def evaluate_single_result(
         self,
@@ -114,7 +107,7 @@ class XAIEvaluator:
         if not results:
             raise ValueError("Keine Ergebnisse zum Evaluieren")
 
-        self.logger.info(f"Evaluiere {len(results)} Ergebnisse...")
+        self._logger.info(f"Evaluiere {len(results)} Ergebnisse...")
 
         metrics_list = []
         correct_predictions = 0
@@ -158,13 +151,13 @@ class XAIEvaluator:
         comparison_results = {}
 
         for explainer_name, results in explainer_results.items():
-            self.logger.info(f"Evaluiere {explainer_name}...")
+            self._logger.info(f"Evaluiere {explainer_name}...")
 
             try:
                 summary = self.evaluate_batch_results(results, **metric_kwargs)
                 comparison_results[explainer_name] = summary
             except Exception as e:
-                self.logger.error(f"Fehler bei {explainer_name}: {e}")
+                self._logger.error(f"Fehler bei {explainer_name}: {e}")
                 continue
 
         # Erstelle Vergleichstabelle
@@ -217,7 +210,7 @@ class XAIEvaluator:
         with open(summary_file, "w") as f:
             json.dump(summary_dict, f, indent=2)
 
-        self.logger.info(f"Summary gespeichert: {summary_file}")
+        self._logger.info(f"Summary gespeichert: {summary_file}")
 
         # Detaillierte Ergebnisse (optional)
         if detailed_results:
@@ -230,7 +223,7 @@ class XAIEvaluator:
             with open(details_file, "w") as f:
                 json.dump(details_dict, f, indent=2)
 
-            self.logger.info(f"Details gespeichert: {details_file}")
+            self._logger.info(f"Details gespeichert: {details_file}")
 
     def save_comparison_results(
         self,
@@ -273,7 +266,7 @@ class XAIEvaluator:
         with open(comparison_file, "w") as f:
             json.dump(comparison_dict, f, indent=2)
 
-        self.logger.info(f"Vergleich gespeichert: {comparison_file}")
+        self._logger.info(f"Vergleich gespeichert: {comparison_file}")
 
     def _compute_pointing_game(
         self, attribution: torch.Tensor, bbox_mask: torch.Tensor, threshold: float
@@ -398,14 +391,14 @@ class XAIEvaluator:
 
     def _log_summary(self, summary: EvaluationSummary):
         """Logge Evaluation Summary"""
-        self.logger.info(f"Evaluation Summary für {summary.explainer_name}:")
-        self.logger.info(f"  Total Samples: {summary.total_samples}")
-        self.logger.info(f"  Samples with BBox: {summary.samples_with_bbox}")
-        self.logger.info(f"  Prediction Accuracy: {summary.prediction_accuracy:.3f}")
-        self.logger.info(f"  Pointing Game Score: {summary.pointing_game_score:.3f}")
-        self.logger.info(f"  Average IoU: {summary.average_iou:.3f}")
-        self.logger.info(f"  Average Coverage: {summary.average_coverage:.3f}")
-        self.logger.info(
+        self._logger.info(f"Evaluation Summary für {summary.explainer_name}:")
+        self._logger.info(f"  Total Samples: {summary.total_samples}")
+        self._logger.info(f"  Samples with BBox: {summary.samples_with_bbox}")
+        self._logger.info(f"  Prediction Accuracy: {summary.prediction_accuracy:.3f}")
+        self._logger.info(f"  Pointing Game Score: {summary.pointing_game_score:.3f}")
+        self._logger.info(f"  Average IoU: {summary.average_iou:.3f}")
+        self._logger.info(f"  Average Coverage: {summary.average_coverage:.3f}")
+        self._logger.info(
             f"  Average Processing Time: {summary.average_processing_time:.3f}s"
         )
 
@@ -416,14 +409,14 @@ class XAIEvaluator:
         if not comparison_results:
             return
 
-        self.logger.info(f"\n{'=' * 80}")
-        self.logger.info(f"EXPLAINER COMPARISON")
-        self.logger.info(f"{'=' * 80}")
+        self._logger.info(f"\n{'=' * 80}")
+        self._logger.info(f"EXPLAINER COMPARISON")
+        self._logger.info(f"{'=' * 80}")
 
         # Header
         header = f"{'Explainer':<15} {'Pred Acc':<10} {'Point Game':<12} {'Avg IoU':<10} {'Avg Cov':<10} {'Avg Time':<10}"
-        self.logger.info(header)
-        self.logger.info(f"{'-' * 80}")
+        self._logger.info(header)
+        self._logger.info(f"{'-' * 80}")
 
         # Rows
         for explainer_name, summary in comparison_results.items():
@@ -433,9 +426,9 @@ class XAIEvaluator:
             row += f"{summary.average_iou:<10.3f} "
             row += f"{summary.average_coverage:<10.3f} "
             row += f"{summary.average_processing_time:<10.3f}"
-            self.logger.info(row)
+            self._logger.info(row)
 
-        self.logger.info(f"{'=' * 80}")
+        self._logger.info(f"{'=' * 80}")
 
     def _serialize_detailed_results(
         self, results: List[XAIExplanationResult]

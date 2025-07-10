@@ -1,0 +1,25 @@
+@startuml
+
+' Optional: Skin für besseres Aussehen
+skinparam classAttributeIconSize 0
+
+class ImageNetSample {
+    +Tensor image_tensor
+    +Tensor label_tensor
+    +Tensor bbox_tensor
+    +Path image_path
+    +Path bbox_path
+    +int label
+}
+
+class XAIInputBatch {
+    +Tensor images_tensor
+    +Tensor labels_tensor
+    +List<Tensor> boxes_list
+    +List<Path> image_paths
+    +List<String> image_names
+    +List<Path> bbox_paths
+    +List<int> labels_int
+}
+
+@enduml

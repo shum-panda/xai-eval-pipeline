@@ -5,19 +5,10 @@ import torch
 from torch import Tensor
 
 from pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
+from pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
 
 
-def explain_collate_fn(
-    batch: List[ImageNetSample],
-) -> Tuple[
-    Tensor,  # images stacked [B, C, H, W]
-    Tensor,  # labels stacked [B]
-    List[Tensor],  # bounding box tensors, variable length per sample
-    List[Path],  # full image paths
-    List[str],  # image file names (only the name)
-    List[Path],  # bounding box annotation paths
-    List[int],  # labels as integers
-]:
+def explain_collate_fn(batch: List[ImageNetSample]) -> XAIInputBatch:
     """
     Custom collate function for batching ImageNetSample dataclasses.
 
@@ -25,30 +16,15 @@ def explain_collate_fn(
         batch (List[ImageNetSample]): List of ImageNetSample instances.
 
     Returns:
-        Tuple containing:
-            - images (Tensor): Batch of images stacked into a single tensor.
-            - labels_tensor (Tensor): Batch of labels stacked into a tensor.
-            - boxes (List[Tensor]): List of bounding box tensors for each sample.
-            - image_paths (List[Path]): List of full file paths for images.
-            - image_names (List[str]): List of image file names extracted from paths.
-            - bbox_paths (List[Path]): List of full file paths for bounding box annotations.
-            - labels (List[int]): List of label integers.
+        XAIInputBatch: A structured batch containing all inputs needed for explanation,
+        including images, labels, bounding boxes, paths, and more.
     """
-    images = torch.stack([sample.image_tensor for sample in batch])
-    labels_tensor = torch.stack([sample.label_tensor for sample in batch])
-    boxes = [sample.bbox_tensor for sample in batch]
-    image_paths = [sample.image_path for sample in batch]
-    image_names = [sample.image_path.name for sample in batch]
-    bbox_paths = [sample.bbox_path for sample in batch]
-    labels = [sample.label for sample in batch]
-
-    result = (
-        images,
-        labels_tensor,
-        boxes,
-        image_paths,
-        image_names,
-        bbox_paths,
-        labels,
+    return XAIInputBatch(
+        images_tensor=torch.stack([s.image_tensor for s in batch]),
+        labels_tensor=torch.stack([s.label_tensor for s in batch]),
+        boxes_list=[s.bbox_tensor for s in batch],
+        image_paths=[s.image_path for s in batch],
+        image_names=[s.image_path.name for s in batch],
+        bbox_paths=[s.bbox_path for s in batch],
+        labels_int=[s.label for s in batch],
     )
-    return result

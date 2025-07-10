@@ -3,10 +3,11 @@
 
 #data and results
 results
-data
+/data/
 /outputs/
 *.json
 
 # MLflow
 mlruns/
 mlartifacts/
+

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import torch
 from captum.attr import LayerGradCam
 
-from control.utils.dataclasses.explainer_result import ExplainerResult
+from pipeline_moduls.xai_methods.base.explainer_result import ExplainerResult
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 
 

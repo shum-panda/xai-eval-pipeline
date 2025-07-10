@@ -1,53 +1,81 @@
+import os
+from pathlib import Path
+from typing import Dict, List
+
+import mlflow
 import pandas as pd
-from typing import List, Optional
+import torch
 
 from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 
 
 class ResultManager:
-    """
-    Collects XAIExplanationResults into a central DataFrame.
-    Provides methods to access, save, and reset results.
-    """
+    def __init__(self, attribution_dir="results/attributions"):
+        self.results_per_step: Dict[str, List[XAIExplanationResult]] = {}
+        self.dataframes_per_step: Dict[str, pd.DataFrame] = {}
+        self.attribution_dir = attribution_dir
+        os.makedirs(self.attribution_dir, exist_ok=True)
 
-    def __init__(self):
-        self.results: List[XAIExplanationResult] = []
-        self.dataframe: Optional[pd.DataFrame] = None
+    def add_results(self, step_name: str, new_results: List[XAIExplanationResult]):
+        if step_name not in self.results_per_step:
+            self.results_per_step[step_name] = []
+        self.results_per_step[step_name].extend(new_results)
 
-    def add_results(self, new_results: List[XAIExplanationResult]):
-        """
-        Adds a list of XAIExplanationResults to the internal collection.
-        """
-        self.results.extend(new_results)
+    def build_dataframe_for_step(self, step_name: str) -> pd.DataFrame:
+        if (
+            step_name not in self.results_per_step
+            or not self.results_per_step[step_name]
+        ):
+            raise ValueError(f"No results found for step '{step_name}'.")
+        records = []
+        for r in self.results_per_step[step_name]:
+            attribution_dir = os.path.join(
+                self.attribution_dir, r.model_name, r.explainer_name
+            )
+            os.makedirs(attribution_dir, exist_ok=True)
 
-    def build_dataframe(self):
-        """
-        Converts the collected results into a pandas DataFrame.
-        """
-        if not self.results:
-            raise ValueError("No results to build DataFrame from.")
-        self.dataframe = pd.DataFrame([r.to_dict() for r in self.results])
-        return self.dataframe
+            attribution_filename = f"{r.image_name}_attribution.pt"
+            attribution_path = os.path.join(attribution_dir, attribution_filename)
 
-    def get_dataframe(self) -> pd.DataFrame:
-        """
-        Returns the current DataFrame, building it first if necessary.
-        """
-        if self.dataframe is None:
-            return self.build_dataframe()
-        return self.dataframe
+            torch.save(r.attribution, attribution_path)
 
-    def save_dataframe(self, path: str):
+            # hole Dict ohne Tensoren
+            data = r.to_dict()
+            data["attribution_path"] = attribution_path
+            del data["attribution"]
+
+            # Optional: direkt hier loggen
+            mlflow.log_artifact(
+                attribution_path,
+                artifact_path=f"attributions/{r.model_name}/{r.explainer_name}",
+            )
+
+            records.append(data)
+        df = pd.DataFrame(records)
+        self.dataframes_per_step[step_name] = df
+        return df
+
+    def get_dataframe(self, step_name: str) -> pd.DataFrame:
         """
-        Saves the DataFrame as a CSV file.
+        Gibt den DataFrame eines Schrittes zurück, baut ihn bei Bedarf.
         """
-        if self.dataframe is None:
-            self.build_dataframe()
-        self.dataframe.to_csv(path, index=False)
+        if step_name not in self.dataframes_per_step:
+            return self.build_dataframe_for_step(step_name)
+        return self.dataframes_per_step[step_name]
+
+    def save_dataframe(self, step_name: str, path: str):
+        """
+        Speichert den DataFrame eines Schrittes als CSV.
+        """
+        df = self.get_dataframe(step_name)
+        df.to_csv(path, index=False)
 
     def reset(self):
         """
-        Clears all collected results and resets the DataFrame.
+        Setzt alle gespeicherten Ergebnisse und DataFrames zurück.
         """
-        self.results.clear()
-        self.dataframe = None
+        self.results_per_step.clear()
+        self.dataframes_per_step.clear()
+
+    def save_results(self, results: List[XAIExplanationResult], path: Path):
+        torch.save(results, path)
