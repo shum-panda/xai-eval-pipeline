@@ -3,7 +3,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
-import numpy as np
 from sympy.printing.pytorch import torch
 
 

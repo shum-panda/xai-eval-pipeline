@@ -11,4 +11,5 @@ def with_cuda_cleanup(func):
         finally:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+
     return wrapper

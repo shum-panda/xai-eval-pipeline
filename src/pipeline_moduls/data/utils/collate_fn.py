@@ -1,8 +1,6 @@
-from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 import torch
-from torch import Tensor
 
 from pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
 from pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch

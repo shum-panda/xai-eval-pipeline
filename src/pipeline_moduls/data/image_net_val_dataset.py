@@ -92,7 +92,8 @@ class ImageNetValDataset(Dataset):
         Lädt die Groundtruth Labels aus der Textdatei.
 
         Die Labels in der Datei sind 1-indexiert (z. B. aus ImageNet),
-        werden hier jedoch zu 0-indexiert konvertiert, um mit PyTorch-Modellen kompatibel zu sein.
+        werden hier jedoch zu 0-indexiert konvertiert, um mit PyTorch-Modellen
+         kompatibel zu sein.
 
         Args:
             label_file (Path): Pfad zur Textdatei mit den Ground-truth-Labels
@@ -262,7 +263,7 @@ if __name__ == "__main__":
 
     # Teste ersten Batch
     for images, labels, boxes in dataloader:
-        print(f"Batch shapes:")
+        print("Batch shapes:")
         print(f"  Images: {images.shape}")
         print(f"  Labels: {labels.shape}")
         print(f"  Boxes: {len(boxes)} samples, shapes: {[b.shape for b in boxes[:3]]}")
