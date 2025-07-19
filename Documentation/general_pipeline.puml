@@ -1,0 +1,36 @@
+@startuml xai_pipeline_flow
+!theme plain
+title XAI Evaluation Pipeline – Ablauf (run() Methode)
+
+actor User
+participant "XAIOrchestrator" as Orchestrator
+participant "Configuration\n(Hydra + MasterConfig)" as Config
+participant "DataLoader" as Dataloader
+participant "ExplainerFactory" as XAIFactory
+participant "Evaluator" as Evaluator
+participant "ResultManager" as Result
+participant "Visualizer" as Visualiser
+
+User -> Orchestrator : start()
+Orchestrator -> Config : prepare_experiment()
+Orchestrator -> Dataloader : setup_dataloader()
+Orchestrator -> XAIFactory : create_explainer(config.xai.name, **kwargs)
+XAIFactory --> Orchestrator : BaseExplainer
+
+Orchestrator -> Orchestrator : run_pipeline(dataloader, explainer)
+note right
+Iteriert über Batches, erklärt mit Explainer
+und sammelt XAIExplanationResults
+end note
+
+Orchestrator -> Evaluator : evaluate_results(results)
+Evaluator --> Orchestrator : EvaluationSummary
+
+Orchestrator -> Result : save_results(results, summary)
+Orchestrator -> Visualiser : visualize_results_if_needed(results, summary)
+Orchestrator -> Orchestrator : cleanup_individual_metrics()
+Orchestrator -> Result : finalize_run()
+
+User <-- Orchestrator : Pipeline abgeschlossen
+
+@enduml

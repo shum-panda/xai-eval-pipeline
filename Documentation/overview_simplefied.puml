@@ -1,0 +1,56 @@
+@startuml simplified_xai_pipeline
+!theme plain
+title XAI Evaluation Pipeline - Modulübersicht (vereinfacht)
+
+package "Configuration Layer" as Config {
+  [Hydra Config]
+}
+
+package "Control Layer" as Control {
+  [XAI Orchestrator]
+}
+
+package "Data Module" as Data {
+  [Dataset & Batch Handling]
+}
+
+package "Model Module" as Model {
+  [Model Factory & Registry]
+}
+
+package "XAI Module" as XAI {
+  [Explainer Factory & Registry]
+}
+
+package "Evaluation Module" as Eval {
+  [Evaluator]
+}
+
+package "Visualization Module" as Vis {
+  [Visualizer]
+}
+
+package "Result Management" as Result {
+  [Result Manager & MLflow]
+}
+
+' Beziehungen zwischen Modulen
+Config --> Control : liefert Konfiguration
+Control --> Data : erstellt Dataloader
+Control --> Model : erstellt Modell
+Control --> XAI : erstellt Explainer
+Control --> Eval : übergibt Ergebnisse zur Bewertung
+Control --> Result : speichert Ergebnisse
+Control --> Vis : erzeugt Visualisierungen
+
+Model --> XAI : stellt Modell zur Verfügung
+Eval --> Result : speichert Metriken
+Result --> MLflow : loggt Ergebnisse
+
+note right of Control
+  Zentrale Steuerung:
+  - Initialisiert Komponenten
+  - Führt XAI-Pipeline aus
+end note
+
+@enduml

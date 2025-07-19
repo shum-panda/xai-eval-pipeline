@@ -1,0 +1,119 @@
+@startuml activity_evaluation_process
+!theme plain
+title XAI Evaluation Process - Aktivitätsdiagramm
+
+start
+
+:Receive XAIExplanationResults;
+note right
+  Liste von Ergebnissen mit:
+  - Predictions
+  - Attributions
+  - Bounding Boxes (optional)
+end note
+
+:Initialize Metrics Collectors;
+
+partition "Process Each Result" {
+  while (More results?) is (yes)
+    :Get Next Result;
+
+    if (Has Bounding Box?) then (yes)
+      partition "Compute Localization Metrics" {
+        :Convert Attribution to Heatmap;
+
+        fork
+          :Pointing Game Evaluation;
+          :Find max activation point;
+          :Check if point in bbox;
+          :Update hit/miss counter;
+        fork again
+          :IoU Computation;
+          :Threshold heatmap;
+          :Create binary mask;
+          :Calculate intersection;
+          :Calculate union;
+          :Compute IoU score;
+        fork again
+          :Coverage Analysis;
+          :Sort pixel values;
+          :Find top percentile;
+          :Count pixels in bbox;
+          :Calculate coverage ratio;
+        fork again
+          :Precision/Recall;
+          :True Positives (in bbox);
+          :False Positives (outside bbox);
+          :False Negatives (missed bbox);
+          :Calculate metrics;
+        end fork
+
+        :Store Individual Metrics;
+      }
+    else (no)
+      :Mark as "No Ground Truth";
+    endif
+
+    :Add to Results Collection;
+  endwhile (no)
+}
+
+partition "Aggregate Results" {
+  :Calculate Summary Statistics;
+
+  fork
+    :Average Pointing Game Score;
+    :Total hits / Total samples;
+  fork again
+    :Mean IoU Score;
+    :Sum(IoU) / Count;
+  fork again
+    :Average Coverage;
+    :Sum(coverage) / Count;
+  fork again
+    :Average Precision/Recall;
+    :Weighted averages;
+  fork again
+    :Prediction Accuracy;
+    :Correct predictions / Total;
+  end fork
+
+  :Calculate Standard Deviations;
+  :Identify Best/Worst Cases;
+}
+
+partition "Statistical Analysis" {
+  if (Multiple Explainers?) then (yes)
+    :Comparative Analysis;
+    :Statistical Significance Tests;
+    :Ranking by Metrics;
+  else (no)
+    :Single Method Analysis;
+  endif
+}
+
+:Create EvaluationSummary;
+note right
+  Contains:
+  - Aggregated metrics
+  - Statistical measures
+  - Timestamps
+  - Configuration used
+end note
+
+:Generate Visualizations;
+fork
+  :Metric Distribution Plots;
+fork again
+  :Confusion Matrices;
+fork again
+  :Sample Heatmaps;
+fork again
+  :Comparative Bar Charts;
+end fork
+
+:Return Summary and Visualizations;
+
+stop
+
+@enduml

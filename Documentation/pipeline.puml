@@ -1,95 +1,145 @@
-@startuml XAI_Evaluation_Pipeline
+@startuml state_pipeline_workflow
 !theme plain
-skinparam backgroundColor #FFFFFF
-skinparam defaultFontName Arial
-skinparam defaultFontSize 11
+title XAI Pipeline - Zustandsdiagramm
 
-title XAI-Evaluationspipeline Ablaufdiagramm
+[*] --> Initialization
 
-' Define colors for different module types
-skinparam activity {
-  BackgroundColor<<Data>> #E8F5E8
-  BorderColor<<Data>> #2D8F2D
-  BackgroundColor<<Model>> #FFF5E6
-  BorderColor<<Model>> #FF8C00
-  BackgroundColor<<XAI>> #F0E6FF
-  BorderColor<<XAI>> #7B68EE
-  BackgroundColor<<Eval>> #FFE6E6
-  BorderColor<<Eval>> #DC143C
-  BackgroundColor<<Viz>> #FFF0E6
-  BorderColor<<Viz>> #FF6347
-  BackgroundColor<<Process>> #F0F8FF
-  BorderColor<<Process>> #2C5AA0
+state Initialization {
+  [*] --> LoadingConfig
+  LoadingConfig : Hydra loads YAML config
+  LoadingConfig --> ValidatingConfig
+  ValidatingConfig : Validate configuration
+  ValidatingConfig --> CreatingOrchestrator
+  CreatingOrchestrator : Initialize XAIOrchestrator
+  CreatingOrchestrator --> [*]
 }
 
-start
- partition "Prepare"
-    fork
-    :Datenlade-Modul
-    ----
-    • ImageNet Dataset laden
-    • Bounding Box Annotationen
-    • Bild-Preprocessing
-    • Daten-Normalisierung;<<Data>>
-    :ResNet50 Modell
-    ----
-    • Vortrainiert auf ImageNet
-    • Bildklassifikation
-    • Feature Maps extrahieren
-    • Target Layer: layer4;<<Model>>
+Initialization --> ExperimentSetup
 
-partition "XAI-Methoden (parallel)" {
-  fork
-    :Grad-CAM
-    ----
-    • Gradient-weighted
-    • Class Activation Maps
-    • Heatmap generieren;<<XAI>>
-  fork again
-    :Integrated Gradients
-    ----
-    • Baseline zu Input
-    • Attribution berechnen
-    • Attributions Map;<<XAI>>
-  fork again
-    :Guided Backpropagation
-    ----
-    • Modifizierte ReLU
-    • Backpropagation
-    • Saliency Map;<<XAI>>
-  end fork
+state ExperimentSetup {
+  [*] --> StartingMLflow
+  StartingMLflow : mlflow.start_run()
+  StartingMLflow --> LoggingParams
+  LoggingParams : Log experiment parameters
+  LoggingParams --> LoadingModel
+  LoadingModel : Load PyTorch model
+  LoadingModel --> CreatingExplainer
+  CreatingExplainer : Create XAI explainer
+  CreatingExplainer --> PreparingDataset
+  PreparingDataset : Setup DataLoader
+  PreparingDataset --> [*]
 }
 
-:Evaluationsmodul
-----
-• IoU (Intersection over Union)
-• Point Game Metrik
-• Pixel Precision/Recall
-• Ground Truth Vergleich
-• Statistische Tests;<<Eval>>
+ExperimentSetup --> Processing
 
-partition "Visualisierung & Output" {
-  fork
-    :Heatmap-Overlay
-    ----
-    • Original + XAI-Overlay
-    • Bounding Box Overlay
-    • PNG/PDF Export;<<Viz>>
-  fork again
-    :Performance-Charts
-    ----
-    • Methodenvergleich
-    • Box-Plots erstellen
-    • Interaktive Plots;<<Viz>>
-  fork again
-    :Report-Generierung
-    ----
-    • LaTeX/HTML Reports
-    • Tabellen & Statistiken
-    • PDF-Dokumentation;<<Viz>>
-  end fork
+state Processing {
+  [*] --> LoadingBatch
+
+  state LoadingBatch {
+    [*] --> ReadingImages
+    ReadingImages : Load image batch
+    ReadingImages --> ReadingAnnotations
+    ReadingAnnotations : Load bounding boxes
+    ReadingAnnotations --> ApplyingTransforms
+    ApplyingTransforms : Preprocess images
+    ApplyingTransforms --> [*]
+  }
+
+  LoadingBatch --> PredictingBatch
+
+  state PredictingBatch {
+    [*] --> ForwardPass
+    ForwardPass : Model inference
+    ForwardPass --> ExtractingActivations
+    ExtractingActivations : Get intermediate layers
+    ExtractingActivations --> [*]
+  }
+
+  PredictingBatch --> ExplainingBatch
+
+  state ExplainingBatch {
+    [*] --> ComputingAttributions
+    ComputingAttributions : Generate explanations
+    ComputingAttributions --> NormalizingResults
+    NormalizingResults : Normalize heatmaps
+    NormalizingResults --> [*]
+  }
+
+  ExplainingBatch --> StoringResults
+  StoringResults : Create XAIExplanationResult
+
+  StoringResults --> HasMoreBatches
+  HasMoreBatches --> LoadingBatch : Yes
+  HasMoreBatches --> [*] : No
 }
 
-stop
+Processing --> Evaluation
+
+state Evaluation {
+  [*] --> FilteringResults
+  FilteringResults : Select results with bbox
+
+  FilteringResults --> ComputingMetrics
+
+  state ComputingMetrics {
+    [*] --> PointingGame
+    PointingGame : Max activation in bbox?
+    PointingGame --> IoUCalculation
+    IoUCalculation : Intersection over Union
+    IoUCalculation --> CoverageAnalysis
+    CoverageAnalysis : Attribution coverage
+    CoverageAnalysis --> PrecisionRecall
+    PrecisionRecall : Pixel-wise metrics
+    PrecisionRecall --> [*]
+  }
+
+  ComputingMetrics --> AggregatingResults
+  AggregatingResults : Compute summary statistics
+  AggregatingResults --> [*]
+}
+
+Evaluation --> Finalization
+
+state Finalization {
+  [*] --> SavingResults
+
+  state SavingResults {
+    [*] --> SaveJSON
+    SaveJSON : Export detailed results
+    SaveJSON --> SaveCSV
+    SaveCSV : Export summary table
+    SaveCSV --> SaveVisualizations
+    SaveVisualizations : Save heatmap images
+    SaveVisualizations --> [*]
+  }
+
+  SavingResults --> LoggingMLflow
+  LoggingMLflow : Log metrics & artifacts
+  LoggingMLflow --> ClosingRun
+  ClosingRun : mlflow.end_run()
+  ClosingRun --> [*]
+}
+
+Finalization --> [*]
+
+' Error handling
+state ErrorHandling {
+  [*] --> LoggingError
+  LoggingError : Log error details
+  LoggingError --> CleanupResources
+  CleanupResources : Release GPU memory
+  CleanupResources --> FailGracefully
+  FailGracefully : Save partial results
+  FailGracefully --> [*]
+}
+
+' Error transitions
+Initialization --> ErrorHandling : ConfigError
+ExperimentSetup --> ErrorHandling : ModelLoadError
+Processing --> ErrorHandling : RuntimeError
+Evaluation --> ErrorHandling : MetricError
+Finalization --> ErrorHandling : IOError
+
+ErrorHandling --> [*]
 
 @enduml

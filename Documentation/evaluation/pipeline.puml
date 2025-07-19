@@ -1,0 +1,95 @@
+@startuml XAI_Evaluation_Pipeline
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+title XAI-Evaluationspipeline Ablaufdiagramm
+
+' Define colors for different module types
+skinparam activity {
+  BackgroundColor<<Data>> #E8F5E8
+  BorderColor<<Data>> #2D8F2D
+  BackgroundColor<<Model>> #FFF5E6
+  BorderColor<<Model>> #FF8C00
+  BackgroundColor<<XAI>> #F0E6FF
+  BorderColor<<XAI>> #7B68EE
+  BackgroundColor<<Eval>> #FFE6E6
+  BorderColor<<Eval>> #DC143C
+  BackgroundColor<<Viz>> #FFF0E6
+  BorderColor<<Viz>> #FF6347
+  BackgroundColor<<Process>> #F0F8FF
+  BorderColor<<Process>> #2C5AA0
+}
+
+start
+ partition "Prepare"
+    fork
+    :Datenlade-Modul
+    ----
+    • ImageNet Dataset laden
+    • Bounding Box Annotationen
+    • Bild-Preprocessing
+    • Daten-Normalisierung;<<Data>>
+    :ResNet50 Modell
+    ----
+    • Vortrainiert auf ImageNet
+    • Bildklassifikation
+    • Feature Maps extrahieren
+    • Target Layer: layer4;<<Model>>
+
+partition "XAI-Methoden (parallel)" {
+  fork
+    :Grad-CAM
+    ----
+    • Gradient-weighted
+    • Class Activation Maps
+    • Heatmap generieren;<<XAI>>
+  fork again
+    :Integrated Gradients
+    ----
+    • Baseline zu Input
+    • Attribution berechnen
+    • Attributions Map;<<XAI>>
+  fork again
+    :Guided Backpropagation
+    ----
+    • Modifizierte ReLU
+    • Backpropagation
+    • Saliency Map;<<XAI>>
+  end fork
+}
+
+:Evaluationsmodul
+----
+• IoU (Intersection over Union)
+• Point Game Metrik
+• Pixel Precision/Recall
+• Ground Truth Vergleich
+• Statistische Tests;<<Eval>>
+
+partition "Visualisierung & Output" {
+  fork
+    :Heatmap-Overlay
+    ----
+    • Original + XAI-Overlay
+    • Bounding Box Overlay
+    • PNG/PDF Export;<<Viz>>
+  fork again
+    :Performance-Charts
+    ----
+    • Methodenvergleich
+    • Box-Plots erstellen
+    • Interaktive Plots;<<Viz>>
+  fork again
+    :Report-Generierung
+    ----
+    • LaTeX/HTML Reports
+    • Tabellen & Statistiken
+    • PDF-Dokumentation;<<Viz>>
+  end fork
+}
+
+stop
+
+@enduml

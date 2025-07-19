@@ -1,48 +1,133 @@
-@startuml sequence_diagram
+@startuml sequence_xai_pipeline_execution
 !theme plain
-title Evaluationsprozess - Sequenzdiagramm
+title XAI Pipeline - Sequenzdiagramm für typischen Durchlauf
 
-actor Researcher
-participant "ExperimentManager" as EM
-participant "ConfigManager" as CM
-participant "ImageNetLoader" as DL
-participant "ModelManager" as MM
-participant "XAIMethod" as XAI
-participant "MetricCalculator" as MC
-participant "VisualizationEngine" as VE
+actor User
+participant "main.py" as Main
+participant "Hydra" as Hydra
+participant "XAIOrchestrator" as Orchestrator
+participant "DataLoader" as DataLoader
+participant "XAIModel" as Model
+participant "XAIFactory" as XAIFactory
+participant "BaseExplainer" as Explainer
+participant "XAIEvaluator" as Evaluator
+participant "ResultManager" as ResultManager
+participant "MLflow" as MLflow
+participant "Visualiser" as Visualiser
 
-Researcher -> EM: start_experiment(config_file)
-EM -> CM: load_configuration(config_file)
-CM -> EM: configuration_object
+== Initialisierung ==
+User -> Main: python main.py
+activate Main
 
-EM -> DL: initialize(dataset_path)
-DL -> EM: dataset_ready
+Main -> Hydra: @hydra.main(config_path, config_name)
+activate Hydra
+Hydra -> Hydra: Load MasterConfig from YAML
+Hydra -> Main: return config
+deactivate Hydra
 
-EM -> MM: load_model(model_name)
-MM -> EM: model_loaded
+Main -> Orchestrator: new XAIOrchestrator(config)
+activate Orchestrator
+Orchestrator -> XAIFactory: initialize()
+Orchestrator -> Model: XAIModelFactory.create(model_name)
+Orchestrator -> Evaluator: new XAIEvaluator()
+Orchestrator -> ResultManager: new ResultManager()
+Orchestrator -> Visualiser: new Visualiser(config)
+Orchestrator -> Main: orchestrator instance
+deactivate Orchestrator
 
-loop für jedes Bild im Testset
-    EM -> DL: get_next_sample()
-    DL -> EM: image, label, bbox
+== Pipeline Ausführung ==
+Main -> Orchestrator: run()
+activate Orchestrator
 
-    EM -> MM: predict(image)
-    MM -> EM: prediction, activations
+Orchestrator -> Orchestrator: prepare_experiment()
+Orchestrator -> MLflow: start_run(experiment_name)
+activate MLflow
+MLflow -> Orchestrator: run_id
+Orchestrator -> MLflow: log_params(model, explainer, etc.)
+deactivate MLflow
 
-    loop für jede XAI-Methode
-        EM -> XAI: explain(image, model, prediction)
-        XAI -> EM: heatmap
+Orchestrator -> Orchestrator: setup_dataloader()
+Orchestrator -> DataLoader: create_dataloader(config)
+activate DataLoader
+DataLoader -> Orchestrator: dataloader instance
+deactivate DataLoader
 
-        EM -> MC: evaluate(heatmap, bbox)
-        MC -> EM: metrics
+Orchestrator -> XAIFactory: create(explainer_name, **kwargs)
+activate XAIFactory
+XAIFactory -> Explainer: new GradCAMExplainer(model)
+XAIFactory -> Orchestrator: explainer instance
+deactivate XAIFactory
+
+== Batch Processing ==
+loop for each batch in dataloader
+    Orchestrator -> DataLoader: get_batch()
+    activate DataLoader
+    DataLoader -> Orchestrator: XAIInputBatch(images, labels, bboxes)
+    deactivate DataLoader
+
+    Orchestrator -> Orchestrator: process_batch(batch, explainer)
+    activate Orchestrator
+
+    loop for each image in batch
+        Orchestrator -> Model: predict(image)
+        activate Model
+        Model -> Orchestrator: prediction, confidence
+        deactivate Model
+
+        Orchestrator -> Explainer: explain(image, prediction)
+        activate Explainer
+        Explainer -> Explainer: compute_attribution()
+        Explainer -> Orchestrator: ExplainerResult(attribution)
+        deactivate Explainer
+
+        Orchestrator -> Orchestrator: create XAIExplanationResult
     end
+
+    Orchestrator -> ResultManager: add_batch_results(results)
+    deactivate Orchestrator
 end
 
-EM -> MC: aggregate_results()
-MC -> EM: statistical_summary
+== Evaluation ==
+Orchestrator -> Evaluator: evaluate_results(all_results)
+activate Evaluator
 
-EM -> VE: create_visualizations(results)
-VE -> EM: plots, heatmaps
+loop for each result with bbox
+    Evaluator -> Evaluator: compute_pointing_game()
+    Evaluator -> Evaluator: compute_iou()
+    Evaluator -> Evaluator: compute_coverage()
+end
 
-EM -> Researcher: experiment_complete(results)
+Evaluator -> Evaluator: aggregate_metrics()
+Evaluator -> Orchestrator: EvaluationSummary
+deactivate Evaluator
+
+== Speicherung & Visualisierung ==
+Orchestrator -> ResultManager: save_results(results, summary)
+activate ResultManager
+ResultManager -> ResultManager: save_json()
+ResultManager -> ResultManager: save_csv()
+ResultManager -> Orchestrator: saved_paths
+deactivate ResultManager
+
+Orchestrator -> MLflow: log_metrics(summary)
+activate MLflow
+MLflow -> MLflow: store metrics
+deactivate MLflow
+
+Orchestrator -> Visualiser: visualize_results(results, summary)
+activate Visualiser
+Visualiser -> Visualiser: create_heatmap_overlays()
+Visualiser -> Visualiser: create_metric_plots()
+Visualiser -> Orchestrator: visualization_paths
+deactivate Visualiser
+
+Orchestrator -> MLflow: log_artifacts(paths)
+Orchestrator -> MLflow: end_run()
+
+Orchestrator -> Main: final_summary
+deactivate Orchestrator
+
+Main -> User: "Pipeline completed successfully"
+deactivate Main
 
 @enduml

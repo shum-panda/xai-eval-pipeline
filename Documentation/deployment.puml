@@ -1,0 +1,108 @@
+@startuml deployment_xai_system
+!theme plain
+title XAI Pipeline - Deployment Diagramm
+
+' Nodes
+node "Development Machine" as dev {
+  component "IDE/Editor" as ide
+  component "Git Repository" as git
+}
+
+node "Compute Server" as server {
+  component "Docker Container" as docker {
+    component "Python 3.10 Runtime" as python {
+      component "XAI Pipeline" as pipeline {
+        component "Orchestrator" as orch
+        component "Model Zoo" as models
+        component "XAI Methods" as xai
+        component "Evaluator" as eval
+      }
+      component "Dependencies" as deps {
+        component "PyTorch 2.7.1+cu118" as torch
+        component "Captum" as captum
+        component "MLflow" as mlflow_comp
+        component "Hydra" as hydra
+      }
+    }
+  }
+
+  component "NVIDIA GPU" as gpu
+  component "CUDA 11.8" as cuda
+}
+
+node "Storage Systems" as storage {
+  database "File System" as fs {
+    folder "ImageNet Dataset" as imagenet {
+      file "Images" as images
+      file "Annotations" as annot
+      file "Labels" as labels
+    }
+    folder "Experiment Results" as results {
+      file "JSON Results" as json
+      file "Visualizations" as viz
+      file "Model Artifacts" as artifacts
+    }
+  }
+}
+
+node "MLflow Server" as mlflow_server {
+  component "MLflow UI" as mlflow_ui
+  database "MLflow Backend" as mlflow_db {
+    folder "Experiments" as experiments
+    folder "Runs" as runs
+    folder "Metrics" as metrics
+  }
+}
+
+node "CI/CD Pipeline" as cicd {
+  component "GitHub Actions" as github {
+    component "Test Runner" as tests
+    component "Linter" as linter
+    component "Builder" as builder
+  }
+}
+
+' Relationships
+dev --> server : "SSH/Deploy"
+ide --> git : "Push/Pull"
+git --> github : "Trigger"
+github --> server : "Deploy"
+
+pipeline --> gpu : "Compute"
+gpu --> cuda : "Uses"
+torch --> cuda : "Requires"
+
+pipeline --> fs : "Read/Write"
+orch --> models : "Loads"
+orch --> xai : "Creates"
+orch --> eval : "Evaluates"
+xai --> captum : "Uses"
+
+pipeline --> mlflow_comp : "Logs"
+mlflow_comp --> mlflow_server : "HTTP API"
+mlflow_ui --> mlflow_db : "Query"
+
+' Notes
+note top of server
+  **Minimum Requirements:**
+  - NVIDIA GPU with 4GB+ VRAM
+  - 16GB+ System RAM
+  - CUDA 11.8 compatible GPU
+  - Windows 11 or similar
+end note
+
+note right of docker
+  **Container Specs:**
+  - Base: pytorch/pytorch:2.7.1-cuda11.8
+  - Python: 3.10
+  - All dependencies via Poetry
+end note
+
+note bottom of storage
+  **Storage Requirements:**
+  - ImageNet Val: ~6.4GB
+  - Results: ~10GB per experiment
+  - MLflow artifacts: Variable
+end note
+
+@enduml

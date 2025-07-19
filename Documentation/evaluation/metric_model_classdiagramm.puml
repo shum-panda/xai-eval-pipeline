@@ -1,6 +1,9 @@
 @startuml
-interface MetricInterface {
-    + calculate(heatmap: torch.Tensor, ground_truth: torch.Tensor): float
+!theme plain
+title Metric Factory with Auto-Registration
+
+abstract class MetricBase {
+    + calculate(heatmap: torch.Tensor, ground_truth: torch.Tensor): Any
     + get_name(): str
 }
 
@@ -22,7 +25,24 @@ class PixelPrecisionRecall {
     + _compute_confusion_matrix(): torch.Tensor
 }
 
-MetricInterface <|.. IoUMetric
-MetricInterface <|.. PointGameMetric
-MetricInterface <|.. PixelPrecisionRecall
+class MetricFactory {
+    - registry: Dict[str, Type[MetricBase]]
+    + register(name: str, cls: Type[MetricBase])
+    + create(name: str, **kwargs): MetricBase
+    + list_metrics(): List[str]
+}
+
+annotation "Decorator: @register_metric('iou')" as RegIoU
+annotation "Decorator: @register_metric('pointgame')" as RegPG
+annotation "Decorator: @register_metric('pixelpr')" as RegPR
+
+MetricBase <|-- IoUMetric
+MetricBase <|-- PointGameMetric
+MetricBase <|-- PixelPrecisionRecall
+MetricFactory o-- "1..*" MetricBase
+
+RegIoU ..> IoUMetric
+RegPG ..> PointGameMetric
+RegPR ..> PixelPrecisionRecall
+
 @enduml

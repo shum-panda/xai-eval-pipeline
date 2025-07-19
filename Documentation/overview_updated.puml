@@ -1,0 +1,413 @@
+@startuml pipeline_overview_updated
+!theme plain
+title XAI Evaluation Pipeline - Aktualisierte Gesamtarchitektur
+
+package "Configuration Layer" as ConfigLayer {
+  class MasterConfig {
+    +experiment: ExperimentConfig
+    +model: ModelConfig
+    +xai: XAIConfig
+    +data: DataConfig
+    +evaluation: EvaluationConfig
+    +visualization: VisualizationConfig
+  }
+
+  class Hydra {
+    +load_config()
+    +compose()
+    +initialize()
+  }
+}
+
+package "Control Layer" as ControlLayer {
+  class XAIOrchestrator {
+    -config: MasterConfig
+    -model_factory: XAIModelFactory
+    -xai_factory: XAIFactory
+    -evaluator: XAIEvaluator
+    -result_manager: ResultManager
+    -visualiser: Visualiser
+    +run()
+    +prepare_experiment()
+    +setup_dataloader()
+    +create_explainer()
+    +run_pipeline()
+    +evaluate_results()
+    +save_results()
+  }
+}
+
+package "Data Module" as DataModule {
+  class ImageNetValidationDataset {
+    +image_dir: Path
+    +annot_dir: Path
+    +label_map: Dict
+    +transform: Transform
+    +__getitem__()
+    +__len__()
+  }
+
+  class XAIInputBatch {
+    +images: Tensor
+    +labels: Tensor
+    +bboxes: List[Dict]
+    +image_paths: List[Path]
+  }
+
+  class DataLoader {
+    +batch_size: int
+    +num_workers: int
+    +collate_fn: Function
+  }
+}
+
+package "Model Module" as ModelModule {
+  interface XAIModel {
+    +get_pytorch_model()
+    +get_conv_layers()
+    +get_layer_by_name()
+    +get_model_info()
+  }
+
+  class XAIModelFactory {
+    +create(name: str): XAIModel
+    +list_available(): List[str]
+  }
+
+  class PytorchHubModel {
+    -model: nn.Module
+    -pretrained: bool
+    +predict()
+  }
+
+  class ModelRegistry <<Singleton>> {
+    -_registry: Dict
+    +register()
+    +get()
+  }
+}
+
+package "XAI Module" as XAIModule {
+  abstract class BaseExplainer {
+    #model: nn.Module
+    +explain(): ExplainerResult
+  }
+
+  class GradCAMExplainer {
+    -target_layer: str
+    +explain(): Tensor
+  }
+
+  class IntegratedGradientsExplainer {
+    -steps: int
+    -baseline: Tensor
+    +explain(): Tensor
+  }
+
+  class XAIFactory {
+    +create(name: str): BaseExplainer
+    +list_available_explainers(): List
+  }
+
+  class ExplainerRegistry <<Singleton>> {
+    -_registry: Dict
+    +register()
+    +get()
+  }
+}
+
+package "Evaluation Module" as EvalModule {
+  class XAIEvaluator {
+    +evaluate_single()
+    +evaluate_batch()
+    +compute_summary()
+  }
+
+  class XAIMetrics {
+    +pointing_game_hit: bool
+    +iou_score: float
+    +coverage_score: float
+    +precision: float
+    +recall: float
+  }
+
+  class EvaluationSummary {
+    +explainer_name: str
+    +model_name: str
+    +average_metrics: Dict
+    +timestamp: str
+  }
+}
+
+package "Visualization Module" as VisModule {
+  class Visualiser {
+    -show: bool
+    -save_path: Path
+    +create_visualization()
+    +plot_metrics()
+    +save_heatmaps()
+  }
+}
+
+package "Result Management" as ResultModule {
+  class ResultManager {
+    +save_json()
+    +save_csv()
+    +save_artifacts()
+    +log_to_mlflow()
+  }
+
+  class MLflowIntegration {
+    +start_run()
+    +log_params()
+    +log_metrics()
+    +log_artifacts()
+  }
+}
+
+' Relationships
+Hydra --> MasterConfig : loads
+MasterConfig --> XAIOrchestrator : configures
+
+XAIOrchestrator --> XAIModelFactory : uses
+XAIOrchestrator --> XAIFactory : uses
+XAIOrchestrator --> DataLoader : creates
+XAIOrchestrator --> XAIEvaluator : uses
+XAIOrchestrator --> ResultManager : uses
+XAIOrchestrator --> Visualiser : uses
+
+XAIModelFactory --> ModelRegistry : queries
+XAIFactory --> ExplainerRegistry : queries
+
+ModelRegistry --> XAIModel : provides
+ExplainerRegistry --> BaseExplainer : provides
+
+XAIModel <|.. PytorchHubModel
+BaseExplainer <|-- GradCAMExplainer
+BaseExplainer <|-- IntegratedGradientsExplainer
+
+DataLoader --> ImageNetValidationDataset : loads
+DataLoader --> XAIInputBatch : produces
+
+XAIEvaluator --> XAIMetrics : produces
+XAIEvaluator --> EvaluationSummary : aggregates
+
+ResultManager --> MLflowIntegration : uses
+
+' Data Flow
+note right of XAIOrchestrator
+  **Central Control Flow:**
+  1. Load configuration via Hydra
+  2. Initialize all components
+  3. Run pipeline in batches
+  4. Evaluate results
+  5. Save and visualize
+end note
+
+@enduml@startuml pipeline_overview_updated
+!theme plain
+title XAI Evaluation Pipeline - Aktualisierte Gesamtarchitektur
+
+package "Configuration Layer" as ConfigLayer {
+  class MasterConfig {
+    +experiment: ExperimentConfig
+    +model: ModelConfig
+    +xai: XAIConfig
+    +data: DataConfig
+    +evaluation: EvaluationConfig
+    +visualization: VisualizationConfig
+  }
+
+  class Hydra {
+    +load_config()
+    +compose()
+    +initialize()
+  }
+}
+
+package "Control Layer" as ControlLayer {
+  class XAIOrchestrator {
+    -config: MasterConfig
+    -model_factory: XAIModelFactory
+    -xai_factory: XAIFactory
+    -evaluator: XAIEvaluator
+    -result_manager: ResultManager
+    -visualiser: Visualiser
+    +run()
+    +prepare_experiment()
+    +setup_dataloader()
+    +create_explainer()
+    +run_pipeline()
+    +evaluate_results()
+    +save_results()
+  }
+}
+
+package "Data Module" as DataModule {
+  class ImageNetValidationDataset {
+    +image_dir: Path
+    +annot_dir: Path
+    +label_map: Dict
+    +transform: Transform
+    +__getitem__()
+    +__len__()
+  }
+
+  class XAIInputBatch {
+    +images: Tensor
+    +labels: Tensor
+    +bboxes: List[Dict]
+    +image_paths: List[Path]
+  }
+
+  class DataLoader {
+    +batch_size: int
+    +num_workers: int
+    +collate_fn: Function
+  }
+}
+
+package "Model Module" as ModelModule {
+  interface XAIModel {
+    +get_pytorch_model()
+    +get_conv_layers()
+    +get_layer_by_name()
+    +get_model_info()
+  }
+
+  class XAIModelFactory {
+    +create(name: str): XAIModel
+    +list_available(): List[str]
+  }
+
+  class PytorchHubModel {
+    -model: nn.Module
+    -pretrained: bool
+    +predict()
+  }
+
+  class ModelRegistry <<Singleton>> {
+    -_registry: Dict
+    +register()
+    +get()
+  }
+}
+
+package "XAI Module" as XAIModule {
+  abstract class BaseExplainer {
+    #model: nn.Module
+    +explain(): ExplainerResult
+  }
+
+  class GradCAMExplainer {
+    -target_layer: str
+    +explain(): Tensor
+  }
+
+  class IntegratedGradientsExplainer {
+    -steps: int
+    -baseline: Tensor
+    +explain(): Tensor
+  }
+
+  class XAIFactory {
+    +create(name: str): BaseExplainer
+    +list_available_explainers(): List
+  }
+
+  class ExplainerRegistry <<Singleton>> {
+    -_registry: Dict
+    +register()
+    +get()
+  }
+}
+
+package "Evaluation Module" as EvalModule {
+  class XAIEvaluator {
+    +evaluate_single()
+    +evaluate_batch()
+    +compute_summary()
+  }
+
+  class XAIMetrics {
+    +pointing_game_hit: bool
+    +iou_score: float
+    +coverage_score: float
+    +precision: float
+    +recall: float
+  }
+
+  class EvaluationSummary {
+    +explainer_name: str
+    +model_name: str
+    +average_metrics: Dict
+    +timestamp: str
+  }
+}
+
+package "Visualization Module" as VisModule {
+  class Visualiser {
+    -show: bool
+    -save_path: Path
+    +create_visualization()
+    +plot_metrics()
+    +save_heatmaps()
+  }
+}
+
+package "Result Management" as ResultModule {
+  class ResultManager {
+    +save_json()
+    +save_csv()
+    +save_artifacts()
+    +log_to_mlflow()
+  }
+
+  class MLflowIntegration {
+    +start_run()
+    +log_params()
+    +log_metrics()
+    +log_artifacts()
+  }
+}
+
+' Relationships
+Hydra --> MasterConfig : loads
+MasterConfig --> XAIOrchestrator : configures
+
+XAIOrchestrator --> XAIModelFactory : uses
+XAIOrchestrator --> XAIFactory : uses
+XAIOrchestrator --> DataLoader : creates
+XAIOrchestrator --> XAIEvaluator : uses
+XAIOrchestrator --> ResultManager : uses
+XAIOrchestrator --> Visualiser : uses
+
+XAIModelFactory --> ModelRegistry : queries
+XAIFactory --> ExplainerRegistry : queries
+
+ModelRegistry --> XAIModel : provides
+ExplainerRegistry --> BaseExplainer : provides
+
+XAIModel <|.. PytorchHubModel
+BaseExplainer <|-- GradCAMExplainer
+BaseExplainer <|-- IntegratedGradientsExplainer
+
+DataLoader --> ImageNetValidationDataset : loads
+DataLoader --> XAIInputBatch : produces
+
+XAIEvaluator --> XAIMetrics : produces
+XAIEvaluator --> EvaluationSummary : aggregates
+
+ResultManager --> MLflowIntegration : uses
+
+' Data Flow
+note right of XAIOrchestrator
+  **Central Control Flow:**
+  1. Load configuration via Hydra
+  2. Initialize all components
+  3. Run pipeline in batches
+  4. Evaluate results
+  5. Save and visualize
+end note
+
+@enduml

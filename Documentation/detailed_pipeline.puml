@@ -1,0 +1,337 @@
+@startuml XAI_Pipeline_Architecture_Updated
+!define COMPONENT_COLOR #E1F5FE
+!define FACTORY_COLOR #F3E5F5
+!define DATA_COLOR #E8F5E8
+!define RESULT_COLOR #FFF3E0
+!define CONFIG_COLOR #FFEBEE
+
+title XAI Pipeline Architecture - Aktuelle Struktur mit Hydra/MLflow
+
+' ==== CONFIGURATION LAYER ====
+package "Configuration Layer" <<Cloud>> CONFIG_COLOR {
+  class MasterConfig CONFIG_COLOR {
+    + experiment: ExperimentConfig
+    + model: ModelConfig
+    + xai: XAIConfig
+    + data: DataConfig
+    + evaluation: EvaluationConfig
+    + visualization: VisualizationConfig
+    + mlflow: MLflowConfig
+  }
+
+  class Hydra CONFIG_COLOR {
+    + @hydra.main()
+    + compose()
+    + initialize_config_dir()
+    + OmegaConf.to_container()
+  }
+
+  note right of Hydra
+    **Hydra Features:**
+    - Multi-run capability
+    - Parameter sweeps
+    - Config composition
+    - Override syntax
+  end note
+}
+
+' ==== ORCHESTRATOR MODULE ====
+package "Control Layer" COMPONENT_COLOR {
+  class XAIOrchestrator COMPONENT_COLOR {
+    - _config: MasterConfig
+    - _logger: Logger
+    - _model_factory: XAIModelFactory
+    - _xai_factory: XAIFactory
+    - _model: XAIModel
+    - _pytorch_model: nn.Module
+    - _device: torch.device
+    - _evaluator: XAIEvaluator
+    - _result_manager: ResultManager
+    - _visualiser: Visualiser
+    - _mlflow_run: Run
+    --
+    + run(): void
+    + prepare_experiment(): void
+    + setup_dataloader(): DataLoader
+    + create_explainer(name, **kwargs): BaseExplainer
+    + run_pipeline(dataloader, explainer): List[Result]
+    + process_batch(batch, explainer): List[Result]
+    + evaluate_results(results): Summary
+    + save_results(results, summary): void
+    + finalize_run(): void
+  }
+
+  class ResultManager COMPONENT_COLOR {
+    - output_dir: Path
+    --
+    + save_json(data, filename): Path
+    + save_csv(data, filename): Path
+    + save_artifacts(artifacts): Dict[str, Path]
+    + log_to_mlflow(metrics, artifacts): void
+  }
+}
+
+' ==== DATA MODULE ====
+package "Data Module" DATA_COLOR {
+  class ImageNetValidationDataset DATA_COLOR {
+    - image_dir: Path
+    - annot_dir: Path
+    - label_map: Dict[int, int]
+    - transform: Compose
+    - image_files: List[str]
+    --
+    + __len__(): int
+    + __getitem__(idx): Dict
+    - _load_image(path): PIL.Image
+    - _load_bbox(xml_path): List[Dict]
+    - _parse_xml(path): List[Tuple]
+  }
+
+  class XAIInputBatch DATA_COLOR {
+    + images: Tensor[B,C,H,W]
+    + labels: Tensor[B]
+    + bboxes: List[List[Dict]]
+    + image_paths: List[str]
+    + image_names: List[str]
+  }
+
+  class DataLoader DATA_COLOR {
+    + dataset: ImageNetValidationDataset
+    + batch_size: int
+    + num_workers: int
+    + collate_fn: explain_collate_fn
+    + pin_memory: bool
+  }
+}
+
+' ==== MODEL MODULE ====
+package "Model Module" FACTORY_COLOR {
+  interface XAIModel FACTORY_COLOR {
+    + get_pytorch_model(): nn.Module
+    + get_conv_layers(): List[str]
+    + get_layer_by_name(name): Module
+    + get_model_info(): Dict
+  }
+
+  class XAIModelFactory FACTORY_COLOR {
+    + {static} create(name, **kwargs): XAIModel
+    + {static} list_available(): List[str]
+    + {static} get_registry_info(): Dict
+  }
+
+  class PytorchHubModel FACTORY_COLOR {
+    - model: nn.Module
+    - model_name: str
+    - pretrained: bool = True
+    - repo: str = "pytorch/vision"
+    --
+    + get_pytorch_model(): nn.Module
+    + get_conv_layers(): List[str]
+    - _find_conv_layers(): List[str]
+  }
+
+  class ModelRegistry <<Singleton>> FACTORY_COLOR {
+    - _instance: ModelRegistry
+    - _registry: Dict[str, Type]
+    - _lock: Lock
+    --
+    + get_instance(): ModelRegistry
+    + register(name, class): void
+    + get(name): Type[XAIModel]
+    - _register_builtin_models(): void
+  }
+}
+
+' ==== XAI MODULE ====
+package "XAI Module" FACTORY_COLOR {
+  abstract class BaseExplainer FACTORY_COLOR {
+    # model: nn.Module
+    # device: torch.device
+    --
+    + {abstract} explain(batch): ExplainerResult
+    + set_model(model): void
+  }
+
+  class GradCAMExplainer FACTORY_COLOR {
+    - grad_cam: LayerGradCam
+    - target_layer: Module
+    - relu_attributions: bool
+    - attribute_to_layer_input: bool
+    --
+    + explain(batch): ExplainerResult
+    - _select_target_layer(model, name): Module
+    - _compute_gradcam(images): Tensor
+  }
+
+  class IntegratedGradientsExplainer FACTORY_COLOR {
+    - ig: IntegratedGradients
+    - steps: int = 50
+    - baseline: Optional[Tensor]
+    --
+    + explain(batch): ExplainerResult
+    - _create_baseline(shape): Tensor
+  }
+
+  class XAIFactory FACTORY_COLOR {
+    + {static} create(name, model, **kwargs): BaseExplainer
+    + {static} list_available_explainers(): List[str]
+  }
+
+  class ExplainerRegistry <<Singleton>> FACTORY_COLOR {
+    - _instance: ExplainerRegistry
+    - _registry: Dict[str, Type]
+    --
+    + register(name, class): void
+    + get(name): Type[BaseExplainer]
+  }
+}
+
+' ==== EVALUATION MODULE ====
+package "Evaluation Module" RESULT_COLOR {
+  class XAIEvaluator RESULT_COLOR {
+    + evaluate_single(result): XAIMetrics
+    + evaluate_batch(results): List[XAIMetrics]
+    + compute_summary(results, metrics): EvaluationSummary
+    - _compute_pointing_game(attr, bbox): bool
+    - _compute_iou(attr, bbox, threshold): float
+    - _compute_coverage(attr, bbox, percentile): float
+  }
+
+  class XAIMetrics RESULT_COLOR {
+    + pointing_game_hit: bool
+    + pointing_game_threshold: float = 0.5
+    + iou_score: float
+    + iou_threshold: float = 0.5
+    + coverage_score: float
+    + coverage_percentile: float = 50.0
+    + precision: float
+    + recall: float
+  }
+
+  class EvaluationSummary RESULT_COLOR {
+    + explainer_name: str
+    + model_name: str
+    + total_samples: int
+    + samples_with_bbox: int
+    + prediction_accuracy: float
+    + pointing_game_score: float
+    + average_iou: float
+    + average_coverage: float
+    + average_processing_time: float
+    + std_dev_metrics: Dict[str, float]
+    + timestamp: str
+  }
+}
+
+' ==== MLFLOW INTEGRATION ====
+package "MLflow Integration" RESULT_COLOR {
+  class MLflowLogger RESULT_COLOR {
+    + start_run(name): Run
+    + log_params(params): void
+    + log_metrics(metrics): void
+    + log_artifacts(paths): void
+    + log_model(model, name): void
+    + end_run(): void
+  }
+}
+
+' ==== VISUALIZATION MODULE ====
+package "Visualization Module" COMPONENT_COLOR {
+  class Visualiser COMPONENT_COLOR {
+    - show: bool
+    - save_path: Path
+    --
+    + create_visualization(result, metrics): Path
+    + plot_metrics(summary): Path
+    + create_comparison_chart(summaries): Path
+    - _create_heatmap_overlay(img, attr): ndarray
+    - _add_bbox_overlay(img, bbox): ndarray
+    - _save_figure(fig, name): Path
+  }
+}
+
+' ==== RESULT DATACLASSES ====
+package "Result Types" RESULT_COLOR {
+  class XAIExplanationResult RESULT_COLOR {
+    + image_name: str
+    + image_path: Path
+    + predicted_class: int
+    + true_label: int
+    + confidence: float
+    + prediction_correct: bool
+    + attribution: Tensor
+    + explainer_result: ExplainerResult
+    + explainer_name: str
+    + has_bbox: bool
+    + bbox_info: Optional[Dict]
+    + model_name: str
+    + processing_time: float
+    + metadata: Dict[str, Any]
+  }
+
+  class ExplainerResult RESULT_COLOR {
+    + attributions: Tensor
+    + metadata: Dict[str, Any]
+  }
+}
+
+' ==== RELATIONSHIPS ====
+
+' Configuration
+Hydra --> MasterConfig : loads & validates
+MasterConfig --> XAIOrchestrator : configures
+
+' Orchestrator Dependencies
+XAIOrchestrator *-- XAIModelFactory : uses
+XAIOrchestrator *-- XAIFactory : uses
+XAIOrchestrator *-- XAIEvaluator : uses
+XAIOrchestrator *-- ResultManager : uses
+XAIOrchestrator *-- Visualiser : uses
+XAIOrchestrator *-- MLflowLogger : uses
+
+' Factory Dependencies
+XAIModelFactory ..> ModelRegistry : queries
+XAIFactory ..> ExplainerRegistry : queries
+ModelRegistry --> XAIModel : provides
+ExplainerRegistry --> BaseExplainer : provides
+
+' Implementations
+XAIModel <|.. PytorchHubModel
+BaseExplainer <|-- GradCAMExplainer
+BaseExplainer <|-- IntegratedGradientsExplainer
+
+' Data Flow
+DataLoader --> ImageNetValidationDataset : loads
+DataLoader --> XAIInputBatch : produces
+XAIOrchestrator --> XAIExplanationResult : produces
+XAIEvaluator --> XAIMetrics : produces
+XAIEvaluator --> EvaluationSummary : aggregates
+
+' Result Management
+ResultManager --> MLflowLogger : uses
+Visualiser --> XAIExplanationResult : visualizes
+Visualiser --> XAIMetrics : displays
+
+' ==== DATA FLOW ANNOTATION ====
+
+note as DataFlow
+  **Main Execution Flow:**
+  1. Hydra loads config → MasterConfig
+  2. XAIOrchestrator initialized with config
+  3. MLflow run started, params logged
+  4. DataLoader created from ImageNet dataset
+  5. Model loaded via XAIModelFactory
+  6. Explainer created via XAIFactory
+  7. Batch processing:
+     - Load images/labels/bboxes
+     - Model prediction
+     - XAI explanation
+     - Create XAIExplanationResult
+  8. Evaluation computes metrics
+  9. Results saved (JSON/CSV/Visualizations)
+  10. MLflow logs metrics & artifacts
+end note
+
+DataFlow .. XAIOrchestrator
+
+@enduml
