@@ -1,65 +1,127 @@
-@startuml component_architecture
+@startuml component_architecture_updated
 !theme plain
-title Komponentenarchitektur der XAI Pipeline
+title Komponentenarchitektur der XAI Pipeline - Aktualisiert
 
-package "Datenschicht" {
+package "Configuration Management" {
+  [Hydra Framework]
+  [YAML Config Files]
+  [MasterConfig Dataclass]
+}
+
+package "Data Layer" {
   [ImageNet Dataset]
-  [Annotation Files]
-  [Configuration Files]
+  [Annotation XMLs]
+  [Label Mappings]
+  [DataLoader]
+  [Transforms]
 }
 
-package "Modellschicht" {
-  [ResNet50]
-  [VGG16]
-  [EfficientNet]
-  [Model Interface]
+package "Model Layer" {
+  [XAI Model Interface]
+  [Model Factory]
+  [Model Registry]
+  [PyTorch Hub Models]
+  [Custom Models]
 }
 
-package "XAI-Schicht" {
-  [Grad-CAM]
+package "XAI Methods Layer" {
+  [XAI Factory]
+  [Explainer Registry]
+  [GradCAM]
   [Integrated Gradients]
   [Guided Backprop]
-  [XAI Interface]
+  [LIME]
+  [SHAP]
 }
 
-package "Evaluationsschicht" {
+package "Evaluation Layer" {
+  [XAI Evaluator]
+  [Metric Calculator]
+  [Pointing Game]
   [IoU Calculator]
-  [Point Game]
+  [Coverage Analyzer]
   [Statistical Tests]
-  [Metric Interface]
 }
 
-package "Orchestrierungsschicht" {
-  [Experiment Runner]
-  [Config Manager]
-  [Logger]
-  [Result Storage]
+package "Control & Orchestration" {
+  [XAI Orchestrator]
+  [Batch Processor]
+  [Pipeline Controller]
+  [Error Handler]
 }
 
-' Interfaces
-[Model Interface] --> [ResNet50]
-[Model Interface] --> [VGG16]
-[Model Interface] --> [EfficientNet]
+package "Result Management" {
+  [Result Manager]
+  [JSON Exporter]
+  [CSV Exporter]
+  [MLflow Logger]
+  [Artifact Storage]
+}
 
-[XAI Interface] --> [Grad-CAM]
-[XAI Interface] --> [Integrated Gradients]
-[XAI Interface] --> [Guided Backprop]
+package "Visualization" {
+  [Visualiser]
+  [Heatmap Generator]
+  [Metric Plotter]
+  [Comparison Charts]
+}
 
-[Metric Interface] --> [IoU Calculator]
-[Metric Interface] --> [Point Game]
-[Metric Interface] --> [Statistical Tests]
+' Interfaces (dotted lines)
+[XAI Model Interface] ..> [PyTorch Hub Models]
+[XAI Model Interface] ..> [Custom Models]
+[XAI Factory] ..> [GradCAM]
+[XAI Factory] ..> [Integrated Gradients]
+[XAI Factory] ..> [Guided Backprop]
+[XAI Factory] ..> [LIME]
+[XAI Factory] ..> [SHAP]
 
-' Datenfluss
-[ImageNet Dataset] --> [Model Interface] : Images
-[Annotation Files] --> [Metric Interface] : Ground Truth
-[Configuration Files] --> [Experiment Runner] : Parameters
+' Dependencies (solid lines)
+[Hydra Framework] --> [YAML Config Files]
+[Hydra Framework] --> [MasterConfig Dataclass]
+[MasterConfig Dataclass] --> [XAI Orchestrator]
 
-[Model Interface] --> [XAI Interface] : Predictions & Activations
-[XAI Interface] --> [Metric Interface] : Heatmaps
-[Metric Interface] --> [Result Storage] : Evaluation Results
+[XAI Orchestrator] --> [Model Factory]
+[XAI Orchestrator] --> [XAI Factory]
+[XAI Orchestrator] --> [DataLoader]
+[XAI Orchestrator] --> [XAI Evaluator]
+[XAI Orchestrator] --> [Result Manager]
+[XAI Orchestrator] --> [Visualiser]
 
-[Experiment Runner] ..> [Model Interface] : orchestrates
-[Experiment Runner] ..> [XAI Interface] : orchestrates
-[Experiment Runner] ..> [Metric Interface] : orchestrates
+[Model Factory] --> [Model Registry]
+[XAI Factory] --> [Explainer Registry]
+
+[DataLoader] --> [ImageNet Dataset]
+[DataLoader] --> [Annotation XMLs]
+[DataLoader] --> [Transforms]
+
+[XAI Evaluator] --> [Metric Calculator]
+[Metric Calculator] --> [Pointing Game]
+[Metric Calculator] --> [IoU Calculator]
+[Metric Calculator] --> [Coverage Analyzer]
+
+[Result Manager] --> [JSON Exporter]
+[Result Manager] --> [CSV Exporter]
+[Result Manager] --> [MLflow Logger]
+
+[Visualiser] --> [Heatmap Generator]
+[Visualiser] --> [Metric Plotter]
+
+' Notes
+note top of "Configuration Management"
+  Hydra-basierte Konfiguration
+  ermöglicht flexible Experimente
+  ohne Code-Änderungen
+end note
+
+note bottom of "XAI Methods Layer"
+  Registry Pattern ermöglicht
+  einfaches Hinzufügen neuer
+  XAI-Methoden zur Laufzeit
+end note
+
+note right of "Control & Orchestration"
+  Zentrale Steuerungseinheit
+  koordiniert alle Module
+  und managed den Workflow
+end note
 
 @enduml
