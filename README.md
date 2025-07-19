@@ -1,52 +1,151 @@
-# XAI Pipeline
+# XAI Evaluation Pipeline
 
-Project description goes here.
+A modular pipeline to evaluate and compare explainable AI (XAI) methods on various models and datasets.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)  
+- [Installation](#installation)  
+- [Configuration](#configuration)  
+- [Usage](#usage)  
+- [How to Contribute / Development](#how-to-contribute--development)  
+- [Testing](#testing)  
+- [License](#license)  
+- [Contact](#contact)  
+
+---
+
+## Overview
+
+This project provides a flexible and extensible framework to evaluate, benchmark, and visualize explainability methods for machine learning models, targeting scientific researchers who want to systematically compare XAI techniques.
+
+- Supports multiple datasets and models  
+- Modular explainers integration  
+- Comprehensive evaluation metrics  
+- Visualization tools for explainability results
+
+*More detailed description and architecture diagram can be added here.*
 
 ---
 
 ## Installation
 
-### Important note about installing torch with CUDA 11.8
+### Prerequisites
 
-The torch package version 2.7.1+cu118 and torchvision are **not installed directly via Poetry**. This is because the official PyTorch CUDA package index (`https://download.pytorch.org/whl/cu118`) is **not a full Python package repository**. Poetry (v2.1.3) does not support selective package resolution from partial package indexes like this.
+- Python 3.x (tested on 3.10+)  
+- Poetry for dependency management  
+- CUDA (optional, if using GPU-enabled torch builds)  
 
 ### Step-by-step installation
 
-1. Install the regular dependencies:
+1. Clone the repository:
+
    ```bash
-   poetry install --no-root
+   git clone https://github.com/shum-panda/xai-eval-pipeline.git
+   cd xai-eval-pipeline
    ```
 
-2. Manually install `torch` and `torchvision` using `pip` from the official PyTorch CUDA index:
+2. Install dependencies using Poetry:
+
    ```bash
-   poetry run pip install torch==2.7.1+cu118 torchvision==0.22.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+   poetry install
    ```
 
-**Tip:** If you use a different CUDA version or platform, check the official PyTorch Get Started page for the correct URLs and versions.
+3. (Optional) If you require GPU support and specific CUDA versions, ensure your system matches the CUDA requirements and that the PyTorch CUDA package source is properly configured.
 
-### Why not add these packages directly in `pyproject.toml`?
+---
 
-Adding `torch` with `source = "pytorch-cu118"` in `pyproject.toml` causes Poetry to try fetching **all packages** from that source — which fails because many packages like `black` or `numpy` are not available there.
+## Configuration
 
-## Development
+The pipeline uses YAML configuration files to specify:
 
-### Optional: Automate installation with a Makefile
+- Dataset paths and parameters  
+- Model checkpoints and settings  
+- Explainer methods and their hyperparameters  
+- Evaluation metrics to compute  
+- Visualization options  
 
-Create a file named `Makefile` in the project root with the following content (make sure to use **tabs**, not spaces, before the commands):
+Example configuration files are provided in the `configs/` directory.
 
-```makefile
-install:
-	poetry install
-	poetry run pip install torch==2.7.1+cu118 torchvision==0.22.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
-```
+To run the pipeline with a specific config:
 
-Then you can run:
 ```bash
-make install
+poetry run python main.py --config configs/example.yaml
 ```
 
-If you are using Windows or do not have `make` installed, you can run the commands manually or create a PowerShell or batch script to automate this.
+*Add further notes on customizing configs, overriding parameters, etc.*
+
+---
+
+## Usage
+
+### Basic usage
+
+Run the full pipeline with default config:
+
+```bash
+poetry run python main.py
+```
+
+### Running specific modules
+
+You can run individual modules such as model training, explanation generation, evaluation, or visualization by specifying commands or config flags.  
+
+*Add usage examples or CLI flags.*
+
+---
+
+## How to Contribute / Development
+
+### Development setup
+
+1. Clone the repo and install dev dependencies:
+
+   ```bash
+   git clone https://github.com/yourusername/xai-eval-pipeline.git
+   cd xai-eval-pipeline
+   poetry install
+   ```
+
+2. (Optional) Setup pre-commit hooks, linters, etc.
+
+3. Implement new explainers, metrics, or dataset loaders by extending the modular interfaces.
+
+### Coding style
+
+- Use [Black](https://github.com/psf/black) for formatting  
+- Use [Ruff](https://github.com/charliermarsh/ruff) for linting
+
+---
+
+## Testing
+
+### Running tests
+
+The project uses `pytest`. To run tests:
+
+```bash
+poetry run pytest tests/
+```
+
+*Add notes on coverage, test structure, writing new tests.*
+
+---
 
 ## License
 
-MIT License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## Contact
+
+For questions or contributions, please open issues or contact:
+
+- Shium Mohammed Rahman – shium.m.r@gmail.com  
+- GitHub: [shum-panda](https://github.com/shum-panda)
+
+---
+

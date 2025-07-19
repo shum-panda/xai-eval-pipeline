@@ -1,0 +1,8 @@
+name: xai_eval_pipeline
+
+entry_points:
+  main:
+    parameters:
+      config_name: {type: str, default: "default"}
+    command: >
+      python run_experiment.py
