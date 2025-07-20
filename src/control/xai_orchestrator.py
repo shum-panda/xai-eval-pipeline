@@ -2,6 +2,7 @@ import dataclasses
 import logging
 import math
 import time
+from logging import Logger
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
@@ -24,6 +25,7 @@ from pipeline_moduls.models.base.xai_model_factory import XAIModelFactory
 from pipeline_moduls.ResultManager.result_manager import ResultManager
 from pipeline_moduls.visualization.visualisation import Visualiser
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
+from pipeline_moduls.xai_methods.base.validation_result import ValidationResult
 from pipeline_moduls.xai_methods.xai_factory import XAIFactory
 
 
@@ -49,19 +51,18 @@ class XAIOrchestrator:
         """
         self._individual_metrics = None
         self._mlflow_run = None
-        self._logger = logging.getLogger(__name__)
-        self._config = config
-        self._result_manager = ResultManager()
+        self._logger: Logger = logging.getLogger(__name__)
+        self._config: MasterConfig = config
+        self._result_manager: ResultManager = ResultManager()
 
         # Setup factories
         self._model_factory: XAIModelFactory = XAIModelFactory()
         self._xai_factory: XAIFactory = XAIFactory()
 
-        # Load model
+        # Load _model
         self._model_name: str = self._config.model.name
         self._model: XAIModel = self._model_factory.create(self._model_name)
-        self._pytorch_model = self._model.get_pytorch_model()
-        self._device = next(self._pytorch_model.parameters()).device
+        self._device: str = self._model.get_device()
 
         # Evaluator and Visualizer
         self._evaluator = XAIEvaluator()
@@ -94,9 +95,11 @@ class XAIOrchestrator:
         Starts the MLflow experiment and logs parameters.
         """
         self._logger.info(f"Starting experiment: {self._config.experiment.name}")
-        self._mlflow_run = mlflow.start_run(run_name=self._config.experiment.name)
-
-        mlflow.log_param("model_name", self._model_name)
+        if mlflow.active_run() is None:
+            self._mlflow_run = mlflow.start_run(run_name=self._config.experiment.name)
+        else:
+            self._mlflow_run = mlflow.active_run()
+        mlflow.log_param("_model_name", self._model_name)
         mlflow.log_param("explainer_name", self._config.xai.name)
         mlflow.log_param("batch_size", self._config.data.batch_size)
         mlflow.log_param("max_batches", self._config.data.max_batches)
@@ -192,7 +195,7 @@ class XAIOrchestrator:
         return summary
 
     def save_results(
-            self, results: List[XAIExplanationResult], summary: EvaluationSummary
+        self, results: List[XAIExplanationResult], summary: EvaluationSummary
     ):
         """saves results and evaluation summary to disk and logs artifacts to MLflow.
 
@@ -288,7 +291,7 @@ class XAIOrchestrator:
         """
         Ends the MLflow run if active and logs the run ID.
         """
-        if self._mlflow_run:
+        if self._mlflow_run and mlflow.active_run() is not None:
             mlflow.end_run()
             self._logger.info(f"MLflow run ended: {self._mlflow_run.info.run_id}")
             self._mlflow_run = None
