@@ -14,6 +14,7 @@ from torchvision import transforms
 import pipeline_moduls.evaluation.metrics  # noqa: F401
 from control.utils.config_dataclasses.master_config import MasterConfig
 from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
+from control.utils.error.xai_explanation_error import XAIExplanationError
 from control.utils.with_cuda_cleanup import with_cuda_cleanup
 from pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
 from pipeline_moduls.data.image_net_val_dataset import create_dataloader
@@ -27,12 +28,6 @@ from pipeline_moduls.visualization.visualisation import Visualiser
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from pipeline_moduls.xai_methods.base.validation_result import ValidationResult
 from pipeline_moduls.xai_methods.xai_factory import XAIFactory
-
-
-class XAIExplanationError(Exception):
-    """Custom exception for errors during the XAI explanation process."""
-
-    pass
 
 
 class XAIOrchestrator:
@@ -76,6 +71,29 @@ class XAIOrchestrator:
         self._logger.info(
             f"  Available explainers: {self._xai_factory.list_available_explainers()}"
         )
+
+        def get_pipeline_status(self) -> dict:
+            """
+            Gibt aktuellen Pipeline-Status zurück.
+            Nützlich für Monitoring oder Debugging.
+            """
+            return {
+                "status": self._pipeline_status,
+                "current_step": self._current_step,
+                "has_error": self._pipeline_error is not None,
+                "error_details": str(
+                    self._pipeline_error) if self._pipeline_error else None,
+                "mlflow_active": self._mlflow_run is not None
+            }
+
+        def reset_pipeline_state(self):
+            """
+            Setzt Pipeline-Status zurück für neue Runs.
+            """
+            self._pipeline_status = "initialized"
+            self._current_step = "none"
+            self._pipeline_error = None
+            self._logger.info("Pipeline state reset")
 
     def run(self):
         self.prepare_experiment()
