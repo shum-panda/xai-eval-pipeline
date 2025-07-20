@@ -45,6 +45,9 @@ class XAIOrchestrator:
         Args:
             config: MasterConfig object loaded via Hydra.
         """
+        self._pipeline_status = "initialized"
+        self._current_step = "none"
+        self._pipeline_error = None
         self._individual_metrics = None
         self._mlflow_run = None
         self._logger: Logger = logging.getLogger(__name__)
@@ -80,41 +83,94 @@ class XAIOrchestrator:
             f"  Available explainers: {self._xai_factory.list_available_explainers()}"
         )
 
-        def get_pipeline_status(self) -> dict:
-            """
-            Gibt aktuellen Pipeline-Status zurück.
-            Nützlich für Monitoring oder Debugging.
-            """
-            return {
-                "status": self._pipeline_status,
-                "current_step": self._current_step,
-                "has_error": self._pipeline_error is not None,
-                "error_details": str(
-                    self._pipeline_error) if self._pipeline_error else None,
-                "mlflow_active": self._mlflow_run is not None
-            }
+    def get_pipeline_status(self) -> dict:
+        """
+        Gibt aktuellen Pipeline-Status zurück.
+        Nützlich für Monitoring oder Debugging.
+        """
+        return {
+            "status": self._pipeline_status,
+            "current_step": self._current_step,
+            "has_error": self._pipeline_error is not None,
+            "error_details": str(
+                self._pipeline_error) if self._pipeline_error else None,
+            "mlflow_active": self._mlflow_run is not None
+        }
 
-        def reset_pipeline_state(self):
-            """
-            Setzt Pipeline-Status zurück für neue Runs.
-            """
-            self._pipeline_status = "initialized"
-            self._current_step = "none"
-            self._pipeline_error = None
-            self._logger.info("Pipeline state reset")
+    def reset_pipeline_state(self):
+        """
+        Setzt Pipeline-Status zurück für neue Runs.
+        """
+        self._pipeline_status = "initialized"
+        self._current_step = "none"
+        self._pipeline_error = None
+        self._logger.info("Pipeline state reset")
 
     def run(self):
-        self.prepare_experiment()
-        dataloader = self.setup_dataloader()
-        explainer = self.create_explainer(
-            explainer_name=self._config.xai.name, **self._config.xai.kwargs
-        )
-        results = self.run_pipeline(dataloader, explainer)
-        summary = self.evaluate_results(results)
-        self.save_results(results, summary)
-        self.visualize_results_if_needed(results, summary)
-        self.cleanup_individual_metrics()
-        self.finalize_run()
+        """
+        Erweiterte run() Methode mit Status-Tracking.
+        (Robuste Error-Handling kommt in Schritt 3)
+        """
+        # Status setzen
+        self._pipeline_status = "running"
+
+        try:
+            # Bestehende Pipeline-Schritte mit Status-Updates
+            self._current_step = "experiment_preparation"
+            self._logger.info(f"Starting step: {self._current_step}")
+            self.prepare_experiment()
+
+            self._current_step = "dataloader_setup"
+            self._logger.info(f"Starting step: {self._current_step}")
+            dataloader = self.setup_dataloader()
+
+            self._current_step = "explainer_creation"
+            self._logger.info(f"Starting step: {self._current_step}")
+            explainer = self.create_explainer(
+                explainer_name=self._config.xai.name,
+                **self._config.xai.kwargs
+            )
+
+            self._current_step = "pipeline_execution"
+            self._logger.info(f"Starting step: {self._current_step}")
+            results = self.run_pipeline(dataloader, explainer)
+
+            self._current_step = "results_evaluation"
+            self._logger.info(f"Starting step: {self._current_step}")
+            summary = self.evaluate_results(results)
+
+            self._current_step = "results_saving"
+            self._logger.info(f"Starting step: {self._current_step}")
+            self.save_results(results, summary)
+
+            self._current_step = "visualization"
+            self._logger.info(f"Starting step: {self._current_step}")
+            self.visualize_results_if_needed(results, summary)
+
+            self._current_step = "finalization"
+            self._logger.info(f"Starting step: {self._current_step}")
+            self.finalize_run()
+
+            # SUCCESS!
+            self._pipeline_status = "completed"
+            self._current_step = "completed"
+            self._logger.info("Pipeline completed successfully!")
+
+            return {
+                "status": "success",
+                "total_samples": len(results),
+                "output_dir": self._config.experiment.output_dir,
+                "explainer": self._config.xai.name,
+                "model": self._model_name
+            }
+
+        except Exception as e:
+            # Einfaches Error-Handling (robust kommt in Schritt 3)
+            self._pipeline_status = "failed"
+            self._pipeline_error = e
+            self._logger.error(f"PIPELINE FAILED at step: {self._current_step}")
+            self._logger.error(f"Error: {str(e)}")
+            raise
 
     def prepare_experiment(self):
         """
@@ -520,6 +576,9 @@ class XAIOrchestrator:
                 f"Verarbeitung abgeschlossen mit {len(failed_batches)} fehlgeschlagenen"
                 f"Batches: {failed_batches}"
             )
+
+        if len(failed_batches)==max_batches:
+            raise XAIExplanationError("No Valid Results")
 
     @with_cuda_cleanup
     def explain_batch(
