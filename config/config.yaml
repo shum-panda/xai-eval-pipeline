@@ -35,11 +35,8 @@ xai:
   kwargs:
     guided_backprop: false
 
-metrics:
-  metrics:                          # List of metrics to compute for evaluation
-    - accuracy                      # Classification accuracy
-    - precision                     # Classification precision
-    - explanation_faithfulness      # Metric to assess XAI explanation faithfulness
+metric:
+  threshold: 0.3
 
 visualization:
   save: true                        # Save visualizations of explanations
@@ -54,8 +51,3 @@ logging:
   level: INFO                       # Logging level (e.g., DEBUG, INFO, WARNING)
   to_file: true                     # Save logs to a file
   file: logs/experiment.log         # Path to the log file
-
-reporting:
-  generate_html_report: true        # Whether to generate an HTML report at the end
-  report_title: My XAI Experiment Report  # Title of the generated report
-
