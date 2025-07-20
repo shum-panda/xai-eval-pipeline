@@ -1,20 +1,21 @@
 from dataclasses import dataclass
-from typing import List
 from pathlib import Path
+from typing import List
+
 import torch
 
 @dataclass
 class XAIInputBatch:
     """A structured batch format used by XAI explainer modules.
 
-        Attributes:
-            images_tensor (Tensor): Batched images, shape [B, C, H, W]
-            labels_tensor (Tensor): Batched label tensors, shape [B]
-            boxes_list (List[Tensor]): Bounding boxes per image
-            image_paths (List[Path]): Absolute paths to input images
-            image_names (List[str]): Filenames of the input images
-            bbox_paths (List[Path]): Annotation file paths
-            labels_int (List[int]): Raw integer class labels
+    Attributes:
+        images_tensor (Tensor): Batched images, shape [B, C, H, W]
+        labels_tensor (Tensor): Batched label tensors, shape [B]
+        boxes_list (List[Tensor]): Bounding boxes per image
+        image_paths (List[Path]): Absolute paths to input images
+        image_names (List[str]): Filenames of the input images
+        bbox_paths (List[Path]): Annotation file paths
+        labels_int (List[int]): Raw integer class labels
     """
     images_tensor: torch.Tensor
     labels_tensor: torch.Tensor
