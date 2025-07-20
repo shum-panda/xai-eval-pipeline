@@ -24,7 +24,7 @@ class XAIFactory:
 
     def _register_default_explainers(self):
         """Register default explainer implementations"""
-        self.registry.register("gradcam", GradCamExplainer)
+        self.registry.register("grad_cam", GradCamExplainer)
         self.registry.register("occlusion", OcclusionExplainer)
         self.registry.register("integrated_gradients", IntegratedGradientsExplainer)
 
