@@ -6,11 +6,16 @@ import torch
 
 
 class XAIModel(ABC):
-    """Abstract base class for models used in XAI applications (consistent with BaseExplainer)"""
+    """Abstract base class for models used in XAI applications
+    (consistent with BaseExplainer)"""
 
     def __init__(self, model_name: str):
-        self.model_name = model_name
-        self.logger = logging.getLogger(__name__)
+        self._model_name = model_name
+        self._logger = logging.getLogger(__name__)
+        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    def get_device(self):
+        return self._device
 
     @abstractmethod
     def get_conv_layers(self) -> List[str]:
@@ -38,16 +43,16 @@ class XAIModel(ABC):
 
     @abstractmethod
     def get_model_info(self) -> dict:
-        """Get basic model information
+        """Get basic _model information
 
         Returns:
-            Dictionary with model metadata (name, type, parameters, etc.)
+            Dictionary with _model metadata (name, type, parameters, etc.)
         """
         pass
 
     @abstractmethod
     def get_pytorch_model(self) -> torch.nn.Module:
-        """Get the underlying PyTorch model for XAI methods
+        """Get the underlying PyTorch _model for XAI methods
 
         Returns:
             The raw PyTorch nn.Module

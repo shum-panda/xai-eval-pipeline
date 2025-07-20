@@ -1,6 +1,7 @@
 from typing import Any, List
 
 import torch
+from torch import nn
 
 from pipeline_moduls.models.base.interface.xai_model import XAIModel
 
@@ -15,17 +16,18 @@ class PytorchHubModel(XAIModel):
         self.pretrained = kwargs.get("pretrained", True)
         self.repo = kwargs.get("repo", "pytorch/vision:v0.10.0")
 
-        # Load the model from PyTorch Hub
+        # Load the _model from PyTorch Hub
         self.model = self._load_from_hub(model_name, **kwargs)
 
         # Setup for XAI
         self._setup_for_xai()
 
     def _load_from_hub(self, model_name: str, **kwargs) -> torch.nn.Module:
-        """Load model from PyTorch Hub"""
+        """Load _model from PyTorch Hub"""
         try:
-            self.logger.info(
-                f"Loading PyTorch Hub model '{model_name}' (pretrained={self.pretrained})"
+            self._logger.info(
+                f"Loading PyTorch Hub _model '{model_name}' "
+                f"(pretrained={self.pretrained})"
             )
 
             model = torch.hub.load(
@@ -36,26 +38,21 @@ class PytorchHubModel(XAIModel):
 
         except Exception as e:
             raise RuntimeError(
-                f"Failed to load PyTorch Hub model '{model_name}': {str(e)}"
+                f"Failed to load PyTorch Hub _model '{model_name}': {str(e)}"
             ) from e
 
     def _setup_for_xai(self) -> None:
-        """Prepare model for XAI usage (from your existing PytorchModel)"""
-        import torch
+        """Prepare _model for XAI usage (from your existing PytorchModel)"""
 
         # Set to eval mode (deterministic)
         self.model.eval()
 
-        # Move to appropriate device
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = self.model.to(device)
+        self.model = self.model.to(self._device)
 
-        self.logger.info(f"Model '{self.model_name}' ready for XAI on {device}")
+        self._logger.info(f"Model '{self._model_name}' ready for XAI on {self._device}")
 
     def get_conv_layers(self) -> List[str]:
         """Get all convolutional layer names for XAI target selection"""
-        import torch.nn as nn
-
         conv_layers = []
         for name, module in self.model.named_modules():
             if isinstance(module, nn.Conv2d):
@@ -75,12 +72,12 @@ class PytorchHubModel(XAIModel):
         )
 
     def get_model_info(self) -> dict:
-        """Get basic model information"""
+        """Get basic _model information"""
         total_params = sum(p.numel() for p in self.model.parameters())
         conv_layers = self.get_conv_layers()
 
         return {
-            "name": self.model_name,
+            "name": self._model_name,
             "type": "pytorch_hub",
             "class": type(self.model).__name__,
             "total_parameters": total_params,
@@ -94,5 +91,5 @@ class PytorchHubModel(XAIModel):
         }
 
     def get_pytorch_model(self) -> torch.nn.Module:
-        """Get the underlying PyTorch model for XAI methods"""
+        """Get the underlying PyTorch _model for XAI methods"""
         return self.model

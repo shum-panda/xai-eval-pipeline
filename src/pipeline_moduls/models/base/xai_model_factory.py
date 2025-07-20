@@ -25,54 +25,55 @@ class XAIModelFactory:
         self._ensure_builtin_models_registered()
 
     def create(self, name: str, **kwargs) -> XAIModel:
-        """Create an XAI model instance
+        """Create an XAI _model instance
 
         Args:
             name: Model name (must be registered in registry)
-            **kwargs: Additional arguments passed to the model constructor
+            **kwargs: Additional arguments passed to the _model constructor
 
         Returns:
             XAIModel instance
 
         Raises:
-            ValueError: If model name not registered
-            RuntimeError: If model creation fails
+            ValueError: If _model name not registered
+            RuntimeError: If _model creation fails
         """
         with self._lock:
-            # Memory management - unload previous model
+            # Memory management - unload previous _model
             if self._current_model is not None:
                 self._cleanup_current_model()
 
             try:
                 model_class = self.registry.get(name)
 
-                # Create the model instance
+                # Create the _model instance
                 self._current_model = model_class(model_name=name, **kwargs)
 
                 self.logger.info(
-                    f"Successfully created model '{name}' of type {model_class.__name__}"
+                    f"Successfully created _model '{name}' of type "
+                    f"{model_class.__name__}"
                 )
                 return self._current_model
 
             except Exception as e:
-                self.logger.error(f"Failed to create model '{name}': {str(e)}")
+                self.logger.error(f"Failed to create _model '{name}': {str(e)}")
                 raise RuntimeError(f"Model creation failed: {str(e)}") from e
 
     def get_current_model(self) -> Optional[XAIModel]:
-        """Get the currently loaded model"""
+        """Get the currently loaded _model"""
         return self._current_model
 
     def unload_current_model(self) -> None:
-        """Unload the current model and free memory"""
+        """Unload the current _model and free memory"""
         with self._lock:
             self._cleanup_current_model()
 
     def has_model_loaded(self) -> bool:
-        """Check if a model is currently loaded"""
+        """Check if a _model is currently loaded"""
         return self._current_model is not None
 
     def list_available(self) -> List[str]:
-        """Get list of all available model names from the registry"""
+        """Get list of all available _model names from the registry"""
         return self.registry.list_available()
 
     def get_registry_info(self) -> Dict[str, str]:
@@ -80,7 +81,7 @@ class XAIModelFactory:
         return self.registry.get_registry_info()
 
     def register_model(self, name: str, model_class: Type[XAIModel]) -> None:
-        """Convenience method to register a model in this factory's registry
+        """Convenience method to register a _model in this factory's registry
 
         Args:
             name: Model name
@@ -89,24 +90,21 @@ class XAIModelFactory:
         self.registry.register(name, model_class)
 
     def is_registered(self, name: str) -> bool:
-        """Check if a model name is registered in this factory's registry"""
+        """Check if a _model name is registered in this factory's registry"""
         return self.registry.is_registered(name)
 
     def _cleanup_current_model(self) -> None:
-        """Internal method to cleanup current model and free memory"""
+        """Internal method to cleanup current _model and free memory"""
         if self._current_model is not None:
-            # Get model info before cleanup
-            try:
-                model_info = self._current_model.get_model_info()
-                model_name = model_info.get("name", "unknown")
-            except:
-                model_name = "unknown"
+            # Get _model info before cleanup
+            model_info = self._current_model.get_model_info()
+            model_name = model_info.get("name", "unknown")
 
             # Cleanup memory
             self._cleanup_memory()
             self._current_model = None
 
-            self.logger.info(f"Unloaded model '{model_name}'")
+            self.logger.info(f"Unloaded _model '{model_name}'")
 
     def _cleanup_memory(self) -> None:
         """Cleanup memory (can be extended for specific cleanup logic)"""
@@ -128,29 +126,8 @@ class XAIModelFactory:
         todo should extracted"""
         # Common PyTorch Hub models
         hub_models = [
-            "resnet18",
-            "resnet34",
             "resnet50",
-            "resnet101",
-            "resnet152",
-            "vgg11",
-            "vgg13",
             "vgg16",
-            "vgg19",
-            "densenet121",
-            "densenet169",
-            "densenet201",
-            "mobilenet_v2",
-            "mobilenet_v3_large",
-            "mobilenet_v3_small",
-            "efficientnet_b0",
-            "efficientnet_b1",
-            "efficientnet_b2",
-            "alexnet",
-            "googlenet",
-            "inception_v3",
-            "squeezenet1_0",
-            "squeezenet1_1",
         ]
 
         for model_name in hub_models:

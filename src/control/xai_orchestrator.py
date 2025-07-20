@@ -529,17 +529,16 @@ class XAIOrchestrator:
 
     def switch_model(self, model_name: str):
         """
-        Switch to a different model.
+        Switch to a different _model.
 
         Args:
-            model_name: Name of the new model.
+            model_name: Name of the new _model.
         """
         self._model = self._model_factory.create(model_name)
-        self._pytorch_model = self._model.get_pytorch_model()
-        self._device = next(self._pytorch_model.parameters()).device
+        self._device = self._model.get_device()
         self._model_name = model_name
 
-        self._logger.info(f"Switched to model: {model_name}")
+        self._logger.info(f"Switched to _model: {model_name}")
 
     def get_available_explainers(self) -> List[str]:
         """
@@ -552,7 +551,7 @@ class XAIOrchestrator:
 
     def get_model_info(self) -> Dict[str, Any]:
         """
-        Get information about the current model.
+        Get information about the current _model.
 
         Returns:
             Dict[str, Any]: Model information dictionary.
