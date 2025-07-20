@@ -51,7 +51,7 @@ class XAIExplanationResult:
     explainer_params: Optional[Dict[str, Any]] = None
     processing_time: float = 0.0
     timestamp: Optional[str] = None  # e.g., ISO time when result was created
-    error: Optional[str] =None
+
     def to_dict(self) -> Dict:
         data = {}
         for field in self.__dataclass_fields__:
