@@ -7,8 +7,7 @@ import seaborn as sns
 from PIL import Image
 
 from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
-from pipeline_moduls.evaluation.dataclass.xai_metrics import XAIMetrics
-from pipeline_moduls.evaluation.metric_calculator import bbox_to_mask_tensor
+from pipeline_moduls.evaluation.xai_evaluator import bbox_to_mask_tensor
 
 
 class Visualiser:
@@ -28,18 +27,37 @@ class Visualiser:
         sns.set_theme(style="whitegrid")
 
     def create_visualization(
-        self, result: XAIExplanationResult, metrics: Optional[XAIMetrics] = None
+        self, result: XAIExplanationResult, metrics
     ) -> Optional[str]:
         """
-        Erstelle Visualisierung eines XAI-Ergebnisses.
+        Erstellt eine Visualisierung für ein XAI Ergebnis.
 
         Args:
             result: XAI Explanation Result
-            metrics: Evaluation Metriken (optional)
-
-        Returns:
-            Pfad zur gespeicherten Visualisierung oder None
+            metrics: Kann EvaluationSummary oder individuelles Metrics-Objekt sein
         """
+
+        # Extrahiere Metrik-Werte abhängig vom Typ
+        if hasattr(metrics, "metric_averages"):
+            # EvaluationSummary - verwende Durchschnittswerte
+            iou_score = metrics.metric_averages.get("average_IoU", 0.0)
+            point_game_score = metrics.metric_averages.get("average_point_game", 0.0)
+            pixel_precision = metrics.metric_averages.get(
+                "average_PixelPrecisionRecall_precision", 0.0
+            )
+            pixel_recall = metrics.metric_averages.get(
+                "average_PixelPrecisionRecall_recall", 0.0
+            )
+        elif hasattr(metrics, "iou_score"):
+            # Individuelles Metrics-Objekt
+            iou_score = getattr(metrics, "iou_score", 0.0)
+            point_game_score = getattr(metrics, "point_game_score", 0.0)
+            pixel_precision = getattr(metrics, "pixel_precision", 0.0)
+            pixel_recall = getattr(metrics, "pixel_recall", 0.0)
+        else:
+            # Fallback - keine Metriken verfügbar
+            iou_score = point_game_score = pixel_precision = pixel_recall = 0.0
+
         try:
             img_pil = Image.open(result.image_path)
             original_image = img_pil.resize((224, 224))
@@ -78,6 +96,7 @@ class Visualiser:
             axes[2].set_title("Attribution + BBox Overlay", fontsize=12)
             axes[2].axis("off")
 
+            # KORRIGIERT: Verwende die extrahierten Metrik-Werte
             info_text = (
                 f"Image: {result.image_name}\n"
                 f"Model: {result.model_name}\n"
@@ -85,13 +104,20 @@ class Visualiser:
                 f"True: {result.true_label}\n"
                 f"Correct: {'Yes' if result.prediction_correct else 'No'}\n"
             )
-            if metrics:
+
+            # Füge Metriken hinzu falls verfügbar
+            if (
+                iou_score > 0
+                or point_game_score > 0
+                or pixel_precision > 0
+                or pixel_recall > 0
+            ):
                 info_text += (
                     f"\nXAI Metrics:\n"
-                    f"Pointing Game: {'Yes' if metrics.pointing_game_hit else 'No'}\n"
-                    f"IoU: {metrics.iou_score:.3f}\n"
-                    f"Coverage: {metrics.coverage_score:.3f}\n"
-                    f"Precision: {metrics.precision:.3f}"
+                    f"IoU: {iou_score:.3f}\n"
+                    f"Point Game: {point_game_score:.3f}\n"
+                    f"Pixel Precision: {pixel_precision:.3f}\n"
+                    f"Pixel Recall: {pixel_recall:.3f}"
                 )
 
             fig.suptitle(info_text, fontsize=10, ha="left")
@@ -102,7 +128,10 @@ class Visualiser:
             if self.save_path:
                 # Falls self.save_path ein Ordner ist → baue Dateinamen dynamisch
                 if self.save_path.is_dir():
-                    vis_filename = f"{result.image_name}_{result.model_name}_{result.explainer_name}_vis.png"
+                    vis_filename = (
+                        f"{result.image_name}_{result.model_name}_"
+                        f"{result.explainer_name}_vis.png"
+                    )
                     vis_path = self.save_path / vis_filename
                 else:
                     vis_path = self.save_path
