@@ -30,7 +30,7 @@ data:
   pin_memory: true                  # Whether to use pinned memory (recommended with CUDA)
 
 xai:
-  name: gradcam
+  name: grad_cam
   use_defaults: true
   kwargs:
     guided_backprop: false
@@ -48,6 +48,4 @@ visualization:
   max_visualizations: 50            # Limit number of visualizations saved (null for no limit)
 
 logging:
-  level: INFO                       # Logging level (e.g., DEBUG, INFO, WARNING)
-  to_file: true                     # Save logs to a file
-  file: logs/experiment.log         # Path to the log file
+  level: DEBUG                       # Logging level (e.g., DEBUG, INFO, WARNING)

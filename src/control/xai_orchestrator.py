@@ -15,6 +15,7 @@ import pipeline_moduls.evaluation.metrics  # noqa: F401
 from control.utils.config_dataclasses.master_config import MasterConfig
 from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from control.utils.error.xai_explanation_error import XAIExplanationError
+from control.utils.set_up_logger import setup_logger
 from control.utils.with_cuda_cleanup import with_cuda_cleanup
 from pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
 from pipeline_moduls.data.image_net_val_dataset import create_dataloader
@@ -49,6 +50,13 @@ class XAIOrchestrator:
         self._logger: Logger = logging.getLogger(__name__)
         self._config: MasterConfig = config
         self._result_manager: ResultManager = ResultManager()
+
+        # Setup Logger
+        try:
+            setup_logger(self._config.logging)
+            self._logger.info(f"starting logging in {self._config.logging.level} level")
+        except ValueError as e:
+            raise e
 
         # Setup factories
         self._model_factory: XAIModelFactory = XAIModelFactory()
