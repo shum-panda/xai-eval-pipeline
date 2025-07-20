@@ -1,0 +1,39 @@
+@startuml xai_metric_factory
+!theme plain
+title Metric Registry mit Factory & Decorator
+
+abstract class MetricBase {
+    + name: str
+    + compute(result: XAIExplanationResult): float
+}
+
+class MetricFactory {
+    - registry: Dict[str, Type[MetricBase]]
+    + register(name: str, metric_cls: Type[MetricBase])
+    + create(name: str, **kwargs): MetricBase
+    + list_metrics(): List[str]
+}
+
+class IoUMetric {
+    + compute(result: XAIExplanationResult): float
+}
+
+class FidelityScore {
+    + compute(result: XAIExplanationResult): float
+}
+
+note left of MetricFactory::register
+Wird vom Decorator intern aufgerufen
+end note
+
+annotation "Decorator: @register_metric('iou')" as regIoU
+annotation "Decorator: @register_metric('fidelity')" as regFid
+
+MetricBase <|-- IoUMetric
+MetricBase <|-- FidelityScore
+MetricFactory o-- "1..*" MetricBase
+
+regIoU ..> IoUMetric
+regFid ..> FidelityScore
+
+@enduml

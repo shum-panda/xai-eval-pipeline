@@ -553,7 +553,6 @@ class XAIOrchestrator:
                 model_name=self._model_name,
                 processing_time=processing_time / images.size(0),
                 timestamp=f"{start_time}",
-                error = str(e) if explanation_result is None else None
             )
             results.append(result)
 
