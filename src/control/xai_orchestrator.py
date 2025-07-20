@@ -465,51 +465,37 @@ class XAIOrchestrator:
 
     @with_cuda_cleanup
     def explain_batch(
-            self,
-            batch: XAIInputBatch,
-            explainer: BaseExplainer
+        self, batch: XAIInputBatch, explainer: BaseExplainer
     ) -> List[XAIExplanationResult]:
         """
         Explains a batch of images using the provided XAI explainer.
 
         Args:
-            batch: Expected to be a tuple:
-                (images_tensor, labels_tensor, boxes_list, image_paths, image_names,
-                bbox_paths, labels_int)
+            batch: Expected to be a XAIInputBatch instance.
             explainer: Configured explainer instance.
 
         Returns:
             List of XAIExplanationResult instances.
 
         Raises:
-            TypeError: If batch does not match the expected structure.
+            XAIExplanationError: If the explanation process fails.
         """
         start_time = time.time()
-
         images = batch.images_tensor.to(self._device)
         labels_tensor = batch.labels_tensor.to(self._device)
 
-        explanation_result = None
         try:
-            explanation_result = explainer.explain(images,
-                                                   labels_tensor)
-            attributions = explanation_result.attributions  # [B, C, H, W]
-            pred_classes = (
-                explanation_result.predictions
-            )  # e.g. [B] or [B, num_classes]
-            target_labels = explanation_result.target_labels  # [B]
-
+            explanation_result = explainer.explain(images, labels_tensor)
+            attributions = explanation_result.attributions
+            pred_classes = explanation_result.predictions
+            target_labels = explanation_result.target_labels
         except Exception as e:
             self._logger.error(f"Error explaining batch: {e}")
-            self._logger.warning("Using dummy explanation result due to error.")
-            b = images.size(0)
-            attributions = torch.zeros_like(images)
-            pred_classes = torch.full((b,), -1)
-            target_labels = labels_tensor
-            explanation_result = None #
-        processing_time = time.time() - start_time
+            raise XAIExplanationError(f"Explaining batch failed: {e}") from e
 
+        processing_time = time.time() - start_time
         results = []
+
         for i in range(images.size(0)):
             if pred_classes.dim() == 2:
                 predicted_class = pred_classes[i].argmax().item()

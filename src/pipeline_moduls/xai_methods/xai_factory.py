@@ -28,20 +28,22 @@ class XAIFactory:
         self.registry.register("occlusion", OcclusionExplainer)
         self.registry.register("integrated_gradients", IntegratedGradientsExplainer)
 
-    def create_explainer(self, name: str, model: nn.Module, **kwargs) -> BaseExplainer:
+    def create_explainer(
+        self, name: str, model: nn.Module, use_defaults: bool, **kwargs
+    ) -> BaseExplainer:
         """
         Create an explainer instance
 
         Args:
             name: Name of the explainer to create
-            model: PyTorch model_name to explain
+            model: PyTorch _model_name to explain
             **kwargs: Additional arguments for explainer initialization
 
         Returns:
             Configured explainer instance
         """
         explainer_class = self.registry.get(name)
-        return explainer_class(model, **kwargs)
+        return explainer_class(model, use_defaults, **kwargs)
 
     def list_available_explainers(self) -> List[str]:
         """List all available explainer types"""

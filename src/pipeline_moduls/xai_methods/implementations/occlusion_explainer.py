@@ -23,7 +23,7 @@ class OcclusionExplainer(BaseExplainer):
         Initialize Occlusion explainer.
 
         Args:
-            model: PyTorch model
+            model: PyTorch _model
             config: Occlusion configuration
             **kwargs: Additional arguments
         """
@@ -34,8 +34,8 @@ class OcclusionExplainer(BaseExplainer):
         self.sliding_window_shape = config.sliding_window_shape
         self.stride = config.stride
 
-        self.occlusion = Occlusion(self.model)
-        self.model.eval()
+        self.occlusion = Occlusion(self._model)
+        self._model.eval()
 
         self.logger.info(
             "Occlusion initialized with sliding_window_shape="
@@ -55,10 +55,10 @@ class OcclusionExplainer(BaseExplainer):
         try:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            self.model.eval()
+            self._model.eval()
 
             with torch.no_grad():
-                predictions = self.model(images)
+                predictions = self._model(images)
                 target_classes = predictions.argmax(dim=1)
 
             attributions = self.occlusion.attribute(
