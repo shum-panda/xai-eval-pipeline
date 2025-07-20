@@ -438,30 +438,59 @@ class XAIOrchestrator:
         Yields:
             XAIExplanationResult: One result per image in the batch.
         """
-        total_batches = min(len(dataloader),max_batches)
+        total_batches = (
+            min(len(dataloader), max_batches) if max_batches else len(dataloader)
+        )
         self._logger.info(f"Starting processing of {total_batches} batches...")
 
+        failed_batches = []
+
         for batch_idx, batch in enumerate(dataloader):
-            batch:XAIInputBatch = batch
             if max_batches is not None and batch_idx >= max_batches:
                 break
-            try:
-                results = self.explain_batch(batch,explainer)
-                for res in results:
-                    yield res
 
-                if (batch_idx + 1) % 10 == 0:
-                    self._logger.info(
-                        f"Progress: {batch_idx + 1}/{total_batches} batches"
-                    )
+            batch: XAIInputBatch = batch
+
+            try:
+                results = self.explain_batch(batch, explainer)
+            except XAIExplanationError as e:
+                failed_batches.append(batch_idx)
+                image_names = (
+                    batch.image_names
+                    if batch.image_names
+                    else ["<unknown>"] * len(batch.images_tensor)
+                )
+                self._logger.warning(
+                    f"[Batch {batch_idx}] konnte nicht erklärt werden: {e}"
+                )
+                self._logger.debug(f"[Batch {batch_idx}] image names: {image_names}")
+                continue  # skip this batch
             except TypeError as e:
+                failed_batches.append(batch_idx)
                 self._logger.error(f"[Batch {batch_idx}] TypeError: {e}")
                 self._logger.debug(
-                    f"Batch content: {[path for path in batch.image_paths]}")  # image_paths
+                    f"Batch content: {[path for path in batch.image_paths]}"
+                )
+                continue
             except Exception as e:
-                self._logger.error(f"[Batch {batch_idx}] Unexpected error: {e}")
+                failed_batches.append(batch_idx)
+                self._logger.error(f"[Batch {batch_idx}] Unerwarteter Fehler: {e}")
                 self._logger.debug(
-                    f"Batch content: {[path for path in batch.image_paths]}")  # image_paths
+                    f"Batch content: {[path for path in batch.image_paths]}"
+                )
+                continue
+
+            for res in results:
+                yield res
+
+            if (batch_idx + 1) % 10 == 0:
+                self._logger.info(f"Progress: {batch_idx + 1}/{total_batches} batches")
+
+        if failed_batches:
+            self._logger.warning(
+                f"Verarbeitung abgeschlossen mit {len(failed_batches)} fehlgeschlagenen"
+                f"Batches: {failed_batches}"
+            )
 
     @with_cuda_cleanup
     def explain_batch(
