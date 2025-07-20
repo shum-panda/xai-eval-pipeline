@@ -1,16 +1,35 @@
 import logging
 from dataclasses import dataclass
+from typing import Any, Optional
 
 import torch
 from captum.attr import IntegratedGradients
 
+from control.utils.with_cuda_cleanup import with_cuda_cleanup
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 
 
 @dataclass
 class IntegratedGradientsConfig:
+    """Integrated Gradients Konfiguration"""
+
     n_steps: int = 50
-    baseline_type: str = "black"  # "black" (zero image) or "random"
+    method: str = "riemann_trapezoid"
+    baseline: Optional[Any] = None
+    use_cuda: bool = True
+
+    @classmethod
+    def get_defaults(cls) -> dict:
+        return {
+            "n_steps": 50,
+            "method": "riemann_trapezoid",
+            "baseline": None,
+            "use_cuda": True,
+        }
+
+    @classmethod
+    def get_required_params(cls) -> list:
+        return ["n_steps", "method", "use_cuda"]
 
 
 class IntegratedGradientsExplainer(BaseExplainer):
@@ -23,7 +42,7 @@ class IntegratedGradientsExplainer(BaseExplainer):
         Initialize Integrated Gradients explainer.
 
         Args:
-            model: PyTorch model
+            model: PyTorch _model
             config: Integrated Gradients configuration
             **kwargs: Additional arguments
         """
@@ -34,14 +53,14 @@ class IntegratedGradientsExplainer(BaseExplainer):
         self.n_steps = config.n_steps
         self.baseline_type = config.baseline_type
 
-        self.ig = IntegratedGradients(self.model)
-        self.model.eval()
+        self.ig = IntegratedGradients(self._model)
 
         self.logger.info(
             f"IntegratedGradients initialized with n_steps={self.n_steps}, "
             f"baseline={self.baseline_type}"
         )
 
+    @with_cuda_cleanup
     def _compute_attributions(self, images: torch.Tensor) -> torch.Tensor:
         """
         Compute Integrated Gradients attributions.
@@ -53,13 +72,10 @@ class IntegratedGradientsExplainer(BaseExplainer):
             Attributions tensor
         """
         try:
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            self.model.eval()
 
             # Get predictions and target classes
             with torch.no_grad():
-                predictions = self.model(images)
+                predictions = self._model(images)
                 target_classes = predictions.argmax(dim=1)
 
             # Choose baseline

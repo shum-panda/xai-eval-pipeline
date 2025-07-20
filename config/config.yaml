@@ -30,12 +30,10 @@ data:
   pin_memory: true                  # Whether to use pinned memory (recommended with CUDA)
 
 xai:
-  name: gradcam                     # XAI method to use (e.g., gradcam, integrated_gradients)
-  layer: layer4                     # Layer of the model to generate explanations from
-  alpha: 0.5                        # Alpha value for overlaying heatmaps
-  use_cuda: true                    # Whether to run explainer on GPU
+  name: gradcam
+  use_defaults: true
   kwargs:
-    guided_backprop: false          # Use guided backpropagation with explainer
+    guided_backprop: false
 
 metrics:
   metrics:                          # List of metrics to compute for evaluation
