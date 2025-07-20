@@ -24,12 +24,10 @@ def main(cfg: MasterConfig):
     # print(f"✅ Quick test finished: {test_result['total_results']} samples processed")
 
     # 4) Full Evaluation
-    print("\n🚀 Running full evaluation...")
-    result = pipeline.run()
+    print("\nRunning full evaluation...")
+    pipeline.run()
 
-    print("\n✅ Experiment completed!")
-    print(f"📊 {result['total_samples']} samples processed")
-    print(f"📁 Results saved in: {result['output_dir']}")
+    print("\nExperiment completed!")
 
 
 if __name__ == "__main__":
