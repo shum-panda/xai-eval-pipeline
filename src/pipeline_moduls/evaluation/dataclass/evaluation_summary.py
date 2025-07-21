@@ -7,6 +7,7 @@ class EvaluationSummary:
     """
     Summary einer kompletten Evaluation
     """
+
     explainer_name: str
     model_name: str
     total_samples: int

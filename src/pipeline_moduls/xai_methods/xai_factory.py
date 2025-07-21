@@ -4,14 +4,8 @@ from torch import nn
 
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from pipeline_moduls.xai_methods.explainer_registry import ExplainerRegistry
-from pipeline_moduls.xai_methods.implementations.grand_cam_explainer import (
+from pipeline_moduls.xai_methods.implementations.grad_cam.grand_cam_explainer import (
     GradCamExplainer,
-)
-from pipeline_moduls.xai_methods.implementations.integraded_gradients import (
-    IntegratedGradientsExplainer,
-)
-from pipeline_moduls.xai_methods.implementations.occlusion_explainer import (
-    OcclusionExplainer,
 )
 
 
@@ -25,22 +19,21 @@ class XAIFactory:
     def _register_default_explainers(self):
         """Register default explainer implementations"""
         self.registry.register("grad_cam", GradCamExplainer)
-        self.registry.register("occlusion", OcclusionExplainer)
-        self.registry.register("integrated_gradients", IntegratedGradientsExplainer)
 
     def create_explainer(
         self, name: str, model: nn.Module, use_defaults: bool, **kwargs
     ) -> BaseExplainer:
         """
-        Create an explainer instance
+        Create and return an explainer instance.
 
         Args:
-            name: Name of the explainer to create
-            model: PyTorch _model_name to explain
-            **kwargs: Additional arguments for explainer initialization
+            name: The name of the explainer to create (must be registered).
+            model: The PyTorch model to be explained.
+            use_defaults: Whether to use default parameters for the explainer.
+            **kwargs: Additional keyword arguments passed to the explainer constructor.
 
         Returns:
-            Configured explainer instance
+            A configured instance of the selected explainer.
         """
         explainer_class = self.registry.get(name)
         return explainer_class(model, use_defaults, **kwargs)

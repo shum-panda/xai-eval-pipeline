@@ -4,6 +4,7 @@ from typing import List
 
 import torch
 
+
 @dataclass
 class XAIInputBatch:
     """A structured batch format used by XAI explainer modules.
@@ -17,6 +18,7 @@ class XAIInputBatch:
         bbox_paths (List[Path]): Annotation file paths
         labels_int (List[int]): Raw integer class labels
     """
+
     images_tensor: torch.Tensor
     labels_tensor: torch.Tensor
     boxes_list: List[torch.Tensor]

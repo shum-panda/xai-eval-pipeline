@@ -27,7 +27,6 @@ from pipeline_moduls.models.base.xai_model_factory import XAIModelFactory
 from pipeline_moduls.ResultManager.result_manager import ResultManager
 from pipeline_moduls.visualization.visualisation import Visualiser
 from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
-from pipeline_moduls.xai_methods.base.validation_result import ValidationResult
 from pipeline_moduls.xai_methods.xai_factory import XAIFactory
 
 
@@ -92,9 +91,10 @@ class XAIOrchestrator:
             "status": self._pipeline_status,
             "current_step": self._current_step,
             "has_error": self._pipeline_error is not None,
-            "error_details": str(
-                self._pipeline_error) if self._pipeline_error else None,
-            "mlflow_active": self._mlflow_run is not None
+            "error_details": (
+                str(self._pipeline_error) if self._pipeline_error else None
+            ),
+            "mlflow_active": self._mlflow_run is not None,
         }
 
     def reset_pipeline_state(self):
@@ -127,8 +127,7 @@ class XAIOrchestrator:
             self._current_step = "explainer_creation"
             self._logger.info(f"Starting step: {self._current_step}")
             explainer = self.create_explainer(
-                explainer_name=self._config.xai.name,
-                **self._config.xai.kwargs
+                explainer_name=self._config.xai.name, **self._config.xai.kwargs
             )
 
             self._current_step = "pipeline_execution"
@@ -161,7 +160,7 @@ class XAIOrchestrator:
                 "total_samples": len(results),
                 "output_dir": self._config.experiment.output_dir,
                 "explainer": self._config.xai.name,
-                "model": self._model_name
+                "model": self._model_name,
             }
 
         except Exception as e:
@@ -293,7 +292,6 @@ class XAIOrchestrator:
         mlflow.log_artifact(str(results_path), artifact_path="evaluation/results")
         self._logger.info(f"Serialized results saved to {results_path}")
 
-
         csv_path = output_dir / "results_with_metrics.csv"
 
         individual_metrics = getattr(self, "_individual_metrics", None)
@@ -321,6 +319,7 @@ class XAIOrchestrator:
         summary_path = output_dir / "metrics_summary.yaml"
         with open(summary_path, "w") as f:
             import yaml
+
             yaml.dump(dataclasses.asdict(summary), f)
         mlflow.log_artifact(
             str(summary_path), artifact_path="evaluation/metrics_summary"
@@ -475,20 +474,11 @@ class XAIOrchestrator:
                 use_defaults=use_defaults,
                 **config_kwargs,
             )
-
-            # 5. Log Validierung-Ergebnis (wurde bereits im Explainer geloggt)
-            validation_result = explainer.config_validation
-
-            if validation_result.status == ValidationResult.MISSING_USING_DEFAULTS:
-                logger.info("Some parameters used default values. See warnings above.")
-
-            elif validation_result.status == ValidationResult.VALID:
-                logger.info(
-                    "Explainer created successfully with all parameters validated."
-                )
-
             return explainer
-
+        except TypeError as e:
+            logger.error(f"Failed to create {explainer_name}: {e}")
+            logger.error("Check if the parameters has the right typs")
+            logger.error("Check your config parameters or set 'use_defaults: true'")
         except ValueError as e:
             # Config validation failed
             logger.error(f"Failed to create {explainer_name}: {e}")
@@ -577,7 +567,7 @@ class XAIOrchestrator:
                 f"Batches: {failed_batches}"
             )
 
-        if len(failed_batches)==max_batches:
+        if len(failed_batches) == max_batches:
             raise XAIExplanationError("No Valid Results")
 
     @with_cuda_cleanup
@@ -602,10 +592,16 @@ class XAIOrchestrator:
         labels_tensor = batch.labels_tensor.to(self._device)
 
         try:
-            explanation_result = explainer.explain(images, labels_tensor)
+            explanation_result = explainer.explain(
+                images, labels_tensor, self._config.experiment.top_k
+            )
             attributions = explanation_result.attributions
             pred_classes = explanation_result.predictions
+            confidence = explanation_result.confidence
             target_labels = explanation_result.target_labels
+            topk_preds = explanation_result.topk_predictions
+            topk_confs = explanation_result.topk_confidences
+
         except Exception as e:
             self._logger.error(f"Error explaining batch: {e}")
             raise XAIExplanationError(f"Explaining batch failed: {e}") from e
@@ -621,14 +617,19 @@ class XAIOrchestrator:
 
             true_label = int(target_labels[i])
             image_name = batch.image_names[i] if batch.image_names else f"image_{i}"
+            top_k_predictions = topk_preds[i].tolist() if topk_preds is not None else []
+            top_k_confidences = topk_confs[i].tolist() if topk_confs is not None else []
 
             result = XAIExplanationResult(
                 image=images[i].detach().cpu(),
                 image_path=batch.image_paths[i],
                 image_name=image_name,
                 predicted_class=predicted_class,
+                prediction_confidence=float(confidence[i].item()),
                 true_label=true_label,
                 prediction_correct=(predicted_class == true_label),
+                topk_predictions=top_k_predictions,
+                topk_confidences=top_k_confidences,
                 attribution=attributions[i].detach().cpu(),
                 explainer_result=explanation_result,
                 explainer_name=explainer.__class__.__name__,

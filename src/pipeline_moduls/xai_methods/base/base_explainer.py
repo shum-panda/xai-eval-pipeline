@@ -2,13 +2,13 @@ import logging
 from abc import abstractmethod
 
 import torch
+from functorch.dim import Tensor
 from torch import nn
 
-from pipeline_moduls.xai_methods.base.config_validation_result import (
-    ConfigValidationResult,
+from pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
+from pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
+    ExplainerResult,
 )
-from pipeline_moduls.xai_methods.base.explainer_result import ExplainerResult
-from pipeline_moduls.xai_methods.base.validation_result import ValidationResult
 from pipeline_moduls.xai_methods.base.xai_interface import XAIInterface
 
 
@@ -21,16 +21,13 @@ class BaseExplainer(XAIInterface):
 
         # Runtime-Validierung der Parameter
         self._use_defaults = use_defaults
-        self.config_validation = self.check_input(**kwargs)
-
-        # Log Validierung-Ergebnis
-        self._log_validation_result()
+        self.validated_config = self.check_input(**kwargs)
 
         # Setup mit validierten Parametern
-        self._setup_with_validated_params(**kwargs)
+        self._setup_with_validated_params(self.validated_config)
 
     def explain(
-        self, images: torch.Tensor, target_labels: torch.Tensor
+        self, images: torch.Tensor, target_labels: torch.Tensor, top_k: int
     ) -> ExplainerResult:
         """
         Template method - generates explanations and evaluates predictions
@@ -38,20 +35,28 @@ class BaseExplainer(XAIInterface):
         Args:
             images: Input images tensor [B, C, H, W]
             target_labels: Ground truth labels tensor [B]
+            top_k: length of predictions
 
         Returns:
             ExplainerResult with attributions and evaluation
         """
+        # Get predictions and target classes
+        logits = self._get_predictions(images)
+        probs = torch.softmax(logits, dim=1)
+        confidence, predictions = torch.max(probs, dim=1)
+        target_classes = predictions
+        topk_confidences, topk_predictions = torch.topk(probs, k=top_k, dim=1)
+
         # Generate attributions
-        attributions = self._compute_attributions(images)
-
-        # Get predictions
-        predictions = self._get_predictions(images)
-
+        attributions = self._compute_attributions(images, target_classes)
         return ExplainerResult(
             attributions=attributions,
+            probabilities=probs,
             predictions=predictions,
+            confidence=confidence,
             target_labels=target_labels,
+            topk_predictions=topk_predictions,
+            topk_confidences=topk_confidences,
         )
 
     def _get_predictions(self, images: torch.Tensor) -> torch.Tensor:
@@ -63,7 +68,7 @@ class BaseExplainer(XAIInterface):
             return self._model(images)
 
     @abstractmethod
-    def _compute_attributions(self, images: torch.Tensor) -> torch.Tensor:
+    def _compute_attributions(self, images: Tensor, target_classes: Tensor) -> Tensor:
         """
         Compute attributions for the input images
 
@@ -75,28 +80,7 @@ class BaseExplainer(XAIInterface):
              [B, H, W]
         """
 
-    def _log_validation_result(self):
-        """Log das Validierungs-Ergebnis für User-Feedback"""
-        result = self.config_validation
-
-        if result.status == ValidationResult.VALID:
-            self._logger.info("All parameters valid")
-
-        elif result.status == ValidationResult.MISSING_USING_DEFAULTS:
-            self._logger.warning("Using default values for missing parameters:")
-            for param, default_val in result.defaults_used.items():
-                self._logger.warning(f"   {param}: {default_val} (default)")
-            self._logger.warning(
-                "Set 'use_defaults: false' in config to make this an error"
-            )
-
-        elif result.status == ValidationResult.INVALID:
-            self._logger.error("Invalid parameters detected:")
-            for param in result.invalid_params:
-                self._logger.error(f"   {param}")
-            raise ValueError(f"Invalid configuration: {result.message}")
-
-    def check_input(self, **kwargs) -> ConfigValidationResult:
+    def check_input(self, **kwargs) -> BaseXAIConfig:
         """
         Validate input parameters at runtime.
         Each XAI method implements its own validation logic.
@@ -105,12 +89,12 @@ class BaseExplainer(XAIInterface):
             **kwargs: Parameters from the configuration.
 
         Returns:
-            ConfigValidationResult indicating the validation status.
+            Base
         """
         pass
 
     @abstractmethod
-    def _setup_with_validated_params(self, **kwargs):
+    def _setup_with_validated_params(self, config: BaseXAIConfig):
         """Setup der Explainer-spezifischen Parameter nach Validierung"""
         pass
 

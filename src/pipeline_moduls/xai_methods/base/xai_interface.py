@@ -1,24 +1,30 @@
 from abc import ABC, abstractmethod
 
-import torch
+from torch import Tensor
 
-from pipeline_moduls.xai_methods.base.explainer_result import ExplainerResult
+from pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
+    ExplainerResult,
+)
 
 
 class XAIInterface(ABC):
     @abstractmethod
     def explain(
-        self, images: torch.Tensor, target_labels: torch.Tensor
+        self, images: Tensor, target_labels: Tensor, top_k: int
     ) -> ExplainerResult:
         """
-        Template method - generates explanations and evaluates predictions
+        Generates explanations and evaluates model predictions.
 
         Args:
-            images: Input images tensor [B, C, H, W]
-            target_labels: Ground truth labels tensor [B]
+            images (torch.Tensor): Input batch of images with shape [B, C, H, W].
+            target_labels (torch.Tensor): Ground truth labels for each image in the
+             batch, shape [B].
+            top_k (int): Number of top class predictions to extract per image
+             (e.g., top-1, top-5).
 
         Returns:
-            ExplainerResult with attributions and evaluation
+            ExplainerResult: Object containing attributions, predictions, confidences,
+             and evaluation metrics.
         """
 
     @abstractmethod

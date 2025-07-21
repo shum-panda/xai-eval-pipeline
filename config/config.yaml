@@ -2,6 +2,7 @@ experiment:
   name: my_xai_experiment           # Name of the experiment run
   output_dir: results/my_experiment # Directory where results will be saved
   seed: 42                          # Random seed for reproducibility
+  top_k: 10
 
 hardware:
   use_cuda: true                    # Whether to use CUDA for acceleration
@@ -33,7 +34,7 @@ xai:
   name: grad_cam
   use_defaults: true
   kwargs:
-    guided_backprop: false
+    target_layer: -1
 
 metric:
   threshold: 0.3
@@ -48,4 +49,4 @@ visualization:
   max_visualizations: 50            # Limit number of visualizations saved (null for no limit)
 
 logging:
-  level: DEBUG                       # Logging level (e.g., DEBUG, INFO, WARNING)
+  level: INFO                       # Logging level (e.g., DEBUG, INFO, WARNING)

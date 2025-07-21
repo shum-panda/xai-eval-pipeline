@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from torch import Tensor
 
@@ -8,8 +9,12 @@ class ExplainerResult:
     """Clean result object containing everything needed for evaluation"""
 
     attributions: Tensor
+    probabilities: Tensor
     predictions: Tensor
+    confidence: Tensor
     target_labels: Tensor
+    topk_predictions: Optional[Tensor] = None  # shape: (B, k)
+    topk_confidences: Optional[Tensor] = None  # shape: (B, k)
 
     @property
     def correct_predictions(self) -> Tensor:

@@ -30,13 +30,12 @@ class XAIExplanationResult:
     true_label: Optional[int] = None
     true_label_name: Optional[str] = None
     prediction_correct: bool = False
-    prediction_confidence: Optional[float] = (
-        None  # e.g., softmax prob for predicted class
-    )
+    prediction_confidence: Optional[float] = None
     topk_predictions: Optional[List[int]] = (
         None  # list of top-k predicted class indices
     )
     topk_confidences: Optional[List[float]] = None  # confidences for top-k predictions
+    topk_probabilities: Optional[List[float]] = None
 
     explainer_result: Optional[Any] = None  # explainer-specific return
     explainer_name: str = ""
