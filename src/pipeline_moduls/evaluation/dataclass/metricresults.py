@@ -10,10 +10,10 @@ class MetricResults:
 
     values: Dict[str, Any] = field(default_factory=dict)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> Any:
         return self.values.get(key)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value) -> None:
         self.values[key] = value
 
     def to_dict(self) -> Dict[str, Any]:
