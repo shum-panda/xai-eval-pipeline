@@ -1,7 +1,8 @@
 import logging
 import tarfile
-import xml.etree.ElementTree as ET
 from pathlib import Path
+
+import defusedxml.ElementTree as ET
 
 # Logging konfigurieren
 logging.basicConfig(

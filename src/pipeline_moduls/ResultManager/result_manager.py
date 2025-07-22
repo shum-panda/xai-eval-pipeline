@@ -425,7 +425,7 @@ class ResultManager:
         self,
         step_name: str,
         path: str,
-        evaluation_summary: Optional[EvaluationSummary] = None,
+        evaluation_summary: EvaluationSummary = None,
         individual_metrics: Optional[List[MetricResults]] = None,
         evaluator: Optional[Any] = None,
     ) -> None:

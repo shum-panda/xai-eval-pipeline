@@ -16,7 +16,7 @@ class ExplainerRegistry:
     _instance: Optional["ExplainerRegistry"] = None
     _lock = threading.Lock()
 
-    def __new__(cls):
+    def __new__(cls) -> "ExplainerRegistry":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:

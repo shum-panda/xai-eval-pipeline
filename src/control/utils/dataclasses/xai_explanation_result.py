@@ -13,12 +13,12 @@ class XAIExplanationResult:
     """
 
     # Required fields (no defaults)
-    image: torch.Tensor
+    image: Optional[torch.Tensor]
     image_name: str
     image_path: Union[str, Path]
     has_bbox: bool
     predicted_class: int
-    attribution: torch.Tensor
+    attribution: Optional[torch.Tensor]
     attribution_path: Optional[str] = None
 
     # Optional fields (with defaults)
@@ -51,7 +51,7 @@ class XAIExplanationResult:
     processing_time: float = 0.0
     timestamp: Optional[str] = None  # e.g., ISO time when result was created
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         data = {}
         for field in self.__dataclass_fields__:
             value = getattr(self, field)

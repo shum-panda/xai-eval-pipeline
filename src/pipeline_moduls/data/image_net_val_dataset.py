@@ -214,7 +214,7 @@ def create_dataloader(
         pin_memory: Ob Speicher gepinnt werden soll (für GPU)
         shuffle: Ob Daten gemischt werden sollen
         target_size: Zielgröße für Bilder
-        transform: Optional custom Transform
+        transform: optional custom Transform
         custom_collate_fn: Collate_fn for the dataset
 
     Returns:

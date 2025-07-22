@@ -15,7 +15,7 @@ from src.pipeline_moduls.xai_methods.impl.grad_cam.grad_cam_config import (
 class GradCamExplainer(BaseExplainer):
 
     def __init__(self, model, use_defaults=True, **kwargs):
-        """Initialize GradCam Explainer"""
+        """Initialize GradCam Explainer."""
         super().__init__(model, use_defaults, **kwargs)
         self._logger.debug(f"GradCam after init: {self.grad_cam}")
 
@@ -145,5 +145,5 @@ class GradCamExplainer(BaseExplainer):
 
     @classmethod
     def get_name(cls) -> str:
-        """Return explainer name"""
+        """Return explainer name."""
         return "grad_cam"

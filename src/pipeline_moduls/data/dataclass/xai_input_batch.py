@@ -33,7 +33,7 @@ class XAIInputBatch:
             raise TypeError("Expected 7-element tuple as batch input")
         return XAIInputBatch(*batch_tuple)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         lengths = [
             len(self.boxes_list),
             len(self.image_paths),

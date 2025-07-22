@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from torch import Tensor
 
@@ -36,7 +36,7 @@ class ExplainerResult:
         """Total number of predictions"""
         return len(self.target_labels)
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> Dict[str, Any]:
         """Get evaluation summary"""
         return {
             "accuracy": self.accuracy,

@@ -16,7 +16,7 @@ class XAIModel(ABC):
         )
 
     @property
-    def model_name(self):
+    def model_name(self) -> str:
         return self._model_name
 
     @property

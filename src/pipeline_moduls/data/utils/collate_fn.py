@@ -2,8 +2,8 @@ from typing import List
 
 import torch
 
-from pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
-from pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
+from src.pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
+from src.pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
 
 
 def explain_collate_fn(batch: List[ImageNetSample]) -> XAIInputBatch:
