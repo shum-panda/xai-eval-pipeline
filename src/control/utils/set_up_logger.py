@@ -1,9 +1,9 @@
 import logging
 
-from control.utils.config_dataclasses.logging_config import LoggingConfig
+from src.control.utils.config_dataclasses.logging_config import LoggingConfig
 
 
-def setup_logger(logging_config: LoggingConfig):
+def setup_logger(logging_config: LoggingConfig) -> None:
     """
     Sets the global logging level based on the provided LoggingConfig.
 

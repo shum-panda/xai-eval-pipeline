@@ -1,7 +1,7 @@
 import torch
 
-from pipeline_moduls.evaluation.base.metric_base import MetricBase
-from pipeline_moduls.evaluation.base.metric_registry import MetricRegistry
+from src.pipeline_moduls.evaluation.base.metric_base import MetricBase
+from src.pipeline_moduls.evaluation.base.metric_registry import MetricRegistry
 
 
 @MetricRegistry.register("iou")

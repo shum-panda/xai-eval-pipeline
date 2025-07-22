@@ -1,12 +1,14 @@
 from dataclasses import dataclass, field
 
-from control.utils.config_dataclasses.data_config import DataConfig
-from control.utils.config_dataclasses.experiment_config import ExperimentConfig
-from control.utils.config_dataclasses.hardware_config import HardwareConfig
-from control.utils.config_dataclasses.logging_config import LoggingConfig
-from control.utils.config_dataclasses.model_config import ModelConfig
-from control.utils.config_dataclasses.visualization_config import VisualizationConfig
-from control.utils.config_dataclasses.xai_config import XAIConfig
+from src.control.utils.config_dataclasses.data_config import DataConfig
+from src.control.utils.config_dataclasses.experiment_config import ExperimentConfig
+from src.control.utils.config_dataclasses.hardware_config import HardwareConfig
+from src.control.utils.config_dataclasses.logging_config import LoggingConfig
+from src.control.utils.config_dataclasses.model_config import ModelConfig
+from src.control.utils.config_dataclasses.visualization_config import (
+    VisualizationConfig,
+)
+from src.control.utils.config_dataclasses.xai_config import XAIConfig
 
 
 @dataclass

@@ -3,7 +3,7 @@ from typing import Any, List
 import torch
 from torch import nn
 
-from pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 
 
 class PytorchHubModel(XAIModel):

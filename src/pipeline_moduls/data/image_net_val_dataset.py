@@ -8,10 +8,10 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from torchvision.models.detection.transform import resize_boxes
 
-from pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
-from pipeline_moduls.data.utils.auto_batchsize_test import auto_batchsize_test
-from pipeline_moduls.data.utils.bbox_to_mask import parse_bbox
-from pipeline_moduls.data.utils.collate_fn import explain_collate_fn
+from src.pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
+from src.pipeline_moduls.data.utils.auto_batchsize_test import auto_batchsize_test
+from src.pipeline_moduls.data.utils.bbox_to_mask import parse_bbox
+from src.pipeline_moduls.data.utils.collate_fn import explain_collate_fn
 
 
 class ImageNetValDataset(Dataset):

@@ -7,10 +7,12 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
-from pipeline_moduls.evaluation.base.metric_calculator import MetricCalculator
-from pipeline_moduls.evaluation.dataclass.evaluation_summary import EvaluationSummary
-from pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
+from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
+from src.pipeline_moduls.evaluation.base.metric_calculator import MetricCalculator
+from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
+    EvaluationSummary,
+)
+from src.pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
 
 
 def bbox_to_mask_tensor(bbox, shape=(224, 224)):

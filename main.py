@@ -6,7 +6,7 @@ from src.control.xai_orchestrator import XAIOrchestrator
 
 
 @hydra.main(version_base=None, config_path="config", config_name="config")
-def main(cfg: MasterConfig):
+def main(cfg: MasterConfig) -> None:
     """
     Main entry point for the XAI pipeline using Hydra configuration.
     """

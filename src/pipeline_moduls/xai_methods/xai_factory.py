@@ -2,9 +2,9 @@ from typing import List
 
 from torch import nn
 
-from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
-from pipeline_moduls.xai_methods.explainer_registry import ExplainerRegistry
-from pipeline_moduls.xai_methods.implementations.grad_cam.grand_cam_explainer import (
+from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
+from src.pipeline_moduls.xai_methods.explainer_registry import ExplainerRegistry
+from src.pipeline_moduls.xai_methods.impl.grad_cam.grand_cam_explainer import (
     GradCamExplainer,
 )
 
@@ -13,11 +13,15 @@ class XAIFactory:
     """Factory for creating XAI explainers using the registry"""
 
     def __init__(self):
-        self.registry = ExplainerRegistry.get_instance()
+        self._registry = ExplainerRegistry.get_instance()
         self._register_default_explainers()
 
-    def _register_default_explainers(self):
-        """Register default explainer implementations"""
+    @property
+    def registry(self):
+        return self._registry
+
+    def _register_default_explainers(self) -> None:
+        """Register default explainer impl"""
         self.registry.register("grad_cam", GradCamExplainer)
 
     def create_explainer(

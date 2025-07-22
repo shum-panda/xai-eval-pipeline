@@ -7,10 +7,11 @@ import seaborn as sns
 from PIL import Image
 
 from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
+from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
+    EvaluationSummary,
+)
 from src.pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
 from src.pipeline_moduls.evaluation.xai_evaluator import bbox_to_mask_tensor
-from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
-    EvaluationSummary)
 
 
 class Visualiser:
@@ -30,9 +31,9 @@ class Visualiser:
         sns.set_theme(style="whitegrid")
 
     def create_visualization(
-            self,
-            result: XAIExplanationResult,
-            metrics: Union[EvaluationSummary, MetricResults, None] = None
+        self,
+        result: XAIExplanationResult,
+        metrics: Union[EvaluationSummary, MetricResults, None] = None,
     ) -> Optional[str]:
         """
         Creates a visualization for an XAI result with 2x2 grid layout.
@@ -60,20 +61,19 @@ class Visualiser:
 
             # Define grid with minimal whitespace between columns
             gs = fig.add_gridspec(
-                2, 2,
-                hspace=0.0,
-                wspace=0.0,
-                left=0.0,
-                right=1.0,
-                top=1.0,
-                bottom=0.0
+                2, 2, hspace=0.0, wspace=0.0, left=0.0, right=1.0, top=1.0, bottom=0.0
             )
 
             # Quadrant 1 (top left): Metric values as text
             ax_metrics = fig.add_subplot(gs[0, 0])
-            self._create_metrics_display(ax_metrics, result, iou_score,
-                                         point_game_score,
-                                         pixel_precision, pixel_recall)
+            self._create_metrics_display(
+                ax_metrics,
+                result,
+                iou_score,
+                point_game_score,
+                pixel_precision,
+                pixel_recall,
+            )
 
             # Quadrant 2 (top right): Original image
             ax_original = fig.add_subplot(gs[0, 1])
@@ -92,15 +92,16 @@ class Visualiser:
                 xticklabels=False,
                 yticklabels=False,
                 square=True,
-                cbar_kws={"shrink": 0.7, "pad": 0.02}  # Smaller colorbar, less padding
+                cbar_kws={"shrink": 0.7, "pad": 0.02},  # Smaller colorbar, less padding
             )
             ax_attribution.text(
-                0.5, -0.01,
+                0.5,
+                -0.01,
                 f"{result.explainer_name} Attribution",
                 transform=ax_attribution.transAxes,
                 fontsize=14,
-                ha='center',
-                va='top'
+                ha="center",
+                va="top",
             )
 
             # Quadrant 4 (bottom right): Overlay with BBox
@@ -115,30 +116,30 @@ class Visualiser:
                     ax_overlay.contour(
                         bbox_mask.squeeze().numpy(),
                         levels=[0.5],
-                        colors=['lime'],  # Light green for better visibility
+                        colors=["lime"],  # Light green for better visibility
                         linewidths=2,
                     )
 
             ax_overlay.text(
-                0.5, -0.01,
+                0.5,
+                -0.01,
                 "Attribution + BBox Overlay",
                 transform=ax_overlay.transAxes,
                 fontsize=14,
-                ha='center',
-                va='top'
+                ha="center",
+                va="top",
             )
 
             ax_overlay.axis("off")
 
             # Main title with compact info (closer to plot)
-            main_title = f"{result.image_name} | {result.model_name} | {result.explainer_name}"
+            main_title = (
+                f"{result.image_name} | {result.model_name} | {result.explainer_name}"
+            )
             fig.suptitle(main_title, fontsize=14, y=1.05)
-
 
             # Remove additional whitespace around plot
             plt.subplots_adjust(left=0.03, right=0.97, top=0.94, bottom=0.00)
-
-
 
             # Save and show plot
             save_path_str = self._save_and_show_plot(fig, result)
@@ -162,13 +163,16 @@ class Visualiser:
         elif hasattr(metrics, "metric_averages"):
             # EvaluationSummary - use average values as fallback
             self.logger.warning(
-                "Using average values since no individual metrics available")
+                "Using average values since no individual metrics available"
+            )
             iou_score = metrics.metric_averages.get("average_IoU", 0.0)
             point_game_score = metrics.metric_averages.get("average_point_game", 0.0)
             pixel_precision = metrics.metric_averages.get(
-                "average_PixelPrecisionRecall_precision", 0.0)
+                "average_PixelPrecisionRecall_precision", 0.0
+            )
             pixel_recall = metrics.metric_averages.get(
-                "average_PixelPrecisionRecall_recall", 0.0)
+                "average_PixelPrecisionRecall_recall", 0.0
+            )
             return iou_score, point_game_score, pixel_precision, pixel_recall
         else:
             # No metrics available
@@ -179,7 +183,7 @@ class Visualiser:
         """Extracts values from MetricResults object"""
 
         # MetricResults has a .values dictionary with the actual values
-        if hasattr(metrics, 'values') and isinstance(metrics.values, dict):
+        if hasattr(metrics, "values") and isinstance(metrics.values, dict):
             values = metrics.values
 
             # IoU Score
@@ -207,8 +211,9 @@ class Visualiser:
 
             return iou_score, point_game_score, pixel_precision, pixel_recall
 
-    def _create_metrics_display(self, ax, result, iou_score, point_game_score,
-                                pixel_precision, pixel_recall):
+    def _create_metrics_display(
+        self, ax, result, iou_score, point_game_score, pixel_precision, pixel_recall
+    ):
         """Creates a clean metrics display in the top left quadrant"""
 
         ax.axis("off")  # No axes
@@ -225,25 +230,30 @@ class Visualiser:
         ]
 
         # Add XAI metrics if available
-        if any([iou_score > 0, point_game_score > 0, pixel_precision > 0,
-                pixel_recall > 0]):
-            info_lines.extend([
-                "",  # Empty line
-                "XAI Metrics:",
-                f"IoU: {iou_score:.3f}",
-                f"Point Game: {point_game_score:.3f}",
-                f"Pixel Precision: {pixel_precision:.3f}",
-                f"Pixel Recall: {pixel_recall:.3f}"
-            ])
+        if any(
+            [iou_score > 0, point_game_score > 0, pixel_precision > 0, pixel_recall > 0]
+        ):
+            info_lines.extend(
+                [
+                    "",  # Empty line
+                    "XAI Metrics:",
+                    f"IoU: {iou_score:.3f}",
+                    f"Point Game: {point_game_score:.3f}",
+                    f"Pixel Precision: {pixel_precision:.3f}",
+                    f"Pixel Recall: {pixel_recall:.3f}",
+                ]
+            )
 
         # Display text centered in quadrant
         text_content = "\n".join(info_lines)
         ax.text(
-            0.05, 0.90, text_content,
+            0.05,
+            0.90,
+            text_content,
             transform=ax.transAxes,
             fontsize=20,
-            verticalalignment='top',
-            horizontalalignment='left'
+            verticalalignment="top",
+            horizontalalignment="left",
         )
 
     def _save_and_show_plot(self, fig, result):
@@ -261,7 +271,7 @@ class Visualiser:
             else:
                 vis_path = self.save_path
 
-            plt.savefig(vis_path, bbox_inches="tight", dpi=150, facecolor='white')
+            plt.savefig(vis_path, bbox_inches="tight", dpi=150, facecolor="white")
             self.logger.info(f"Visualization saved: {vis_path}")
             save_path_str = str(vis_path)
 

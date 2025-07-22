@@ -1,7 +1,7 @@
 import threading
 from typing import Dict, List, Optional, Type
 
-from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
+from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 
 
 class ExplainerRegistry:

@@ -6,15 +6,21 @@ import torch
 
 
 class XAIModel(ABC):
-    """Abstract base class for models used in XAI applications
-    (consistent with BaseExplainer)"""
+    """Abstract base class for models used in XAI applications"""
 
     def __init__(self, model_name: str):
-        self._model_name = model_name
-        self._logger = logging.getLogger(__name__)
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._model_name: str = model_name
+        self._logger: logging.Logger = logging.getLogger(__name__)
+        self._device: torch.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
 
-    def get_device(self):
+    @property
+    def model_name(self):
+        return self._model_name
+
+    @property
+    def device(self) -> torch.device:
         return self._device
 
     @abstractmethod

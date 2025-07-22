@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
-from sympy.printing.pytorch import torch
+import torch
 
 
 def bbox_to_mask(
@@ -65,10 +65,10 @@ def parse_bbox(xml_path: Path) -> torch.Tensor:
         for obj in root.findall("object"):
             bbox = obj.find("bndbox")
             if bbox is not None:
-                xmin = float(bbox.find("xmin").text)
-                ymin = float(bbox.find("ymin").text)
-                xmax = float(bbox.find("xmax").text)
-                ymax = float(bbox.find("ymax").text)
+                xmin: float = float(bbox.find("xmin").text)
+                ymin: float = float(bbox.find("ymin").text)
+                xmax: float = float(bbox.find("xmax").text)
+                ymax: float = float(bbox.find("ymax").text)
                 boxes.append([xmin, ymin, xmax, ymax])
 
         return torch.tensor(boxes, dtype=torch.float32).reshape(-1, 4)

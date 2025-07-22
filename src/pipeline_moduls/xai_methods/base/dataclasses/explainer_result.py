@@ -29,7 +29,7 @@ class ExplainerResult:
     @property
     def num_correct(self) -> int:
         """Number of correct predictions"""
-        return self.correct_predictions.sum().item()
+        return int(self.correct_predictions.sum().item())
 
     @property
     def num_total(self) -> int:

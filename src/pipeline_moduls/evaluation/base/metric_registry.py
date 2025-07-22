@@ -1,6 +1,6 @@
 from typing import Dict, Type
 
-from pipeline_moduls.evaluation.base.metric_base import MetricBase
+from src.pipeline_moduls.evaluation.base.metric_base import MetricBase
 
 
 class MetricRegistry:

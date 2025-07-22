@@ -1,14 +1,16 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import torch
 
-from pipeline_moduls.evaluation.base.metric_base import MetricBase
-from pipeline_moduls.evaluation.base.metric_registry import MetricRegistry
+from src.pipeline_moduls.evaluation.base.metric_base import MetricBase
+from src.pipeline_moduls.evaluation.base.metric_registry import MetricRegistry
 
 
 class MetricCalculator:
-    def __init__(self, metric_names: List[str], metric_kwargs: Dict[str, Dict] = None):
+    def __init__(
+        self, metric_names: List[str], metric_kwargs: Optional[Dict[str, Dict]] = None
+    ):
         """
         Lädt und initialisiert alle gewünschten Metriken über ihre Namen.
 

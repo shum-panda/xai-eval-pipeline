@@ -5,15 +5,15 @@ import torch
 from functorch.dim import Tensor
 from torch import nn
 
-from pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
-from pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
+from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
+from src.pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
     ExplainerResult,
 )
-from pipeline_moduls.xai_methods.base.xai_interface import XAIInterface
+from src.pipeline_moduls.xai_methods.base.xai_interface import XAIInterface
 
 
 class BaseExplainer(XAIInterface):
-    """Abstract base class for all XAI explainers - simplified without BatchProcessor"""
+    """Abstract base class for all XAI explainers"""
 
     def __init__(self, model: nn.Module, use_defaults: bool, **kwargs):
         self._model = model
@@ -61,8 +61,19 @@ class BaseExplainer(XAIInterface):
 
     def _get_predictions(self, images: torch.Tensor) -> torch.Tensor:
         """
-        Default prediction method - can be overridden by explainers
-        that capture predictions during attribution computation
+        Performs a forward pass through the model to obtain predictions for the given
+        input images.
+
+        This method can be overridden by explainers that compute or cache predictions
+        internally during the attribution process.
+
+        Args:
+            images (torch.Tensor): Input images of shape (N, C, H, W), as expected by
+            the model.
+
+        Returns:
+            torch.Tensor: Model outputs (e.g., logits or probabilities), depending on
+            the model architecture.
         """
         with torch.no_grad():
             return self._model(images)
@@ -80,6 +91,7 @@ class BaseExplainer(XAIInterface):
              [B, H, W]
         """
 
+    @abstractmethod
     def check_input(self, **kwargs) -> BaseXAIConfig:
         """
         Validate input parameters at runtime.

@@ -4,10 +4,10 @@ import torch
 from captum.attr import LayerGradCam
 from torch import Tensor
 
-from control.utils.with_cuda_cleanup import with_cuda_cleanup
-from pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
-from pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
-from pipeline_moduls.xai_methods.implementations.grad_cam.grad_cam_config import (
+from src.control.utils.with_cuda_cleanup import with_cuda_cleanup
+from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
+from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
+from src.pipeline_moduls.xai_methods.impl.grad_cam.grad_cam_config import (
     GradCAMConfig,
 )
 

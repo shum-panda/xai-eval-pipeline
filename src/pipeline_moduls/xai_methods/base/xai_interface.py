@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from torch import Tensor
 
-from pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
+from src.pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
     ExplainerResult,
 )
 

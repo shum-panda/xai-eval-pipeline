@@ -1,9 +1,9 @@
+from pathlib import Path
+from types import SimpleNamespace
+
+import numpy as np
 import torch
 from PIL import Image
-import numpy as np
-from pathlib import Path
-
-from types import SimpleNamespace
 
 from src.pipeline_moduls.visualization.visualisation import Visualiser
 
@@ -32,7 +32,7 @@ def test_visualiser_layout():
         prediction_correct=False,
         attribution=dummy_attribution,
         has_bbox=True,
-        bbox=dummy_bbox
+        bbox=dummy_bbox,
     )
 
     # Visualiser aufrufen
@@ -44,5 +44,6 @@ def test_visualiser_layout():
     # Optional: Dummy-Datei löschen
     dummy_image_path.unlink(missing_ok=True)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     test_visualiser_layout()
