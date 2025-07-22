@@ -1,6 +1,6 @@
 experiment:
-  name: my_xai_experiment           # Name of the experiment run
-  output_dir: results/my_experiment # Directory where results will be saved
+  name: resnet50_experiment           # Name of the experiment run
+  output_dir: results/resnet50_experiment # Directory where results will be saved
   seed: 42                          # Random seed for reproducibility
   top_k: 10
 
@@ -25,8 +25,9 @@ data:
     horizontal_flip: false          # Apply random horizontal flips during training
     random_crop: false              # Apply random crops during training
   max_samples: 200                  # Maximum number of samples to process
-  batch_size: 16                    # Number of samples per batch
-  max_batches: 1                  # Limit number of batches processed (null for no limit)
+  batch_size: 16                  # Number of samples per batch
+  max_batches: 10                  # Limit number of batches processed (null for no
+  #limit)
   num_workers: 4                    # Number of workers for data loading
   pin_memory: true                  # Whether to use pinned memory (recommended with CUDA)
 

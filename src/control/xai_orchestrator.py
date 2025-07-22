@@ -122,7 +122,15 @@ class XAIOrchestrator:
 
             self._current_step = "dataloader_setup"
             self._logger.info(f"Starting step: {self._current_step}")
-            dataloader = self.setup_dataloader()
+            dataloader = self.setup_dataloader(
+                project_root=None,
+                batch_size=self._config.data.batch_size,
+                num_workers=self._config.data.num_workers,
+                pin_memory= self._config.data.pin_memory ,
+                shuffle= self._config.data.shuffle,
+                target_size=self._config.data.resize,
+                transform=None
+            )
 
             self._current_step = "explainer_creation"
             self._logger.info(f"Starting step: {self._current_step}")
@@ -342,31 +350,47 @@ class XAIOrchestrator:
             results (List[XAIExplanationResult]): List of explanation results.
             summary (EvaluationSummary): Evaluation summary.
         """
-        if not self._config.visualization.save:
+        if not self._config.visualization.save and not self._config.visualization.show:
             return
 
-        self._logger.info("Generating visualizations...")
-        for result in results:
-            if result.attribution is None:
-                if result.attribution_path and Path(result.attribution_path).exists():
-                    result.attribution = torch.load(result.attribution_path)
-                else:
-                    self._logger.warning(
-                        f"Attribution for {result.image_name} could not be loaded "
-                        f"(path: {result.attribution_path})"
-                    )
+        output_dir = Path(self._config.experiment.output_dir)
+        vis_dir = output_dir / "visualizations"
+        vis_dir.mkdir(exist_ok=True)
 
-            metrics = summary
-            vis_path = self._visualiser.create_visualization(
-                result=result, metrics=metrics
-            )
+        visualizer = Visualiser(
+            show=self._config.visualization.show,
+            save_path=vis_dir
+        )
 
-            if vis_path:
-                mlflow.log_artifact(
-                    vis_path,
-                    artifact_path=f"visualizations/{self._model_name}/"
-                    f"{self._config.xai.name}",
-                )
+        max_vis = min(self._config.visualization.max_visualizations, len(results))
+        self._logger.info(f"Creating {max_vis} visualizations...")
+
+        # WICHTIG: Verwende individuelle Metriken falls verfügbar
+        individual_metrics = getattr(self, "_individual_metrics", None)
+
+        for i in range(max_vis):
+            result = results[i]
+
+            # Verwende individuelle Metriken für dieses spezifische Bild
+            if individual_metrics and i < len(individual_metrics):
+                metrics_for_this_result = individual_metrics[i]
+                self._logger.debug(
+                    f"Using individual metrics for {result.image_name}")
+            else:
+                # Fallback zu Summary (nicht ideal)
+                metrics_for_this_result = summary
+                self._logger.warning(
+                    f"Using summary metrics for {result.image_name}")
+
+            # Erstelle Visualisierung mit den richtigen Metriken
+            vis_path = visualizer.create_visualization(result,
+                                                       metrics_for_this_result)
+
+            if vis_path and self._config.visualization.save:
+                # Log zu MLflow
+                mlflow.log_artifact(vis_path, artifact_path="visualizations")
+
+        self._logger.info(f"Generated {max_vis} visualizations in {vis_dir}")
 
     def finalize_run(self):
         """
@@ -379,13 +403,13 @@ class XAIOrchestrator:
 
     def setup_dataloader(
         self,
-        project_root: Optional[Path] = None,
-        batch_size: int = 16,
-        num_workers: int = 4,
-        pin_memory: bool = True,
-        shuffle: bool = False,
-        target_size: Optional[Tuple[int, int]] = (224, 224),
-        transform: Optional[transforms.Compose] = None,
+        project_root: Optional[Path],
+        batch_size: int,
+        num_workers: int,
+        pin_memory: bool ,
+        shuffle: bool,
+        target_size: Optional[Tuple[int, int]],
+        transform: Optional[transforms.Compose],
     ) -> DataLoader:
         """
         Sets up the ImageNet DataLoader with configurable parameters.
