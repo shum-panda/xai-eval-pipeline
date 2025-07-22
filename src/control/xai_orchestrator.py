@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import mlflow
-import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -471,7 +470,7 @@ class XAIOrchestrator:
 
         Args:
             explainer_name: Name of the explainer.
-            **kwargs: Additional parameters.
+            **additional_kwargs: Additional parameters.
 
         Returns:
             Configured explainer instance.
@@ -503,6 +502,7 @@ class XAIOrchestrator:
             logger.error(f"Failed to create {explainer_name}: {e}")
             logger.error("Check if the parameters has the right typs")
             logger.error("Check your config parameters or set 'use_defaults: true'")
+            raise
         except ValueError as e:
             # Config validation failed
             logger.error(f"Failed to create {explainer_name}: {e}")
