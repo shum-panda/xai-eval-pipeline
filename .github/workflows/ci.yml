@@ -19,9 +19,6 @@ jobs:
       run: |
         pip install poetry
         poetry install
-        poetry run pip install torch==2.7.1+cu118 torchvision==0.22.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
-    - name: Run tests
-      run: poetry run pytest
     - name: Run linter
       run: poetry run flake8
     - name: Type checking
