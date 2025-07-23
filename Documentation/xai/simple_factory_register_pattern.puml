@@ -1,0 +1,36 @@
+@startuml
+title Vereinfachtes Klassendiagramm – Factory & Registry
+
+!theme plain
+
+' Registry-Komponente
+class ExplainerRegistry <<Singleton>> {
+    + register(name, class)
+    + get(name)
+}
+
+' Factory-Komponente
+class XAIFactory {
+    + create(name, model, **kwargs)
+}
+
+' Abstrakter Explainer
+abstract class BaseExplainer {
+    + explain(images)
+}
+
+' Konkrete Erklärer
+class GradCAMExplainer
+class IntegratedGradientsExplainer
+class GuidedBackpropExplainer
+
+' Beziehungen
+XAIFactory --> ExplainerRegistry : nutzt
+XAIFactory --> BaseExplainer : erstellt
+
+ExplainerRegistry --> BaseExplainer : registriert
+BaseExplainer <|-- GradCAMExplainer
+BaseExplainer <|-- IntegratedGradientsExplainer
+BaseExplainer <|-- GuidedBackpropExplainer
+
+@enduml
