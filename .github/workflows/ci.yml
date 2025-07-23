@@ -20,6 +20,6 @@ jobs:
         pip install poetry
         poetry install
     - name: Run linter
-      run: poetry run ruff
+      run: poetry poe ruff
     - name: Type checking
       run: poetry run mypy src
