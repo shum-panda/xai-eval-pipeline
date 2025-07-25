@@ -1,36 +1,52 @@
-@startuml xai_pipeline_flow
+@startuml main_pipeline_sequence
 !theme plain
-title XAI Evaluation Pipeline – Ablauf (run() Methode)
+title XAI Pipeline - Hauptablauf (vereinfacht)
 
-actor User
-participant "XAIOrchestrator" as Orchestrator
-participant "Configuration\n(Hydra + MasterConfig)" as Config
-participant "DataLoader" as Dataloader
-participant "ExplainerFactory" as XAIFactory
-participant "Evaluator" as Evaluator
-participant "ResultManager" as Result
-participant "Visualizer" as Visualiser
+participant User
+participant Orchestrator
+participant DataLoader
+participant XAIFactory
+participant Explainer as BaseExplainer
+participant Evaluator
+participant ResultManager
+participant Visualiser
 
-User -> Orchestrator : start()
-Orchestrator -> Config : prepare_experiment()
-Orchestrator -> Dataloader : setup_dataloader()
-Orchestrator -> XAIFactory : create_explainer(config.xai.name, **kwargs)
-XAIFactory --> Orchestrator : BaseExplainer
+User -> Orchestrator: run()
 
-Orchestrator -> Orchestrator : run_pipeline(dataloader, explainer)
+Orchestrator -> Orchestrator: prepare_experiment()
 note right
-Iteriert über Batches, erklärt mit Explainer
-und sammelt XAIExplanationResults
+Setup experiment parameters
 end note
 
-Orchestrator -> Evaluator : evaluate_results(results)
-Evaluator --> Orchestrator : EvaluationSummary
+Orchestrator -> DataLoader: setup_dataloader()
+DataLoader --> Orchestrator: DataLoader instance
 
-Orchestrator -> Result : save_results(results, summary)
-Orchestrator -> Visualiser : visualize_results_if_needed(results, summary)
-Orchestrator -> Orchestrator : cleanup_individual_metrics()
-Orchestrator -> Result : finalize_run()
+Orchestrator -> XAIFactory: create_explainer(name, **kwargs)
+XAIFactory --> Orchestrator: BaseExplainer instance
 
-User <-- Orchestrator : Pipeline abgeschlossen
+Orchestrator -> Orchestrator: run_pipeline(dataloader, explainer)
+note right
+Process all batches
+Generate XAIExplanationResults
+end note
+
+Orchestrator -> Evaluator: evaluate_results(results)
+Evaluator --> Orchestrator: EvaluationSummary
+
+Orchestrator -> ResultManager: save_results(results, summary)
+note right of ResultManager
+Save JSON, CSV, artifacts
+end note
+
+Orchestrator -> Visualiser: visualize_results_if_needed(results, summary)
+note right of Visualiser
+Generate heatmaps & plots
+end note
+
+Orchestrator -> Orchestrator: finalize_run()
+
+Orchestrator --> User: Pipeline completed
 
 @enduml
+
+
