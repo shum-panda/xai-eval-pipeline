@@ -33,11 +33,13 @@ class XAIEvaluator:
     def __init__(
         self, metric_names: List[str] = None, metric_kwargs: Dict[str, Dict] = None
     ):
-        if metric_names is None:
-            metric_names = ["iou", "pixel_precision_recall", "point_game"]
-        if metric_kwargs is None:
-            metric_kwargs = {}
         self._logger = logging.getLogger(__name__)
+        if not metric_names:
+            metric_names = ["iou", "pixel_precision_recall", "point_game"]
+        if not metric_kwargs:
+            self._logger.debug("Metric_kwargs is None")
+            metric_kwargs = {}
+        self._logger.debug(f"metric kwargs: {metric_kwargs}")
         self._logger.info("XAI Evaluator initialisiert")
         self.metric_calculator = MetricCalculator(metric_names, metric_kwargs)
 
