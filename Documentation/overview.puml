@@ -1,110 +1,42 @@
- @startuml pipeline_overview
+@startuml
+title Daten- und Kontrollfluss in der XAI-Pipeline
+
 !theme plain
-title XAI Evaluation Pipeline - Gesamtarchitektur
+skinparam linetype ortho
 
-package "Datenmodul" as DataModule {
-  class ImageNetLoader {
-    +load_dataset()
-    +get_batch()
-    +get_annotations()
-  }
+' Module
+[OrchModule] <<Orchestrator>>
 
-  class AnnotationParser {
-    +parse_xml()
-    +convert_bbox()
-    +validate_annotations()
-  }
-}
+[DataModule] as D
+[ModelModule] as M
+[XAIModule] as X
+[EvalModule] as E
+[VisModule] as V
 
-package "Modellmodul" as ModelModule {
-  class ModelManager {
-    +load_pretrained()
-    +predict()
-  }
+' Positionierung erzwingen
+' Orchestrator ganz oben
+top to bottom direction
 
-  class ModelWrapper {
-    +standardize_output()
-  }
-}
+' Waagerechte Pipeline als Reihe erzwingen
+D -[#white]-> M
+M -[#white]-> X
+X -[#white]-> E
+E -[#white]-> V
 
-package "XAI-Modul" as XAIModule {
-  abstract class XAIMethodBase {
-    +explain()
-    +normalize_heatmap()
-    +postprocess()
-  }
+' Datenfluss (grün)
+D -[#green]-> M : Bilder & Labels
+M -[#green]-> X : Modell & Aktivierungen
+X -[#green]-> E : Heatmaps
+E -[#green]-> V : Metriken & Masken
 
-  class GradCAMExplainer {
-    +explain()
-    -compute_gradients()
-  }
+' Kontrollfluss (orange) vom Orchestrator nach unten
+OrchModule -[#orange,dashed,thickness=2]-> D : Konfiguration
+OrchModule -[#orange,dashed,thickness=2]-> M : Modellauswahl
+OrchModule -[#orange,dashed,thickness=2]-> X : Methodenauswahl
 
-  class IntegratedGradientsExplainer {
-    +explain()
-    -integrate_gradients()
-  }
-
-  class GuidedBackpropExplainer {
-    +explain()
-    -guided_backprop()
-  }
-}
-
-package "Evaluationsmodul" as EvalModule {
-  class MetricCalculator {
-    +calculate_iou()
-    +point_game()
-    +pixel_precision_recall()
-  }
-
-  class HeatmapProcessor {
-  }
-}
-
-package "Visualisierungsmodul" as VisModule {
-  class VisualizationEngine {
-    +create_overlay()
-    +comparison_plot()
-    +metrics_dashboard()
-  }
-}
-
-package "Orchestrierungsmodul" as OrchModule {
-  class ExperimentManager {
-    +run_experiment()
-    +parameter_sweep()
-    +parallel_execution()
-  }
-
-  class ConfigurationManager {
-    +load_config()
-    +validate_params()
-  }
-}
-
-' Beziehungen
-ImageNetLoader --> AnnotationParser
-ModelManager --> ModelWrapper
-XAIMethodBase <|-- GradCAMExplainer
-XAIMethodBase <|-- IntegratedGradientsExplainer
-XAIMethodBase <|-- GuidedBackpropExplainer
-MetricCalculator --> HeatmapProcessor
-ExperimentManager --> ConfigurationManager
-
-' Hauptdatenfluss
-DataModule --> ModelModule : Bilder & Labels
-ModelModule --> XAIModule : Modell & Aktivierungen
-XAIModule --> EvalModule : Heatmaps
-EvalModule --> VisModule : Metriken & Masken
-OrchModule --> DataModule : Konfiguration
-OrchModule --> ModelModule : Modellauswahl
-OrchModule --> XAIModule : Methodenauswahl
+' Layout Hint: Orchestrator ganz oben, Pipeline unten
+OrchModule -[#white]-> D
+OrchModule -[#white]-> M
+OrchModule -[#white]-> X
 
 @enduml
-
-
-
-
-
-
-

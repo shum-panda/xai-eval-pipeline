@@ -1,0 +1,42 @@
+@startuml manual_registration
+!theme plain
+title Manuelle Registrierung neuer Modelle/XAI-Methoden
+
+participant Developer
+participant ModelReg as ModelRegistry
+participant CustomModel as "Custom Model Class"
+participant ModelFactory as XAIModelFactory
+
+note over Developer
+Example: Registering New Custom Model
+end note
+
+Developer -> CustomModel: Define **MyCustomModel** extends XAIModel
+CustomModel --> Developer: Custom model implementation
+
+Developer -> ModelReg: get_instance()
+ModelReg --> Developer: Registry instance
+
+Developer -> ModelReg: register('my_custom_model', **MyCustomModel**)
+note over ModelReg
+Validates: inherits from XAIModel
+end note
+ModelReg -> ModelReg: Store in _registry['my_custom_model']
+ModelReg --> Developer: Registration successful
+
+note over Developer
+Using the registered model
+end note
+
+Developer -> ModelFactory: create('my_custom_model', **kwargs)
+ModelFactory -> ModelReg: get('my_custom_model')
+ModelReg --> ModelFactory: MyCustomModel class
+ModelFactory -> CustomModel: MyCustomModel(**kwargs)
+CustomModel --> ModelFactory: Custom model instance
+ModelFactory --> Developer: XAIModel instance
+
+note over Developer
+Same pattern applies to XAI Factory
+end note
+
+@enduml

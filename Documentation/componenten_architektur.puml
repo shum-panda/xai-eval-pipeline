@@ -28,10 +28,6 @@ package "XAI Methods Layer" {
   [XAI Factory]
   [Explainer Registry]
   [GradCAM]
-  [Integrated Gradients]
-  [Guided Backprop]
-  [LIME]
-  [SHAP]
 }
 
 package "Evaluation Layer" {
@@ -45,9 +41,7 @@ package "Evaluation Layer" {
 
 package "Control & Orchestration" {
   [XAI Orchestrator]
-  [Batch Processor]
   [Pipeline Controller]
-  [Error Handler]
 }
 
 package "Result Management" {
