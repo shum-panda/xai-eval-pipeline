@@ -1,8 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, Dict, List
 
 import torch
+from torch import nn
 
 
 class XAIModel(ABC):
@@ -33,7 +34,7 @@ class XAIModel(ABC):
         pass
 
     @abstractmethod
-    def get_layer_by_name(self, layer_name: str) -> Any:
+    def get_layer_by_name(self, layer_name: str) -> nn.Module:
         """Get a specific layer by name for XAI target layers
 
         Args:
@@ -48,7 +49,7 @@ class XAIModel(ABC):
         pass
 
     @abstractmethod
-    def get_model_info(self) -> dict:
+    def get_model_info(self) -> Dict[str, Any]:
         """Get basic _model information
 
         Returns:

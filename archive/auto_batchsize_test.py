@@ -1,15 +1,19 @@
-from sympy.printing.pytorch import torch
+import torch
 from torch.utils.data import DataLoader
+
+from src.pipeline_moduls.data.image_net_val_dataset import ImageNetValDataset
 
 
 def auto_batchsize_test(
-    dataloader: DataLoader, max_batch_size: int = 128, device: str = "cuda"
+    dataloader: DataLoader[ImageNetValDataset],
+    max_batch_size: int = 128,
+    device: str = "cuda",
 ) -> int:
     """
     Testet automatisch die maximale Batch-Größe für die verfügbare GPU.
 
     Args:
-        dataloader: Dataloder zum Datensatzt
+        dataloader: Dataloder zum Imagenet Dataset
         max_batch_size: Maximale zu testende Batch-Größe
         device: Zielgerät ('cuda' oder 'cpu')
 

@@ -7,9 +7,13 @@ import torch
 
 @dataclass
 class XAIExplanationResult:
-    """
-    Structured result of a single XAI explanation for one image.
-    Includes metadata, model predictions, XAI outputs, and optional evaluation metrics.
+    """Structured container for the result of a single XAI explanation applied to one
+    image.
+
+    This data structure holds all relevant inputs, model outputs, explanation artifacts,
+    and optional evaluation metrics or metadata. It is designed to support standardized
+    logging, analysis, and visualization of XAI results in image classification
+    pipelines.
     """
 
     # Required fields (no defaults)
@@ -18,40 +22,49 @@ class XAIExplanationResult:
     image_path: Union[str, Path]
     has_bbox: bool
     predicted_class: int
-    attribution: Optional[torch.Tensor]
+    attribution: torch.Tensor
     attribution_path: Optional[str] = None
 
     # Optional fields (with defaults)
     bbox: Optional[torch.Tensor] = None
     bbox_info: Optional[Dict[str, Any]] = None
-    dataset_label: Optional[str] = None  # e.g., human-readable class label
+    dataset_label: Optional[str] = None  # Human-readable class label from dataset
 
-    predicted_class_name: Optional[str] = None  # human-readable class name
+    predicted_class_name: Optional[str] = None  # Human-readable model prediction
     true_label: Optional[int] = None
     true_label_name: Optional[str] = None
     prediction_correct: bool = False
     prediction_confidence: Optional[float] = None
-    topk_predictions: Optional[List[int]] = (
-        None  # list of top-k predicted class indices
-    )
-    topk_confidences: Optional[List[float]] = None  # confidences for top-k predictions
-    topk_probabilities: Optional[List[float]] = None
+    topk_predictions: Optional[List[int]] = None  # Top-k predicted class indices
+    topk_confidences: Optional[List[float]] = None  # Confidence scores for top-k
+    topk_probabilities: Optional[List[float]] = None  # Probabilities for top-k
 
-    explainer_result: Optional[Any] = None  # explainer-specific return
+    explainer_result: Optional[Any] = None  # Raw output returned by explainer
     explainer_name: str = ""
-    attribution_summary: Optional[float] = None  # e.g., mean absolute attribution value
+    attribution_summary: Optional[float] = None  # E.g., mean absolute attribution
 
-    explanation_faithfulness: Optional[float] = None
+    explanation_faithfulness: Optional[float] = None  # Quality metric
     explanation_sparsity: Optional[float] = None
     explanation_complexity: Optional[float] = None
 
     model_name: str = ""
     model_version: Optional[str] = None
-    explainer_params: Optional[Dict[str, Any]] = None
-    processing_time: float = 0.0
-    timestamp: Optional[str] = None  # e.g., ISO time when result was created
+    explainer_params: Optional[Dict[str, Any]] = (
+        None  # Parameters used by the explainer
+    )
+    processing_time: float = 0.0  # Runtime in seconds
+    timestamp: Optional[str] = None  # ISO timestamp for logging or provenance
 
     def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the explanation result to a serializable dictionary.
+
+        Tensors are represented by a placeholder string with their shape.
+        Paths are converted to strings. All other values are passed through.
+
+        Returns:
+            dict: A dictionary representation of the explanation result.
+        """
         data = {}
         for field in self.__dataclass_fields__:
             value = getattr(self, field)
@@ -64,9 +77,21 @@ class XAIExplanationResult:
         return data
 
     @staticmethod
-    def from_dict(d: Dict) -> "XAIExplanationResult":
+    def from_dict(d: Dict[str, Any]) -> "XAIExplanationResult":
+        """
+        Create an XAIExplanationResult instance from a dictionary.
+
+        The fields `image` and `attribution` are intentionally set to None,
+        since tensor deserialization must be handled externally.
+
+        Args:
+            d (dict): A dictionary, typically from a serialized JSON or logging source.
+
+        Returns:
+            XAIExplanationResult: The reconstructed explanation result object.
+        """
         return XAIExplanationResult(
             image=None,
-            attribution=None,
+            attribution=torch.zeros(),
             **{k: v for k, v in d.items() if k not in ["image", "attribution"]},
         )

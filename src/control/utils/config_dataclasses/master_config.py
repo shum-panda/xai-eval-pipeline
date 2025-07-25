@@ -4,6 +4,7 @@ from src.control.utils.config_dataclasses.data_config import DataConfig
 from src.control.utils.config_dataclasses.experiment_config import ExperimentConfig
 from src.control.utils.config_dataclasses.hardware_config import HardwareConfig
 from src.control.utils.config_dataclasses.logging_config import LoggingConfig
+from src.control.utils.config_dataclasses.metric_config import MetricConfig
 from src.control.utils.config_dataclasses.model_config import ModelConfig
 from src.control.utils.config_dataclasses.visualization_config import (
     VisualizationConfig,
@@ -18,5 +19,6 @@ class MasterConfig:
     model: ModelConfig = field(default_factory=ModelConfig)
     data: DataConfig = field(default_factory=DataConfig)
     xai: XAIConfig = field(default_factory=XAIConfig)
+    metric: MetricConfig = field(default_factory=MetricConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)

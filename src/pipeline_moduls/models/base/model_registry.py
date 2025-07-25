@@ -11,7 +11,7 @@ class ModelRegistry:
     _instance: Optional["ModelRegistry"] = None
     _lock = threading.Lock()
 
-    def __init__(self):
+    def __init__(self) -> None:
         if ModelRegistry._instance is not None:
             raise RuntimeError("ModelRegistry is a singleton. Use get_instance()")
 

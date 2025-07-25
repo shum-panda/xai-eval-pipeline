@@ -5,11 +5,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
-from torchvision.models.detection.transform import resize_boxes
+from torchvision import transforms  # type: ignore
+from torchvision.models.detection.transform import resize_boxes  # type: ignore
 
 from src.pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
-from src.pipeline_moduls.data.utils.auto_batchsize_test import auto_batchsize_test
 from src.pipeline_moduls.data.utils.bbox_to_mask import parse_bbox
 from src.pipeline_moduls.data.utils.collate_fn import explain_collate_fn
 
@@ -32,8 +31,8 @@ class ImageNetValDataset(Dataset):
         image_dir: Path,
         annot_dir: Path,
         label_file: Path,
-        transform: Optional[transforms.Compose] = None,
-        target_size: Optional[Tuple[int, int]] = None,
+        transform: Optional[transforms.Compose],
+        target_size: Optional[List[int]],
         cache_annotations: bool = True,
     ):
         self.image_dir = image_dir
@@ -194,14 +193,14 @@ def create_dataloader(
     image_dir: Path,
     annot_dir: Path,
     label_file: Path,
-    batch_size: int = 16,
-    num_workers: int = 4,
-    pin_memory: bool = True,
-    shuffle: bool = False,
-    target_size: Optional[Tuple[int, int]] = (224, 224),
-    transform: Optional[transforms.Compose] = None,
+    batch_size: int,
+    num_workers: int,
+    pin_memory: bool,
+    shuffle: bool,
+    target_size: Optional[List[int]],
+    transform: Optional[transforms.Compose],
     custom_collate_fn=explain_collate_fn,
-) -> DataLoader:
+) -> DataLoader[ImageNetValDataset]:
     """
     Erstellt einen konfigurierten DataLoader für ImageNet Validation.
 
@@ -239,36 +238,3 @@ def create_dataloader(
     )
 
     return image_net_dataloader
-
-
-# Beispiel für Verwendung
-if __name__ == "__main__":
-    project_root = Path(__file__).resolve().parents[2]
-
-    image_dir = project_root / "data" / "extracted" / "validation_images"
-    annot_dir = project_root / "data" / "extracted" / "bounding_boxes"
-    label_file = project_root / "data" / "ILSVRC2012_validation_ground_truth.txt"
-
-    # Erstelle DataLoader
-    dataloader = create_dataloader(
-        image_dir=image_dir,
-        annot_dir=annot_dir,
-        label_file=label_file,
-        batch_size=16,
-        num_workers=4,
-        target_size=(224, 224),
-    )
-
-    print(f"DataLoader erstellt mit {len(dataloader)} Batches")
-
-    # Teste ersten Batch
-    for images, labels, boxes in dataloader:
-        print("Batch shapes:")
-        print(f"  Images: {images.shape}")
-        print(f"  Labels: {labels.shape}")
-        print(f"  Boxes: {len(boxes)} samples, shapes: {[b.shape for b in boxes[:3]]}")
-        break
-
-    # Optional: Teste optimale Batch-Größe
-    optimal_batch_size = auto_batchsize_test(dataloader)
-    print(optimal_batch_size)

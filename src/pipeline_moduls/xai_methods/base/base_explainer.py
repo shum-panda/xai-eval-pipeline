@@ -1,9 +1,9 @@
 import logging
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from typing import Any
 
 import torch
-from functorch.dim import Tensor
-from torch import nn
+from torch import Tensor, nn
 
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 from src.pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
@@ -12,43 +12,58 @@ from src.pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
 from src.pipeline_moduls.xai_methods.base.xai_interface import XAIInterface
 
 
-class BaseExplainer(XAIInterface):
-    """Abstract base class for all XAI explainers"""
+class BaseExplainer(XAIInterface, ABC):
+    """
+    Abstract base class for all XAI explainers.
 
-    def __init__(self, model: nn.Module, use_defaults: bool, **kwargs):
-        self._model = model
+    Defines the structure and lifecycle of explainers including:
+    - input validation
+    - setup with validated parameters
+    - explanation generation
+    """
+
+    def __init__(self, model: nn.Module, use_defaults: bool, **kwargs: Any) -> None:
+        """
+        Initialize the explainer.
+
+        Args:
+            model (nn.Module): The PyTorch model to be explained.
+            use_defaults (bool): Whether to use default configuration values.
+            **kwargs (Any): Additional arguments for the explainer configuration.
+        """
+        self._model: nn.Module = model
         self._logger = logging.getLogger(self.__class__.__name__)
-
-        # Runtime-Validierung der Parameter
         self._use_defaults = use_defaults
-        self.validated_config = self.check_input(**kwargs)
 
-        # Setup mit validierten Parametern
+        # Validate and setup configuration
+        self.validated_config: BaseXAIConfig = self.check_input(**kwargs)
         self._setup_with_validated_params(self.validated_config)
 
     def explain(
-        self, images: torch.Tensor, target_labels: torch.Tensor, top_k: int
+        self,
+        images: Tensor,
+        target_labels: Tensor,
+        top_k: int,
     ) -> ExplainerResult:
         """
-        Template method - generates explanations and evaluates predictions
+        Main template method to generate explanations and record prediction outputs.
 
         Args:
-            images: Input images tensor [B, C, H, W]
-            target_labels: Ground truth labels tensor [B]
-            top_k: length of predictions
+            images (Tensor): Input images tensor of shape (B, C, H, W).
+            target_labels (Tensor): Ground-truth labels tensor of shape (B,).
+            top_k (int): Number of top predictions to return.
 
         Returns:
-            ExplainerResult with attributions and evaluation
+            ExplainerResult: Object containing attributions and prediction metadata.
         """
-        # Get predictions and target classes
         logits = self._get_predictions(images)
         probs = torch.softmax(logits, dim=1)
         confidence, predictions = torch.max(probs, dim=1)
         target_classes = predictions
         topk_confidences, topk_predictions = torch.topk(probs, k=top_k, dim=1)
 
-        # Generate attributions
         attributions = self._compute_attributions(images, target_classes)
+
         return ExplainerResult(
             attributions=attributions,
             probabilities=probs,
@@ -59,58 +74,66 @@ class BaseExplainer(XAIInterface):
             topk_confidences=topk_confidences,
         )
 
-    def _get_predictions(self, images: torch.Tensor) -> torch.Tensor:
+    def _get_predictions(self, images: Tensor) -> Tensor:
         """
-        Performs a forward pass through the model to obtain predictions for the given
-        input images.
+        Compute model outputs from input images.
 
-        This method can be overridden by explainers that compute or cache predictions
-        internally during the attribution process.
+        Can be overridden by subclasses if predictions are computed differently.
 
         Args:
-            images (torch.Tensor): Input images of shape (N, C, H, W), as expected by
-            the model.
+            images (Tensor): Input batch of images.
 
         Returns:
-            torch.Tensor: Model outputs (e.g., logits or probabilities), depending on
-            the model architecture.
+            Tensor: Model output tensor (e.g., logits).
         """
+        self._model.eval()
         with torch.no_grad():
             return self._model(images)
 
     @abstractmethod
     def _compute_attributions(self, images: Tensor, target_classes: Tensor) -> Tensor:
         """
-        Compute attributions for the input images
+        Compute attributions (i.e., explanations) for given inputs.
 
         Args:
-            images: Input images tensor [B, C, H, W]
+            images (Tensor): Input image tensor of shape (B, C, H, W).
+            target_classes (Tensor): Target classes for attribution.
 
         Returns:
-            Attribution tensor with same spatial dimensions as input [B, C, H, W] or
-             [B, H, W]
-        """
-
-    @abstractmethod
-    def check_input(self, **kwargs) -> BaseXAIConfig:
-        """
-        Validate input parameters at runtime.
-        Each XAI method implements its own validation logic.
-
-        Args:
-            **kwargs: Parameters from the configuration.
-
-        Returns:
-            Base
+            Tensor: Attribution maps, typically of shape (B, H, W) or (B, C, H, W).
         """
         pass
 
     @abstractmethod
-    def _setup_with_validated_params(self, config: BaseXAIConfig):
-        """Setup der Explainer-spezifischen Parameter nach Validierung"""
+    def check_input(self, **kwargs: Any) -> BaseXAIConfig:
+        """
+        Validate and return a configuration object for the explainer.
+
+        Args:
+            **kwargs (Any): Raw configuration values from the user or config system.
+
+        Returns:
+            BaseXAIConfig: Validated configuration object.
+        """
+        pass
+
+    @abstractmethod
+    def _setup_with_validated_params(self, config: BaseXAIConfig) -> None:
+        """
+        Initialize internal parameters and components from the validated config.
+
+        Args:
+            config (BaseXAIConfig): Validated configuration for the explainer.
+        """
         pass
 
     @classmethod
     @abstractmethod
     def get_name(cls) -> str:
-        """Return the name identifier of this explainer"""
+        """
+        Return a unique name for this explainer, used for registration.
+
+        Returns:
+            str: The name identifier of the explainer.
+        """
+        pass

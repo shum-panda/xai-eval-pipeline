@@ -8,8 +8,8 @@ import torch
 class ImageNetSample:
     image_name: str
     image_path: Path
-    image_tensor: torch.tensor
+    image_tensor: torch.tensor  # type: ignore
     label: int
-    label_tensor: torch.tensor
+    label_tensor: torch.tensor  # type: ignore
     bbox_path: Path
-    bbox_tensor: torch.tensor
+    bbox_tensor: torch.tensor  # type: ignore

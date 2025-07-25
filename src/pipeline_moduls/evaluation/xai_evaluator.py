@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,9 @@ class XAIEvaluator:
     """
 
     def __init__(
-        self, metric_names: List[str] = None, metric_kwargs: Dict[str, Dict] = None
+        self,
+        metric_names: Optional[List[str]] = None,
+        metric_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
     ):
         self._logger = logging.getLogger(__name__)
         if not metric_names:
@@ -49,11 +51,12 @@ class XAIEvaluator:
         """
         Evaluiere ein einzelnes XAI Ergebnis mit dynamischen Metriken.
         """
-        if not result.has_bbox or result.bbox_info is None:
+        if not result.has_bbox:
             return None
 
         bbox_mask = bbox_to_mask_tensor(result.bbox)
         if bbox_mask is None or torch.sum(bbox_mask) == 0:
+            self._logger.debug(f"failed to mask: {bbox_mask}")
             return None
 
         attribution = result.attribution
@@ -65,7 +68,7 @@ class XAIEvaluator:
         return MetricResults(values=metric_values)
 
     def evaluate_batch_results(
-        self, results: Union[List[XAIExplanationResult], pd.DataFrame], **metric_kwargs
+        self, results: Union[List[XAIExplanationResult], pd.DataFrame]
     ) -> EvaluationSummary:
         """
         Evaluiere eine Liste oder DataFrame von XAI Ergebnissen
@@ -93,7 +96,7 @@ class XAIEvaluator:
 
         metrics_list = []
         correct_predictions = 0
-        total_processing_time = 0
+        total_processing_time = 0.0
 
         for result in tqdm(results):
             # Prediction Accuracy
@@ -157,6 +160,7 @@ class XAIEvaluator:
 
         metric_averages = {}
         if metrics_list:
+            logger.debug(f"metric liste:{metrics_list}")
             metric_keys = list(metrics_list[0].values.keys())
             logger.info(f"Gefundene Metrik-Schlüssel: {metric_keys}")
 
@@ -222,7 +226,7 @@ class XAIEvaluator:
         logger.info("EvaluationSummary erfolgreich erstellt.")
         return summary
 
-    def _log_summary(self, summary: EvaluationSummary):
+    def _log_summary(self, summary: EvaluationSummary) -> None:
         """Logge dynamische Evaluation Summary"""
         self._logger.info(f"Evaluation Summary für {summary.explainer_name}:")
         self._logger.info(f"  Model: {summary.model_name}")

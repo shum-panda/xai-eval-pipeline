@@ -1,6 +1,6 @@
 import logging
 import threading
-from typing import Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 from src.pipeline_moduls.models.base.model_registry import ModelRegistry
@@ -10,7 +10,7 @@ from src.pipeline_moduls.models.implementation.pytorch_hub_model import PytorchH
 class XAIModelFactory:
     """Instance-based factory for creating XAI models with shared registry by default"""
 
-    def __init__(self, registry: ModelRegistry = None):
+    def __init__(self, registry: Optional[ModelRegistry] = None):
         """Initialize factory with optional custom registry
 
         Args:
@@ -24,7 +24,7 @@ class XAIModelFactory:
         # Ensure builtin models are registered when factory is created
         self._ensure_builtin_models_registered()
 
-    def create(self, name: str, **kwargs) -> XAIModel:
+    def create(self, name: str, **kwargs: Any) -> XAIModel:
         """Create an XAI _model instance
 
         Args:

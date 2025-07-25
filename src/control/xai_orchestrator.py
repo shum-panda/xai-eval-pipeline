@@ -4,11 +4,11 @@ import math
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 import mlflow
 from torch.utils.data import DataLoader
-from torchvision import transforms
+from torchvision import transforms  # type: ignore
 
 import src.pipeline_moduls.evaluation.metrics  # noqa: F401
 from src.control.utils.config_dataclasses.master_config import MasterConfig
@@ -17,7 +17,10 @@ from src.control.utils.error.xai_explanation_error import XAIExplanationError
 from src.control.utils.set_up_logger import setup_logger
 from src.control.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
-from src.pipeline_moduls.data.image_net_val_dataset import create_dataloader
+from src.pipeline_moduls.data.image_net_val_dataset import (
+    ImageNetValDataset,
+    create_dataloader,
+)
 from src.pipeline_moduls.data.utils.collate_fn import explain_collate_fn
 from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
@@ -69,7 +72,6 @@ class XAIOrchestrator:
         self._model: XAIModel = self._model_factory.create(config.model.name)
 
         # Evaluator and Visualizer
-        self._evaluator: XAIEvaluator = XAIEvaluator()
         self._logger.debug(config.metric.kwargs)
         self._evaluator: XAIEvaluator = XAIEvaluator(metric_kwargs=config.metric.kwargs)
         self._visualiser: Visualiser = Visualiser(
@@ -83,7 +85,8 @@ class XAIOrchestrator:
             f"  Available explainers: {self._xai_factory.list_available_explainers()}"
         )
 
-    def get_pipeline_status(self) -> Dict[str, Union[str, bool, None]]:
+    @property
+    def pipeline_status(self) -> Dict[str, Union[str, bool, None]]:
         """
         Returns current pipeline status useful for monitoring or debugging.
 
@@ -201,7 +204,7 @@ class XAIOrchestrator:
 
     def run_pipeline(
         self,
-        dataloader: DataLoader,
+        dataloader: DataLoader[ImageNetValDataset],
         explainer: BaseExplainer,
     ) -> List[XAIExplanationResult]:
         """
@@ -396,9 +399,9 @@ class XAIOrchestrator:
         num_workers: int,
         pin_memory: bool,
         shuffle: bool,
-        target_size: Optional[Tuple[int, int]],
+        target_size: Optional[List[int]],
         transform: Optional[transforms.Compose],
-    ) -> DataLoader:
+    ) -> DataLoader[ImageNetValDataset]:
         """
         Sets up the ImageNet DataLoader with configurable parameters.
 
@@ -409,7 +412,8 @@ class XAIOrchestrator:
             num_workers (int): Number of subprocesses used for data loading.
             pin_memory (bool): Whether to pin memory (recommended for GPU).
             shuffle (bool): Whether to shuffle the dataset during loading.
-            target_size (Optional[Tuple[int, int]]): Target size for resizing images.
+            target_size (Optional[List[int]]): List with to Arguments for Target size
+            for resizing images.
             transform (Optional[transforms.Compose]): Optional custom transform to
             apply.
 
@@ -443,7 +447,7 @@ class XAIOrchestrator:
         )
 
         self._logger.info(
-            f"DataLoader setup complete: {len(dataloader.dataset)} samples in "
+            f"DataLoader setup complete: {len(dataloader.dataset)} samples in "  # type: ignore
             f"{len(dataloader)} batches "
             f"(batch_size={batch_size}, shuffle={shuffle})"
         )
@@ -501,7 +505,7 @@ class XAIOrchestrator:
     @with_cuda_cleanup
     def process_dataloader(
         self,
-        dataloader: DataLoader,
+        dataloader: DataLoader[ImageNetValDataset],
         explainer: BaseExplainer,
         max_batches: Optional[int] = None,
     ) -> Iterator[XAIExplanationResult]:
@@ -528,16 +532,16 @@ class XAIOrchestrator:
             if max_batches is not None and batch_idx >= max_batches:
                 break
 
-            batch: XAIInputBatch = batch
+            xai_batch: XAIInputBatch = batch
 
             try:
-                results = self.explain_batch(batch, explainer)
+                results = self.explain_batch(xai_batch, explainer)
             except XAIExplanationError as e:
                 failed_batches.append(batch_idx)
                 image_names = (
-                    batch.image_names
-                    if batch.image_names
-                    else ["<unknown>"] * len(batch.images_tensor)
+                    xai_batch.image_names
+                    if xai_batch.image_names
+                    else ["<unknown>"] * len(xai_batch.images_tensor)
                 )
                 self._logger.warning(f"[Batch {batch_idx}] could not be explained: {e}")
                 self._logger.debug(f"[Batch {batch_idx}] image names: {image_names}")
@@ -546,14 +550,14 @@ class XAIOrchestrator:
                 failed_batches.append(batch_idx)
                 self._logger.error(f"[Batch {batch_idx}] TypeError: {e}")
                 self._logger.debug(
-                    "Batch content: " f"{[path for path in batch.image_paths]}"
+                    "Batch content: " f"{[path for path in xai_batch.image_paths]}"
                 )
                 continue
             except Exception as e:
                 failed_batches.append(batch_idx)
                 self._logger.error(f"[Batch {batch_idx}] Unexpected error: {e}")
                 self._logger.debug(
-                    "Batch content: " f"{[path for path in batch.image_paths]}"
+                    "Batch content: " f"{[path for path in xai_batch.image_paths]}"
                 )
                 continue
 
@@ -627,7 +631,7 @@ class XAIOrchestrator:
                 image=images[i].detach().cpu(),
                 image_path=batch.image_paths[i],
                 image_name=image_name,
-                predicted_class=predicted_class,
+                predicted_class=int(predicted_class),
                 prediction_confidence=float(confidence[i].item()),
                 true_label=true_label,
                 prediction_correct=(predicted_class == true_label),
@@ -638,7 +642,6 @@ class XAIOrchestrator:
                 explainer_name=explainer.__class__.__name__,
                 has_bbox=batch.boxes_list[i].numel() > 0,
                 bbox=batch.boxes_list[i].detach().cpu(),
-                bbox_info=batch.boxes_list[i].detach().cpu(),
                 model_name=self._config.model.name,
                 processing_time=processing_time / images.size(0),
                 timestamp=f"{start_time}",

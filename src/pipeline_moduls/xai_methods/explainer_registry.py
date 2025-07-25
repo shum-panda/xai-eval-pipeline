@@ -24,7 +24,7 @@ class ExplainerRegistry:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if not hasattr(self, "_initialized") or not self._initialized:
             self._registry: Dict[str, Type[BaseExplainer]] = {}
             self._initialized = True

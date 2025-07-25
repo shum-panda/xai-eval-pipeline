@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import torch
 
@@ -28,9 +28,11 @@ class XAIInputBatch:
     labels_int: List[int]
 
     @staticmethod
-    def from_tuple(batch_tuple: tuple) -> "XAIInputBatch":
+    def from_tuple(batch_tuple: Tuple) -> "XAIInputBatch":
         if not isinstance(batch_tuple, tuple) or len(batch_tuple) != 7:
-            raise TypeError("Expected 7-element tuple as batch input")
+            raise TypeError(
+                f"Expected 7-element tuple as batch input " f"{len(batch_tuple)}"
+            )
         return XAIInputBatch(*batch_tuple)
 
     def __post_init__(self) -> None:

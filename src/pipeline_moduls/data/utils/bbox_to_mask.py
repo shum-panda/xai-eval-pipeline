@@ -1,20 +1,20 @@
 import warnings
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import defusedxml.ElementTree as ET
 import torch
 
 
 def bbox_to_mask(
-    bbox_info: Dict, image_size: Tuple[int, int]
+    bbox_info: Dict[str, Any], image_size: Tuple[int, int]
 ) -> Optional[torch.Tensor]:
     """
     Konvertiere Bounding Box zu Binary Mask für XAI Evaluation.
 
     Args:
         bbox_info: Bounding Box Info vom Dataset
-        image_size: (width, height) des Bildes
+        image_size: (height, width) des Bildes
 
     Returns:
         Binary mask tensor
@@ -22,7 +22,7 @@ def bbox_to_mask(
     if not bbox_info or not bbox_info["objects"]:
         return None
 
-    width, height = image_size
+    height, width = image_size
     mask = torch.zeros((height, width), dtype=torch.float32)
 
     for obj in bbox_info["objects"]:
