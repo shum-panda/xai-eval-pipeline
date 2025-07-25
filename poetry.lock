@@ -3574,6 +3574,21 @@ files = [
 ]
 
 [[package]]
+name = "types-requests"
+version = "2.32.4.20250611"
+description = "Typing stubs for requests"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_requests-2.32.4.20250611-py3-none-any.whl", hash = "sha256:ad2fe5d3b0cb3c2c902c8815a70e7fb2302c4b8c1f77bdcd738192cdb3878072"},
+    {file = "types_requests-2.32.4.20250611.tar.gz", hash = "sha256:741c8777ed6425830bf51e54d6abe245f79b4dcb9019f1622b773463946bf826"},
+]
+
+[package.dependencies]
+urllib3 = ">=2"
+
+[[package]]
 name = "types-seaborn"
 version = "0.13.2.20250516"
 description = "Typing stubs for seaborn"
@@ -3601,6 +3616,21 @@ files = [
     {file = "types_setuptools-80.9.0.20250529-py3-none-any.whl", hash = "sha256:00dfcedd73e333a430e10db096e4d46af93faf9314f832f13b6bbe3d6757e95f"},
     {file = "types_setuptools-80.9.0.20250529.tar.gz", hash = "sha256:79e088ba0cba2186c8d6499cbd3e143abb142d28a44b042c28d3148b1e353c91"},
 ]
+
+[[package]]
+name = "types-tqdm"
+version = "4.67.0.20250516"
+description = "Typing stubs for tqdm"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_tqdm-4.67.0.20250516-py3-none-any.whl", hash = "sha256:1dd9b2c65273f2342f37e5179bc6982df86b6669b3376efc12aef0a29e35d36d"},
+    {file = "types_tqdm-4.67.0.20250516.tar.gz", hash = "sha256:230ccab8a332d34f193fc007eb132a6ef54b4512452e718bf21ae0a7caeb5a6b"},
+]
+
+[package.dependencies]
+types-requests = "*"
 
 [[package]]
 name = "typing-extensions"
@@ -3737,4 +3767,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "caca2b3d4812236f687b79e3103929f2435d29c1c18d579bf5eaf092a5f98bf4"
+content-hash = "2fdd23088716b8ed0ebfaa94deaf324682dd3c23cf1b1d4b7d5d675312015352"

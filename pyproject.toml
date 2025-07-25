@@ -39,6 +39,7 @@ types-seaborn = "^0.13.2.20250516"
 bandit = "^1.8.6"
 pydocstyle = "^6.3.0"
 types-defusedxml = "^0.7.0.20250708"
+types-tqdm = "^4.67.0.20250516"
 
 
 [[tool.poetry.source]]
@@ -117,3 +118,4 @@ skip-magic-trailing-comma = false
 
 [tool.mypy-torchvision]
 ignore_missing_imports = true
+
