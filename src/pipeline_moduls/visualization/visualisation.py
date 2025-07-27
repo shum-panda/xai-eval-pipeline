@@ -242,29 +242,31 @@ class Visualiser:
         """
         ax.axis("off")
 
+        # Nutze die String-Labels aus dem Result, falls vorhanden, sonst "N/A"
+        predicted_label_str = result.predicted_class_name or "N/A"
+        true_label_str = result.true_label_name or "N/A"
+
         info_lines = [
             f"Image: {result.image_name}",
             f"Model: {result.model_name}",
             f"Explainer: {result.explainer_name}",
             "",
-            f"Predicted: {result.predicted_class}",
-            f"True Label: {result.true_label}",
+            f"Predicted: {result.predicted_class} ({predicted_label_str})",
+            f"True Label: {result.true_label} ({true_label_str})",
             f"Correct: {'[+] Yes' if result.prediction_correct else '[-] No'}",
         ]
 
-        if any(
-            [iou_score > 0, point_game_score > 0, pixel_precision > 0, pixel_recall > 0]
-        ):
-            info_lines.extend(
-                [
-                    "",
-                    "XAI Metrics:",
-                    f"IoU: {iou_score:.3f}",
-                    f"Point Game: {point_game_score:.3f}",
-                    f"Pixel Precision: {pixel_precision:.3f}",
-                    f"Pixel Recall: {pixel_recall:.3f}",
-                ]
-            )
+
+        info_lines.extend(
+            [
+                "",
+                "XAI Metrics:",
+                f"IoU: {iou_score:.3f}",
+                f"Point Game: {point_game_score:.3f}",
+                f"Pixel Precision: {pixel_precision:.3f}",
+                f"Pixel Recall: {pixel_recall:.3f}",
+            ]
+        )
 
         text_content = "\n".join(info_lines)
         ax.text(
