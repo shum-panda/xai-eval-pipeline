@@ -1,4 +1,5 @@
 import functools
+import gc
 from typing import Any, Callable, TypeVar
 
 import torch
@@ -30,5 +31,6 @@ def with_cuda_cleanup(func: F) -> F:
         finally:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            gc.collect()
 
     return wrapper
