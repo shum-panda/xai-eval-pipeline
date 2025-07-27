@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 
 class XAIModel(ABC):
@@ -57,11 +57,26 @@ class XAIModel(ABC):
         """
         pass
 
+    @property
     @abstractmethod
-    def get_pytorch_model(self) -> torch.nn.Module:
+    def pytorch_model(self) -> torch.nn.Module:
         """Get the underlying PyTorch _model for XAI methods
 
         Returns:
             The raw PyTorch nn.Module
         """
         pass
+
+    @abstractmethod
+    def get_predictions(self, images: Tensor) -> Tensor:
+        """
+        Compute _model outputs from input images.
+
+        Can be overridden by subclasses if predictions are computed differently.
+
+        Args:
+            images (Tensor): Input batch of images.
+
+        Returns:
+            Tensor: Model output tensor (e.g., logits).
+        """

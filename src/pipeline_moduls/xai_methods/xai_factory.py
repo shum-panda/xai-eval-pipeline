@@ -1,8 +1,7 @@
 import logging
 from typing import List
 
-from torch import nn
-
+from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.explainer_registry import ExplainerRegistry
 from src.pipeline_moduls.xai_methods.impl.grad_cam.grand_cam_explainer import (
@@ -45,7 +44,7 @@ class XAIFactory:
     def create_explainer(
         self,
         name: str,
-        model: nn.Module,
+        model: XAIModel,
         use_defaults: bool,
         **kwargs: object,
     ) -> BaseExplainer:
@@ -54,7 +53,7 @@ class XAIFactory:
 
         Args:
             name (str): The name of the explainer to create (must be registered).
-            model (nn.Module): The PyTorch model to be explained.
+            model (XAIModel): XAIModel got expected
             use_defaults (bool): Whether to use the explainer's default configuration.
             **kwargs: Additional arguments passed to the explainer constructor.
 
