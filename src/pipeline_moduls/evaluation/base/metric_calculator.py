@@ -55,14 +55,14 @@ class MetricCalculator:
             Dictionary mapping metric names to their computed result.
         """
         results: Dict[str, Any] = {}
-        self._logger.info(
+        self._logger.debug(
             f"Calculating metrics: {[m.get_name() for m in self.metrics]}"
         )
         for metric in self.metrics:
             result = metric.calculate(heatmap, ground_truth)
             results[metric.get_name()] = result
 
-        self._logger.info(f"Metric results: {results}")
+        self._logger.debug(f"Metric results: {results}")
         return results
 
     def evaluate_batch(
