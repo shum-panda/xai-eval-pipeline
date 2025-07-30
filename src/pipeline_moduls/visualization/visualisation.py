@@ -84,7 +84,7 @@ class Visualiser:
             ax_original.axis("off")
 
             ax_attribution = fig.add_subplot(gs[1, 0])
-            attribution: torch.Tensor = result.attribution
+            attribution: torch.Tensor = result.attribution_tensor
             if attribution.dim() == 3 and attribution.shape[0] == 3:
                 # Über die Kanäle mitteln, ergibt [224, 224]
                 attribution = attribution.mean(dim=0, keepdim=False)
@@ -144,6 +144,8 @@ class Visualiser:
             plt.subplots_adjust(left=0.03, right=0.97, top=0.94, bottom=0.00)
 
             save_path_str = self._save_and_show_plot(fig, result)
+
+            result.clear_attribution_cache()
             return save_path_str
 
         except ImportError:
@@ -258,7 +260,6 @@ class Visualiser:
             f"True Label: {result.true_label} ({true_label_str})",
             f"Correct: {'[+] Yes' if result.prediction_correct else '[-] No'}",
         ]
-
 
         info_lines.extend(
             [

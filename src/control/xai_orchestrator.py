@@ -1,14 +1,18 @@
 import dataclasses
 import logging
-import math
 import time
+from datetime import datetime
 from logging import Logger
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 
 import mlflow
+import pandas as pd
+import torch
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision import transforms  # type: ignore
+from tqdm import tqdm
 
 import src.pipeline_moduls.evaluation.metrics  # noqa: F401
 from src.control.utils.config_dataclasses.master_config import MasterConfig
@@ -17,6 +21,7 @@ from src.control.utils.error.xai_explanation_error import XAIExplanationError
 from src.control.utils.set_up_logger import setup_logger
 from src.control.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
+from src.pipeline_moduls.data.image_net_label_mapper import ImageNetLabelMapper
 from src.pipeline_moduls.data.image_net_val_dataset import (
     ImageNetValDataset,
     create_dataloader,
@@ -26,12 +31,14 @@ from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
 )
 from src.pipeline_moduls.evaluation.xai_evaluator import XAIEvaluator
+from src.pipeline_moduls.metaanlyse.xai_meta_analysis import XaiMetaAnalysis
 from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 from src.pipeline_moduls.models.base.xai_model_factory import XAIModelFactory
-from src.pipeline_moduls.ResultManager.result_manager import ResultManager
+from src.pipeline_moduls.resultmanager.result_manager import ResultManager
 from src.pipeline_moduls.visualization.visualisation import Visualiser
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.xai_factory import XAIFactory
+from src.ressource_management.attribution_reference import AttributionReference
 
 
 class XAIOrchestrator:
@@ -92,11 +99,31 @@ class XAIOrchestrator:
             save_path=Path(self._config.experiment.output_dir),
         )
 
+        self._streaming_metrics = []  # Store individual metrics during streaming
+        self._streaming_stats = {}  # Running statistics
+        self._evaluation_start_time = None
+        self._total_evaluation_time = 0.0
+
         self._logger.info("Orchestrator initialized:")
         self._logger.info(f"  Model: {config.model.name} on {self._model.device}")
         self._logger.info(
             f"  Available explainers: {self._xai_factory.list_available_explainers()}"
         )
+
+    def _reset_streaming_state(self) -> None:
+        """Initialize streaming evaluation state"""
+        self._streaming_metrics = []
+        self._evaluation_start_time = time.time()
+        self._total_evaluation_time = 0.0
+        self._streaming_stats = {
+            "total_samples": 0,
+            "correct_predictions": 0,
+            "samples_with_bbox": 0,
+            "total_processing_time": 0.0,
+            "metric_sums": {},
+            "metric_counts": {},
+        }
+        self._logger.info("Streaming evaluation state initialized")
 
     @property
     def pipeline_status(self) -> Dict[str, Union[str, bool, None]]:
@@ -169,16 +196,18 @@ class XAIOrchestrator:
             )
             self._current_step = "results_evaluation"
             self._logger.info(f"Starting step: {self._current_step}")
-            summary = self.evaluate_results(results)
+            summary = self._create_evaluation_summary_from_streaming()
 
             self._current_step = "results_saving"
             self._logger.info(f"Starting step: {self._current_step}")
-            self.save_results(results, summary)
+            self.save_results(summary)
+
+            self._current_step = "meta analysis"
+            self._logger.info(f"Starting step: {self._current_step}")
+            self.xai_meta_analyse()
 
             self._current_step = "visualization"
             self._logger.info(f"Starting step: {self._current_step}")
-            self.visualize_results_if_needed(results, summary)
-
             self.visualize_results_if_needed(xai_results, summary)
         except Exception as e:
             self._pipeline_status = "failed"
@@ -205,20 +234,25 @@ class XAIOrchestrator:
             self._pipeline_status = "completed"
             self._current_step = "completed"
 
-            return {
-                "status": "success",
-                "total_samples": len(results),
-                "output_dir": self._config.experiment.output_dir,
-                "explainer": self._config.xai.name,
-                "model": self._config.model.name,
-            }
+    def emergency_export(self) -> None:
+        """
+        Perform emergency export of current results in case of pipeline failure.
 
+        This method attempts to save whatever results have been processed so far
+        to prevent complete data loss in case of crashes or interruptions.
+        """
+        try:
+            if self._result_manager.results_count > 0:
+                emergency_path = (
+                    Path(self._config.experiment.output_dir) / "emergency_results.csv"
+                )
+                self._result_manager.save_dataframe(str(emergency_path))
+                self._logger.info(f"Emergency export completed: {emergency_path}")
+                self._logger.info(
+                    f"Exported {self._result_manager.results_count} results"
+                )
         except Exception as e:
-            self._pipeline_status = "failed"
-            self._pipeline_error = e
-            self._logger.error(f"PIPELINE FAILED at step: {self._current_step}")
-            self._logger.error(f"Error: {str(e)}")
-            raise
+            self._logger.error(f"Emergency export failed: {e}")
 
     def prepare_experiment(self) -> None:
         """
@@ -241,62 +275,149 @@ class XAIOrchestrator:
         explainer: BaseExplainer,
     ) -> List[XAIExplanationResult]:
         """
-        Runs the pipeline: process DataLoader batches through the explainer.
+        Runs the pipeline by processing batches from the dataloader through the
+        explainer.
+
+        Each explanation result is immediately transformed (if enabled) and stored.
 
         Args:
-            dataloader (DataLoader): DataLoader providing batches to explain.
-            explainer (BaseExplainer): The explainer instance to generate explanations.
+            dataloader: DataLoader providing batches of data to explain.
+            explainer: Explainer instance used to generate explanations.
 
         Returns:
-            List[XAIExplanationResult]: List of explanation results for all images.
+            List of transformed explanation results for all processed samples.
         """
         self._logger.info(f"Processing samples with {self._config.xai.name}...")
+
         results: List[XAIExplanationResult] = []
+        self._reset_streaming_state()
 
-        for result in self.process_dataloader(
-            dataloader=dataloader,
-            explainer=explainer,
-            max_batches=self._config.data.max_batches,
+        label_map = self.label_mapper.class_id_to_label
+        class_to_val_tensor = self.label_mapper.class_to_val_tensor
+
+        max_batches = self._config.data.max_batches
+        estimated_total = (
+            len(dataloader.dataset)
+            if max_batches is None
+            else max_batches * dataloader.batch_size
+        )
+
+        for batch in tqdm(
+                self.process_dataloader(
+                    dataloader=dataloader,
+                    explainer=explainer,
+                    max_batches=max_batches,
+                ),
+                desc="Running XAI pipeline",
+                total=estimated_total,
         ):
-            results.append(result)
-            self._result_manager.add_results("step_1", [result])
+            transformed_batch = [
+                self.transform_result(
+                    result=r,
+                    transform=self._config.model.transform,
+                    class_to_val_tensor=class_to_val_tensor,
+                    label_lookup=label_map,
+                )
+                for r in batch
+            ]
+            for transformed_result in transformed_batch:
+                if transformed_result.attribution is not None:
+                    self._evaluate_single_result_streaming(transformed_result)
 
+            results.extend(transformed_batch)
+            self._result_manager.add_results(transformed_batch)
+        self._individual_metrics = self._streaming_metrics
         self._logger.info(
-            "Finished processing. Total results collected: " f"{len(results)}"
+            f"Finished processing. Total results collected: {len(results)}"
         )
         return results
 
-    def evaluate_results(
-        self, results: List[XAIExplanationResult]
-    ) -> EvaluationSummary:
-        """
-        Evaluates a batch of explanation results and logs metrics to MLflow.
-        """
-        self._logger.info("Calculating evaluation metrics...")
+    def _create_evaluation_summary_from_streaming(self) -> EvaluationSummary:
+        """Create evaluation summary from streaming statistics"""
+        stats = self._streaming_stats
 
-        individual_metrics: List[Any] = []
-        correct_predictions = 0
-        total_processing_time = 0.0
-
-        self._logger.info(
-            f"Processing {len(results)} results for individual metrics..."
+        # Calculate averages
+        prediction_accuracy = (
+            stats["correct_predictions"] / stats["total_samples"]
+            if stats["total_samples"] > 0
+            else 0.0
         )
 
-        for i, result in enumerate(results):
-            if result.prediction_correct is not None and result.prediction_correct:
-                correct_predictions += 1
+        average_processing_time = (
+            stats["total_processing_time"] / stats["total_samples"]
+            if stats["total_samples"] > 0
+            else 0.0
+        )
 
-            total_processing_time += result.processing_time
+        # Calculate metric averages
+        metric_averages = {}
+        for metric_name, total_sum in stats["metric_sums"].items():
+            count = stats["metric_counts"][metric_name]
+            if count > 0:
+                metric_averages[f"average_{metric_name}"] = total_sum / count
 
-            metrics = self._evaluator.evaluate_single_result(result)
-            individual_metrics.append(metrics)
+        # Add timing metrics
+        metric_averages["total_evaluation_time"] = self._total_evaluation_time
+        metric_averages["average_evaluation_time_per_sample"] = (
+            self._total_evaluation_time / stats["total_samples"]
+            if stats["total_samples"] > 0
+            else 0.0
+        )
 
-            if (i + 1) % 10 == 0:
-                self._logger.info(
-                    f"Processed {i + 1}/{len(results)} individual metrics"
-                )
+        # Create summary with ALL required fields
 
-        self._individual_metrics = individual_metrics
+        summary = EvaluationSummary(
+            explainer_name=self._config.xai.name,
+            model_name=self._config.model.name,
+            total_samples=stats["total_samples"],
+            samples_with_bbox=stats["samples_with_bbox"],
+            prediction_accuracy=prediction_accuracy,
+            correct_predictions=stats["correct_predictions"],
+            average_processing_time=average_processing_time,
+            total_processing_time=stats["total_processing_time"],
+            evaluation_timestamp=datetime.now().isoformat(),
+            metric_averages=metric_averages,
+        )
+
+        return summary
+
+    def _evaluate_single_result_streaming(self, result: XAIExplanationResult):
+        """Evaluate single result and store metrics"""
+        eval_start = time.time()
+
+        # Dein bestehender Evaluator
+        metrics = self._evaluator.evaluate_single_result(result)
+
+        eval_end = time.time()
+        self._total_evaluation_time += eval_end - eval_start
+
+        # Store für später
+        self._streaming_metrics.append(metrics)
+
+        # Update stats
+        self._update_streaming_stats(result, metrics)
+        return metrics
+
+    @with_cuda_cleanup
+    def _save_attribution_and_create_reference(
+        self,
+        attribution: torch.Tensor,
+        model_name: str,
+        explainer_name: str,
+        image_name: str,
+    ) -> Path:
+        """
+        Save attribution tensor to disk and return file path.
+        """
+        attribution_dir = (
+            Path(self._config.experiment.output_dir)
+            / "attributions"
+            / model_name
+            / explainer_name
+        )
+        attribution_dir.mkdir(parents=True, exist_ok=True)
+
+        attribution_path = attribution_dir / f"{image_name}_attribution.pt"
 
         # Save tensor to disk
         torch.save(attribution, attribution_path)
@@ -374,14 +495,6 @@ class XAIOrchestrator:
             str(summary_path), artifact_path="evaluation/metrics_summary"
         )
         self._logger.info(f"Metrics summary saved to {summary_path}")
-
-    def cleanup_individual_metrics(self) -> None:
-        """
-        Clears individual metrics from memory to save RAM after CSV export.
-        """
-        if hasattr(self, "_individual_metrics"):
-            delattr(self, "_individual_metrics")
-            self._logger.info("Individual metrics cleaned up from memory")
 
     def visualize_results_if_needed(
         self, results: List[XAIExplanationResult], summary: EvaluationSummary
@@ -551,7 +664,7 @@ class XAIOrchestrator:
         dataloader: DataLoader[ImageNetValDataset],
         explainer: BaseExplainer,
         max_batches: Optional[int] = None,
-    ) -> Iterator[XAIExplanationResult]:
+    ) -> Iterator[List[XAIExplanationResult]]:
         """
         Iterates over a DataLoader and explains each batch using a given XAI explainer.
         Yields XAIExplanationResult objects for each image in a memory-efficient way.
@@ -571,38 +684,6 @@ class XAIOrchestrator:
 
         failed_batches: List[int] = []
 
-        for batch_idx, batch in enumerate(dataloader):
-            if max_batches is not None and batch_idx >= max_batches:
-                break
-
-            xai_batch: XAIInputBatch = batch
-
-            try:
-                results = self.explain_batch(xai_batch, explainer)
-            except XAIExplanationError as e:
-                failed_batches.append(batch_idx)
-                image_names = (
-                    xai_batch.image_names
-                    if xai_batch.image_names
-                    else ["<unknown>"] * len(xai_batch.images_tensor)
-                )
-                self._logger.warning(f"[Batch {batch_idx}] could not be explained: {e}")
-                self._logger.debug(f"[Batch {batch_idx}] image names: {image_names}")
-                continue
-            except TypeError as e:
-                failed_batches.append(batch_idx)
-                self._logger.error(f"[Batch {batch_idx}] TypeError: {e}")
-                self._logger.debug(
-                    "Batch content: " f"{[path for path in xai_batch.image_paths]}"
-                )
-                continue
-            except Exception as e:
-                failed_batches.append(batch_idx)
-                self._logger.error(f"[Batch {batch_idx}] Unexpected error: {e}")
-                self._logger.debug(
-                    "Batch content: " f"{[path for path in xai_batch.image_paths]}"
-                )
-                continue
         # tqdm Progressbar einrichten
         with tqdm(total=total_batches, desc="Explaining batches") as pbar:
             for batch_idx, batch in enumerate(dataloader):
@@ -644,8 +725,7 @@ class XAIOrchestrator:
                     pbar.update(1)
                     continue
 
-            for res in results:
-                yield res
+                yield results
 
                 pbar.update(1)  # Fortschritt nach jedem Batch aktualisieren
 
@@ -708,9 +788,14 @@ class XAIOrchestrator:
             image_name = batch.image_names[i] if batch.image_names else f"image_{i}"
             top_k_predictions = topk_preds[i].tolist() if topk_preds is not None else []
             top_k_confidences = topk_confs[i].tolist() if topk_confs is not None else []
-
+            attribution_path = self._save_attribution_and_create_reference(
+                attributions[i],
+                self._config.model.name,
+                self._config.xai.name,
+                image_name,
+            )
+            attribution = AttributionReference(attribution_path)
             result = XAIExplanationResult(
-                image=images[i].detach().cpu(),
                 image_path=batch.image_paths[i],
                 image_name=image_name,
                 predicted_class=int(predicted_class),
@@ -719,7 +804,8 @@ class XAIOrchestrator:
                 prediction_correct=(predicted_class == true_label),
                 topk_predictions=top_k_predictions,
                 topk_confidences=top_k_confidences,
-                attribution=attributions[i].detach().cpu(),
+                attribution=attribution,
+                attribution_path=str(attribution_path),
                 explainer_result=explanation_result,
                 explainer_name=explainer.get_name(),
                 explainer_params=explainer.parameters,

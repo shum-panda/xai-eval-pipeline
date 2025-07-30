@@ -62,12 +62,13 @@ class XAIEvaluator:
             self._logger.debug(f"failed to mask: {bbox_mask}")
             return None
 
-        attribution = result.attribution
+        attribution = result.attribution_tensor
 
         metric_values = self.metric_calculator.evaluate(
             heatmap=attribution, ground_truth=bbox_mask
         )
-        self._logger.info(f"metric value{metric_values}")
+
+        result.attribution.clear_cache()
         self._logger.debug(f"metric value{metric_values}")
         return MetricResults(values=metric_values)
 

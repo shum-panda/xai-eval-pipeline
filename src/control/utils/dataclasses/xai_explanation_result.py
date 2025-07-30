@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
+from src.ressource_management.attribution_reference import AttributionReference
+
 
 @dataclass
 class XAIExplanationResult:
@@ -17,22 +19,19 @@ class XAIExplanationResult:
     """
 
     # Required fields (no defaults)
-    image: Optional[torch.Tensor]
     image_name: str
     image_path: Union[str, Path]
     has_bbox: bool
+    attribution: AttributionReference
     predicted_class: int
-    attribution: torch.Tensor
+    predicted_class_name: Optional[str] = None  # Human-readable _model prediction
+    true_label: Optional[int] = None
+    true_label_name: Optional[str] = None
     attribution_path: Optional[str] = None
 
     # Optional fields (with defaults)
     bbox: Optional[torch.Tensor] = None
-    bbox_info: Optional[Dict[str, Any]] = None
-    dataset_label: Optional[str] = None  # Human-readable class label from dataset
 
-    predicted_class_name: Optional[str] = None  # Human-readable model prediction
-    true_label: Optional[int] = None
-    true_label_name: Optional[str] = None
     prediction_correct: bool = False
     prediction_confidence: Optional[float] = None
     predicted_class_before_transform: Optional[int] = (
@@ -52,12 +51,23 @@ class XAIExplanationResult:
     processing_time: float = 0.0  # Runtime in seconds
     timestamp: Optional[str] = None  # ISO timestamp for logging or provenance
 
+    @property
+    def attribution_tensor(self) -> Optional[torch.Tensor]:
+        """
+        Get the actual attribution tensor, handling both direct tensors and references.
+        """
+        return self.attribution.attribution
+
+    def clear_attribution_cache(self):
+        """Clear attribution cache if using reference"""
+        if isinstance(self.attribution, AttributionReference):
+            self.attribution.clear_cache()
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert the explanation result to a serializable dictionary.
-
         Tensors are represented by a placeholder string with their shape.
-        Paths are converted to strings. All other values are passed through.
+        Paths are converted to strings. Fields with `None` are excluded.
 
         Returns:
             dict: A dictionary representation of the explanation result.
@@ -74,23 +84,3 @@ class XAIExplanationResult:
             else:
                 data[field] = value
         return data
-
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "XAIExplanationResult":
-        """
-        Create an XAIExplanationResult instance from a dictionary.
-
-        The fields `image` and `attribution` are intentionally set to None,
-        since tensor deserialization must be handled externally.
-
-        Args:
-            d (dict): A dictionary, typically from a serialized JSON or logging source.
-
-        Returns:
-            XAIExplanationResult: The reconstructed explanation result object.
-        """
-        return XAIExplanationResult(
-            image=None,
-            attribution=torch.zeros(),
-            **{k: v for k, v in d.items() if k not in ["image", "attribution"]},
-        )
