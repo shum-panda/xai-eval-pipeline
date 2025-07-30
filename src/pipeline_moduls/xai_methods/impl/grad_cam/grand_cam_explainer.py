@@ -1,10 +1,11 @@
-from typing import Any, Union
+from typing import Any, Dict, Union
 
 import torch
-from captum.attr import LayerGradCam
+from captum.attr import LayerGradCam  # type: ignore
 from torch import Tensor, nn
 
 from src.control.utils.with_cuda_cleanup import with_cuda_cleanup
+from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 from src.pipeline_moduls.xai_methods.impl.grad_cam.grad_cam_config import (
@@ -17,8 +18,17 @@ class GradCamExplainer(BaseExplainer):
     Explainer class implementing GradCAM using Captum's LayerGradCam.
     """
 
+    @property
+    def parameters(self) -> Dict[str, str]:
+        """Returns a dictionary of parameter names and their stringified values."""
+        return {
+            "target_layer": str(self.target_layer),
+            "relu_attributions": str(self.relu_attributions),
+            "interpolate_mode": str(self.interpolate_mode),
+        }
+
     def __init__(
-        self, model: nn.Module, use_defaults: bool = True, **kwargs: object
+        self, model: XAIModel, use_defaults: bool = True, **kwargs: object
     ) -> None:
         """
         Initialize GradCamExplainer.
@@ -28,6 +38,11 @@ class GradCamExplainer(BaseExplainer):
             use_defaults (bool): Whether to use default configuration.
             **kwargs: Additional keyword arguments.
         """
+        self.grad_cam = None
+        self.target_layer = None
+        self.relu_attributions = True
+        self.interpolate_mode = "bilinear"
+
         super().__init__(model, use_defaults, **kwargs)
         self._logger.debug(f"GradCam after init: {self.grad_cam}")
 
@@ -47,7 +62,7 @@ class GradCamExplainer(BaseExplainer):
             raise RuntimeError("GradCAM has not been initialized.")
 
         try:
-            attributions = self.grad_cam.attribute(
+            attributions: Tensor = self.grad_cam.attribute(
                 inputs=images,
                 target=target_classes,
                 relu_attributions=self.relu_attributions,
@@ -62,22 +77,16 @@ class GradCamExplainer(BaseExplainer):
                     align_corners=False,
                 )
 
-            # Apply ReLU manually if required
-            if self.relu_attributions and not hasattr(
-                self.grad_cam, "relu_attributions"
-            ):
-                attributions = torch.relu(attributions)
-
             self._logger.debug(
                 f"Computed GradCAM attributions with shape: {attributions.shape}"
             )
-            return attributions
+            return attributions.detach().cpu()
 
         except Exception as e:
             self._logger.error(f"Error computing GradCAM attributions: {str(e)}")
             raise
 
-    def _select_target_layer(self, layer_idx: Union[str, int]) -> nn.Module:
+    def _select_target_layer(self, layer_idx: Union[str, int]) -> str:
         """
         Select a convolutional layer as the GradCAM target.
 
@@ -85,9 +94,9 @@ class GradCamExplainer(BaseExplainer):
             layer_idx (Union[str, int]): Index or name of the desired layer.
 
         Returns:
-            nn.Module: The selected target layer.
+            str: name of The selected target layer.
         """
-        model = self._model
+        model = self._model.pytorch_model
         selected: Union[str, tuple[str, nn.Module], int] = layer_idx
         conv_modules: list[tuple[str, nn.Module]] = []
 
@@ -96,8 +105,8 @@ class GradCamExplainer(BaseExplainer):
                 conv_modules.append((name, module))
 
         if not conv_modules:
-            self._logger.warning("No Conv2d layers found. Returning the model itself.")
-            return model
+            self._logger.warning("No Conv2d layers found. Returning the _model itself.")
+            raise ValueError("this GradCam expected Convolutional Layer ")
 
         if isinstance(layer_idx, str):
             for name, module in conv_modules:
@@ -123,7 +132,7 @@ class GradCamExplainer(BaseExplainer):
         else:
             raise TypeError("layer_idx must be a string or integer.")
 
-        return selected[1]
+        return selected[0]
 
     def check_input(self, **kwargs: Any) -> BaseXAIConfig:
         """
@@ -175,8 +184,7 @@ class GradCamExplainer(BaseExplainer):
             else self.target_layer
         )
 
-        self.grad_cam = LayerGradCam(self._model, layer_obj)
-        self._model.eval()
+        self.grad_cam = LayerGradCam(self._model.pytorch_model, layer_obj)
 
         self._logger.info(
             f"GradCAM setup complete with target_layer: {self.target_layer}, "

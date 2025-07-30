@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 
@@ -17,10 +17,10 @@ class PytorchHubModel(XAIModel):
 
     def __init__(self, model_name: str, **kwargs: Any) -> None:
         """
-        Initialize the PyTorch Hub model wrapper.
+        Initialize the PyTorch Hub _model wrapper.
 
         Args:
-            model_name (str): Name of the model to load from PyTorch Hub.
+            model_name (str): Name of the _model to load from PyTorch Hub.
             **kwargs: Additional optional parameters such as:
                 - pretrained (bool): Whether to load pretrained weights (default: True).
                 - repo (str): The PyTorch Hub repository reference (default:
@@ -31,10 +31,10 @@ class PytorchHubModel(XAIModel):
         self.pretrained: bool = kwargs.get("pretrained", True)
         self.repo: str = kwargs.get("repo", "pytorch/vision:v0.10.0")
 
-        # Load the model from PyTorch Hub
-        self.model: nn.Module = self._load_from_hub(model_name, **kwargs)
+        # Load the _model from PyTorch Hub
+        self._model: nn.Module = self._load_from_hub(model_name, **kwargs)
 
-        # Prepare model for XAI usage
+        # Prepare _model for XAI usage
         self._setup_for_xai()
 
     def _load_from_hub(self, model_name: str, **kwargs: Any) -> nn.Module:
@@ -72,8 +72,8 @@ class PytorchHubModel(XAIModel):
 
         Sets the model to evaluation mode and moves it to the configured device.
         """
-        self.model.eval()
-        self.model = self.model.to(self._device)
+        self._model.eval()
+        self._model = self._model.to(self._device)
         self._logger.info(f"Model '{self._model_name}' ready for XAI on {self._device}")
 
     def get_conv_layers(self) -> List[str]:
@@ -86,7 +86,7 @@ class PytorchHubModel(XAIModel):
         """
         conv_layers = [
             name
-            for name, module in self.model.named_modules()
+            for name, module in self._model.named_modules()
             if isinstance(module, nn.Conv2d)
         ]
         return conv_layers
@@ -104,11 +104,11 @@ class PytorchHubModel(XAIModel):
         Raises:
             ValueError: If no layer with the given name exists.
         """
-        for name, module in self.model.named_modules():
+        for name, module in self._model.named_modules():
             if name == layer_name:
                 return module
 
-        available_layers = [name for name, _ in self.model.named_modules() if name]
+        available_layers = [name for name, _ in self._model.named_modules() if name]
         raise ValueError(
             f"Layer '{layer_name}' not found. Available layers: {available_layers[:10]}"
             "..."
@@ -122,26 +122,41 @@ class PytorchHubModel(XAIModel):
             Dict[str, Any]: Dictionary containing model metadata such as
             name, type, total parameters, device, and repository info.
         """
-        total_params = sum(p.numel() for p in self.model.parameters())
+        total_params = sum(p.numel() for p in self._model.parameters())
         conv_layers = self.get_conv_layers()
 
         return {
             "name": self._model_name,
             "type": "pytorch_hub",
-            "class": type(self.model).__name__,
+            "class": type(self._model).__name__,
             "total_parameters": total_params,
             "num_conv_layers": len(conv_layers),
-            "device": str(next(self.model.parameters()).device),
+            "device": str(next(self._model.parameters()).device),
             "sample_conv_layers": conv_layers[-3:] if conv_layers else [],
             "repo": self.repo,
             "pretrained": self.pretrained,
         }
 
-    def get_pytorch_model(self) -> nn.Module:
+    @property
+    def pytorch_model(self) -> nn.Module:
         """
         Get the underlying PyTorch model instance.
 
         Returns:
-            torch.nn.Module: The wrapped PyTorch model.
+            torch.nn.Module: The wrapped PyTorch _model.
         """
-        return self.model
+        return self._model
+
+    def get_predictions(self, images: Tensor) -> Tensor:
+        """
+        Return val_indices for predicted classes.
+
+        Args:
+            images (Tensor): batch input images [B, C, H, W]
+
+        Returns:
+            Tensor: predicted val_indices [B]
+        """
+        self._model.eval()
+        with torch.no_grad():
+            return self._model(images)

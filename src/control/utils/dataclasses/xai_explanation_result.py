@@ -35,17 +35,14 @@ class XAIExplanationResult:
     true_label_name: Optional[str] = None
     prediction_correct: bool = False
     prediction_confidence: Optional[float] = None
+    predicted_class_before_transform: Optional[int] = (
+        None  # Original class index before mapping
+    )
     topk_predictions: Optional[List[int]] = None  # Top-k predicted class indices
     topk_confidences: Optional[List[float]] = None  # Confidence scores for top-k
-    topk_probabilities: Optional[List[float]] = None  # Probabilities for top-k
 
     explainer_result: Optional[Any] = None  # Raw output returned by explainer
     explainer_name: str = ""
-    attribution_summary: Optional[float] = None  # E.g., mean absolute attribution
-
-    explanation_faithfulness: Optional[float] = None  # Quality metric
-    explanation_sparsity: Optional[float] = None
-    explanation_complexity: Optional[float] = None
 
     model_name: str = ""
     model_version: Optional[str] = None
@@ -68,6 +65,8 @@ class XAIExplanationResult:
         data = {}
         for field in self.__dataclass_fields__:
             value = getattr(self, field)
+            if value is None:
+                continue  # <-- SKIP None entries
             if isinstance(value, torch.Tensor):
                 data[field] = f"<Tensor shape={tuple(value.shape)}>"
             elif isinstance(value, Path):

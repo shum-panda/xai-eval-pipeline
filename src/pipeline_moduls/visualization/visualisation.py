@@ -85,6 +85,9 @@ class Visualiser:
 
             ax_attribution = fig.add_subplot(gs[1, 0])
             attribution: torch.Tensor = result.attribution
+            if attribution.dim() == 3 and attribution.shape[0] == 3:
+                # Über die Kanäle mitteln, ergibt [224, 224]
+                attribution = attribution.mean(dim=0, keepdim=False)
             attribution_np = attribution.cpu().numpy().squeeze(0)
 
             sns.heatmap(
@@ -311,7 +314,6 @@ class Visualiser:
 
         if self.show:
             plt.show()
-        else:
-            plt.close(fig)
+        plt.close(fig)
 
         return save_path_str

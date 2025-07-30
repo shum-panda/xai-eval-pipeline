@@ -16,9 +16,9 @@ class DataConfig:
     augmentation: Dict[str, bool] = field(
         default_factory=lambda: {"horizontal_flip": False, "random_crop": False}
     )
-    max_samples: int = 200
+    # max_samples: int = 200
     batch_size: int = 32
-    max_batches: int = int(max_samples / batch_size)
+    max_batches: int = 1  # int(max_samples / batch_size)
     num_workers: int = 4
     pin_memory: bool = True
 

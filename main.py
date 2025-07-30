@@ -18,12 +18,7 @@ def main(cfg: MasterConfig) -> None:
     # 2) Initialize pipeline with Hydra config
     pipeline = XAIOrchestrator(cfg)
 
-    # # 3) Quick Test
-    # print("Running quick test...")
-    # test_result = pipeline.quick_test(3)
-    # print(f"Quick test finished: {test_result['total_results']} samples processed")
-
-    # 4) Full Evaluation
+    # 3) Full Evaluation
     print("\nRunning full evaluation...")
     pipeline.run()
 

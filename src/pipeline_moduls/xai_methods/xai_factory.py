@@ -7,6 +7,9 @@ from src.pipeline_moduls.xai_methods.explainer_registry import ExplainerRegistry
 from src.pipeline_moduls.xai_methods.impl.grad_cam.grand_cam_explainer import (
     GradCamExplainer,
 )
+from src.pipeline_moduls.xai_methods.impl.integrated_gradients.integrated_gradients_explainer import (
+    IntegratedGradientsExplainer,
+)
 
 
 class XAIFactory:
@@ -40,6 +43,7 @@ class XAIFactory:
         Extend this method to add more explainers.
         """
         self.registry.register("grad_cam", GradCamExplainer)
+        self.registry.register("integrated_gradients", IntegratedGradientsExplainer)
 
     def create_explainer(
         self,

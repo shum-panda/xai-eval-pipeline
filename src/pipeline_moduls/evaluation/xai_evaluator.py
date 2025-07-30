@@ -5,9 +5,11 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 import torch
+from torch import Tensor
 from tqdm import tqdm
 
 from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
+from src.control.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline_moduls.evaluation.base.metric_calculator import MetricCalculator
 from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
@@ -15,7 +17,7 @@ from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
 from src.pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
 
 
-def bbox_to_mask_tensor(bbox, shape=(224, 224)):
+def bbox_to_mask_tensor(bbox, shape=(224, 224)) -> Tensor:
     """
     Wandelt eine einzelne Bounding Box (Tensor [1, 4]) in eine Binärmaske [1, H, W] um.
     """
@@ -45,6 +47,7 @@ class XAIEvaluator:
         self._logger.info("XAI Evaluator initialisiert")
         self.metric_calculator = MetricCalculator(metric_names, metric_kwargs)
 
+    @with_cuda_cleanup
     def evaluate_single_result(
         self, result: XAIExplanationResult
     ) -> Optional[MetricResults]:
@@ -65,6 +68,7 @@ class XAIEvaluator:
             heatmap=attribution, ground_truth=bbox_mask
         )
         self._logger.info(f"metric value{metric_values}")
+        self._logger.debug(f"metric value{metric_values}")
         return MetricResults(values=metric_values)
 
     def evaluate_batch_results(
@@ -75,7 +79,6 @@ class XAIEvaluator:
 
         Args:
             results: Liste von XAIExplanationResult ODER DataFrame
-            **metric_kwargs: Parameter für Metriken
 
         Returns:
             EvaluationSummary

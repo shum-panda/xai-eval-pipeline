@@ -1,10 +1,11 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Dict
 
 import torch
-from torch import Tensor, nn
+from torch import Tensor
 
+from pipeline_moduls.models.base.interface.xai_model import XAIModel
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 from src.pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
     ExplainerResult,
@@ -22,16 +23,16 @@ class BaseExplainer(XAIInterface, ABC):
     - explanation generation
     """
 
-    def __init__(self, model: nn.Module, use_defaults: bool, **kwargs: Any) -> None:
+    def __init__(self, model: XAIModel, use_defaults: bool, **kwargs: Any) -> None:
         """
         Initialize the explainer.
 
         Args:
-            model (nn.Module): The PyTorch model to be explained.
+            model (nn.Module): The PyTorch _model to be explained.
             use_defaults (bool): Whether to use default configuration values.
             **kwargs (Any): Additional arguments for the explainer configuration.
         """
-        self._model: nn.Module = model
+        self._model: XAIModel = model
         self._logger = logging.getLogger(self.__class__.__name__)
         self._use_defaults = use_defaults
 
@@ -56,7 +57,7 @@ class BaseExplainer(XAIInterface, ABC):
         Returns:
             ExplainerResult: Object containing attributions and prediction metadata.
         """
-        logits = self._get_predictions(images)
+        logits = self._model.get_predictions(images)
         probs = torch.softmax(logits, dim=1)
         confidence, predictions = torch.max(probs, dim=1)
         target_classes = predictions
@@ -73,22 +74,6 @@ class BaseExplainer(XAIInterface, ABC):
             topk_predictions=topk_predictions,
             topk_confidences=topk_confidences,
         )
-
-    def _get_predictions(self, images: Tensor) -> Tensor:
-        """
-        Compute model outputs from input images.
-
-        Can be overridden by subclasses if predictions are computed differently.
-
-        Args:
-            images (Tensor): Input batch of images.
-
-        Returns:
-            Tensor: Model output tensor (e.g., logits).
-        """
-        self._model.eval()
-        with torch.no_grad():
-            return self._model(images)
 
     @abstractmethod
     def _compute_attributions(self, images: Tensor, target_classes: Tensor) -> Tensor:
@@ -136,4 +121,10 @@ class BaseExplainer(XAIInterface, ABC):
         Returns:
             str: The name identifier of the explainer.
         """
+        pass
+
+    @property
+    @abstractmethod
+    def parameters(self) -> Dict[str, str]:
+        """Returns a dictionary of parameter names and their stringified values."""
         pass

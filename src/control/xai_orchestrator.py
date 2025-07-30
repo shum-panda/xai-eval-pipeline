@@ -48,6 +48,8 @@ class XAIOrchestrator:
         Args:
             config (MasterConfig): Configuration object loaded via Hydra.
         """
+
+        project_root = Path(__file__).resolve().parents[2]
         self._pipeline_status: str = "initialized"
         self._current_step: str = "none"
         self._pipeline_error: Optional[Exception] = None
@@ -56,6 +58,17 @@ class XAIOrchestrator:
         self._logger: Logger = logging.getLogger(__name__)
         self._config: MasterConfig = config
         self._result_manager: ResultManager = ResultManager()
+
+        # Pfade relativ zum Projekt-Root
+        mapping_file = project_root / "data" / "raw" / "final_mapping.txt"
+        imagenet_class_index_file = (
+            project_root / "data" / "raw" / "imagenet_class_index.json"
+        )
+
+        self.label_mapper = ImageNetLabelMapper(
+            mapping_file=mapping_file,
+            imagenet_class_index_file=imagenet_class_index_file,
+        )
 
         # Setup Logger
         try:
@@ -150,8 +163,10 @@ class XAIOrchestrator:
 
             self._current_step = "pipeline_execution"
             self._logger.info(f"Starting step: {self._current_step}")
-            results = self.run_pipeline(dataloader, explainer)
-
+            xai_results = self.run_pipeline(dataloader, explainer)
+            self._logger.info(
+                "XAI result example after transformation:" f" {xai_results[0]}"
+            )
             self._current_step = "results_evaluation"
             self._logger.info(f"Starting step: {self._current_step}")
             summary = self.evaluate_results(results)
@@ -164,13 +179,31 @@ class XAIOrchestrator:
             self._logger.info(f"Starting step: {self._current_step}")
             self.visualize_results_if_needed(results, summary)
 
+            self.visualize_results_if_needed(xai_results, summary)
+        except Exception as e:
+            self._pipeline_status = "failed"
+            self._pipeline_error = e
+            self._logger.error(f"PIPELINE FAILED at step: {self._current_step}")
+            self._logger.error(f"Error: {str(e)}")
+            if self._config.experiment.emergency_export_enabled:
+                self.emergency_export()
+            raise
+        else:
+            self._logger.info("Pipeline completed successfully!")
+            return {
+                "status": "success",
+                "total_samples": len(xai_results),
+                "output_dir": self._config.experiment.output_dir,
+                "explainer": self._config.xai.name,
+                "_model": self._config.model.name,
+            }
+        finally:
             self._current_step = "finalization"
             self._logger.info(f"Starting step: {self._current_step}")
             self.finalize_run()
 
             self._pipeline_status = "completed"
             self._current_step = "completed"
-            self._logger.info("Pipeline completed successfully!")
 
             return {
                 "status": "success",
@@ -265,63 +298,73 @@ class XAIOrchestrator:
 
         self._individual_metrics = individual_metrics
 
-        summary = self._evaluator.create_summary_from_individual_metrics(
-            results=results,
-            individual_metrics=individual_metrics,
-            correct_predictions=correct_predictions,
-            total_processing_time=total_processing_time,
-        )
+        # Save tensor to disk
+        torch.save(attribution, attribution_path)
+        self._logger.debug(f"Saved attribution to {attribution_path}")
 
-        self._logger.info("Evaluation metrics calculation finished!")
+        return attribution_path
 
-        for key, value in summary.to_dict().items():
-            if isinstance(value, (int, float)):
-                mlflow.log_metric(key, value)
+    def _update_streaming_stats(self, result: XAIExplanationResult, metrics) -> None:
+        """Update running statistics"""
+        stats = self._streaming_stats
 
-        return summary
+        # Basic stats
+        stats["total_samples"] += 1
+        if result.prediction_correct:
+            stats["correct_predictions"] += 1
+        if result.has_bbox:
+            stats["samples_with_bbox"] += 1
+        stats["total_processing_time"] += result.processing_time
 
-    def save_results(
-        self, results: List[XAIExplanationResult], summary: EvaluationSummary
-    ) -> None:
+        # Metric stats
+        if metrics and metrics.values:
+            for metric_name, metric_value in metrics.values.items():
+                if isinstance(metric_value, (int, float)):
+                    if metric_name not in stats["metric_sums"]:
+                        stats["metric_sums"][metric_name] = 0.0
+                        stats["metric_counts"][metric_name] = 0
+
+                    stats["metric_sums"][metric_name] += float(metric_value)
+                    stats["metric_counts"][metric_name] += 1
+
+                elif isinstance(metric_value, dict):
+                    # Handle nested metrics
+                    for sub_key, sub_value in metric_value.items():
+                        if isinstance(sub_value, (int, float)):
+                            full_key = f"{metric_name}_{sub_key}"
+                            if full_key not in stats["metric_sums"]:
+                                stats["metric_sums"][full_key] = 0.0
+                                stats["metric_counts"][full_key] = 0
+
+                            stats["metric_sums"][full_key] += float(sub_value)
+                            stats["metric_counts"][full_key] += 1
+
+
+
+    def save_results(self, summary: EvaluationSummary) -> None:
         """
-        Saves results and evaluation summary to disk and logs artifacts to MLflow.
+        Save results and evaluation summary to disk and log artifacts to MLflow.
 
         Args:
-            results (List[XAIExplanationResult]): List of explanation results.
-            summary (EvaluationSummary): Evaluation summary object.
+            summary: Evaluation summary object containing aggregate metrics
         """
         output_dir = Path(self._config.experiment.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        results_path = output_dir / "results.pt"
-        self._result_manager.save_results(results, results_path)
-        mlflow.log_artifact(str(results_path), artifact_path="evaluation/results")
-        self._logger.info(f"Serialized results saved to {results_path}")
-
+        # Save CSV with metrics using PRE-CALCULATED individual metrics
         csv_path = output_dir / "results_with_metrics.csv"
 
-        individual_metrics = getattr(self, "_individual_metrics", None)
-
-        if individual_metrics:
-            self._logger.info("Using pre-calculated individual metrics for CSV export")
-            self._result_manager.save_dataframe_with_metrics(
-                step_name="step_1",
-                path=str(csv_path),
-                evaluation_summary=summary,
-                individual_metrics=individual_metrics,
-            )
-        else:
-            self._logger.warning(
-                "No individual metrics found, creating CSV without detailed metrics"
-            )
-            self._result_manager.save_dataframe_with_metrics(
-                step_name="step_1", path=str(csv_path), evaluation_summary=summary
-            )
+        self._logger.info("Using pre-calculated individual metrics for CSV export")
+        self._result_manager.save_dataframe_with_metrics(
+            path=str(csv_path),
+            evaluation_summary=summary,
+            individual_metrics=self._streaming_metrics,
+        )
 
         mlflow.log_artifact(str(csv_path), artifact_path="evaluation/csv_results")
         self._logger.info(f"CSV with metrics saved to {csv_path}")
 
-        # Save summary
+        # Save summary as YAML
         summary_path = output_dir / "metrics_summary.yaml"
         with open(summary_path, "w") as f:
             import yaml
@@ -484,7 +527,7 @@ class XAIOrchestrator:
         try:
             explainer = self._xai_factory.create_explainer(
                 name=explainer_name,
-                model=self._model.get_pytorch_model(),
+                model=self._model,
                 use_defaults=use_defaults,
                 **config_kwargs,
             )
@@ -560,12 +603,51 @@ class XAIOrchestrator:
                     "Batch content: " f"{[path for path in xai_batch.image_paths]}"
                 )
                 continue
+        # tqdm Progressbar einrichten
+        with tqdm(total=total_batches, desc="Explaining batches") as pbar:
+            for batch_idx, batch in enumerate(dataloader):
+                if max_batches is not None and batch_idx >= max_batches:
+                    break
+                # Custom collate function ensures batch is XAIInputBatch
+                xai_batch: XAIInputBatch = batch  # type: ignore
+                try:
+                    results = self.explain_batch(xai_batch, explainer)
+                except XAIExplanationError as e:
+                    failed_batches.append(batch_idx)
+                    image_names = (
+                        xai_batch.image_names
+                        if xai_batch.image_names
+                        else ["<unknown>"] * len(xai_batch.images_tensor)
+                    )
+                    self._logger.warning(
+                        f"[Batch {batch_idx}] could not be explained: {e}"
+                    )
+                    self._logger.debug(
+                        f"[Batch {batch_idx}] image names: {image_names}"
+                    )
+                    pbar.update(1)
+                    continue
+                except TypeError as e:
+                    failed_batches.append(batch_idx)
+                    self._logger.error(f"[Batch {batch_idx}] TypeError: {e}")
+                    self._logger.debug(
+                        "Batch content: " f"{[path for path in xai_batch.image_paths]}"
+                    )
+                    pbar.update(1)
+                    continue
+                except Exception as e:
+                    failed_batches.append(batch_idx)
+                    self._logger.error(f"[Batch {batch_idx}] Unexpected error: {e}")
+                    self._logger.debug(
+                        "Batch content: " f"{[path for path in xai_batch.image_paths]}"
+                    )
+                    pbar.update(1)
+                    continue
 
             for res in results:
                 yield res
 
-            if (batch_idx + 1) % 10 == 0:
-                self._logger.info(f"Progress: {batch_idx + 1}/{total_batches} batches")
+                pbar.update(1)  # Fortschritt nach jedem Batch aktualisieren
 
         if failed_batches:
             self._logger.warning(
@@ -611,7 +693,7 @@ class XAIOrchestrator:
 
         except Exception as e:
             self._logger.error(f"Error explaining batch: {e}")
-            raise XAIExplanationError(f"Explaining batch failed: {e}") from e
+            raise
 
         processing_time = time.time() - start_time
         results: List[XAIExplanationResult] = []
@@ -639,7 +721,8 @@ class XAIOrchestrator:
                 topk_confidences=top_k_confidences,
                 attribution=attributions[i].detach().cpu(),
                 explainer_result=explanation_result,
-                explainer_name=explainer.__class__.__name__,
+                explainer_name=explainer.get_name(),
+                explainer_params=explainer.parameters,
                 has_bbox=batch.boxes_list[i].numel() > 0,
                 bbox=batch.boxes_list[i].detach().cpu(),
                 model_name=self._config.model.name,
@@ -649,69 +732,91 @@ class XAIOrchestrator:
             results.append(result)
 
         return results
-
-    def switch_model(self, model_name: str) -> None:
-        """
-        Switch to a different model.
-
-        Args:
-            model_name (str): Name of the new model.
-        """
-        self._model = self._model_factory.create(model_name)
-        self._logger.info(f"Switched to model: {model_name}")
-
-    def get_available_explainers(self) -> List[str]:
-        """
-        Get the list of available explainers.
-
-        Returns:
-            List[str]: Names of available explainers.
-        """
-        return self._xai_factory.list_available_explainers()
-
-    def get_model_info(self) -> Dict[str, Any]:
-        """
-        Get information about the current model.
-
-        Returns:
-            Dict[str, Any]: Model information dictionary.
-        """
-        return self._model.get_model_info()
-
-    def get_run_id(self) -> Optional[str]:
-        """
-        Get the MLflow run ID if a run is active.
-
-        Returns:
-            Optional[str]: MLflow run ID or None if no active run.
-        """
-        return self._mlflow_run.info.run_id if self._mlflow_run else None
-
-    def quick_test(self, n_samples: int = 5) -> None:
-        """
-        Quick test with fewer samples by limiting the number of batches processed.
-
-        Args:
-            n_samples (int): Number of test samples to process.
-        """
-        original_max_batches = self._config.data.max_batches
-        original_viz = self._config.visualization.save
-
-        batch_size = self._config.data.batch_size
-        max_batches_for_samples = math.ceil(n_samples / batch_size)
-
-        self._logger.info(
-            f"Quick test: n_samples={n_samples}, batch_size={batch_size}, "
-            f"max_batches set to {max_batches_for_samples}"
+    def transform_result(
+        self,
+        result: XAIExplanationResult,
+        transform: bool,
+        class_to_val_tensor: torch.Tensor,
+        label_lookup: Dict[int, str],
+    ) -> XAIExplanationResult:
+        orig_class = result.predicted_class
+        mapped_class = (
+            int(class_to_val_tensor[orig_class] - 1) if transform else (orig_class)
         )
 
-        self._config.data.max_batches = max_batches_for_samples
-        # Disable visualizations during quick test
-        self._config.visualization.save = False
+        true_label_val_idx = (
+            result.true_label if result.true_label is not None else None
+        )
+        true_label_name = (
+            label_lookup.get(true_label_val_idx, f"Class {true_label_val_idx}")
+            if true_label_val_idx is not None
+            else None
+        )
 
-        try:
-            self.run()
-        finally:
-            self._config.data.max_batches = original_max_batches
-            self._config.visualization.save = original_viz
-            self._logger.info("Quick test config restored to original values.")
+        prediction_correct = (
+            (mapped_class == true_label_val_idx)
+            if true_label_val_idx is not None
+            else False
+        )
+
+        return dataclasses.replace(
+            result,
+            predicted_class=mapped_class,
+            predicted_class_before_transform=(
+                orig_class if transform else result.predicted_class_before_transform
+            ),
+            predicted_class_name=label_lookup.get(
+                mapped_class, f"Class {mapped_class}"
+            ),
+            true_label_name=true_label_name,
+            prediction_correct=prediction_correct,
+        )
+
+    def xai_meta_analyse(self):
+        """
+        Run meta-analysis and store results locally and in MLflow.
+        Results are written to:
+            - results/<experiment>/meta_analysis/plots/
+            - results/<experiment>/meta_analysis/threshold_iou_score.csv
+        """
+        output_dir = Path(self._config.experiment.output_dir)
+        csv_path = output_dir / "results_with_metrics.csv"
+
+        if not csv_path.exists():
+            self._logger.error(f"Expected CSV not found at {csv_path}")
+            return
+
+        df = pd.read_csv(csv_path)
+        analysis = XaiMetaAnalysis(df)
+
+        meta_dir = output_dir / "meta_analysis"
+        plot_dir = meta_dir / "plots"
+        plot_dir.mkdir(parents=True, exist_ok=True)
+
+        # Korrelationen berechnen & loggen
+        corrs = analysis.correlation_with_correctness()
+        mlflow.log_metrics({f"corr_{k}": v for k, v in corrs.items()})
+
+        # Boxplots generieren und speichern
+        plots = analysis.plot_metric_vs_correctness()
+        for metric_name, fig in plots.items():
+            filename = f"{metric_name}_vs_correctness.png"
+            save_path = plot_dir / filename
+            fig.savefig(save_path)
+            plt.close(fig)
+            mlflow.log_artifact(str(save_path), artifact_path="meta_analysis/plots")
+
+        # Threshold-Analyse
+        grouped, threshold_fig = analysis.threshold_analysis("metric_IoU")
+        threshold_img_path = plot_dir / "threshold_iou_score.png"
+        threshold_fig.savefig(threshold_img_path)
+        plt.close(threshold_fig)
+        mlflow.log_artifact(str(threshold_img_path),
+                            artifact_path="meta_analysis/plots")
+
+        # Gruppierte Daten als CSV speichern & loggen
+        threshold_csv_path = meta_dir / "threshold_iou_score.csv"
+        grouped.to_csv(threshold_csv_path)
+        mlflow.log_artifact(str(threshold_csv_path), artifact_path="meta_analysis")
+
+        self._logger.info(f"Meta-Analyse gespeichert in {meta_dir.resolve()}")
