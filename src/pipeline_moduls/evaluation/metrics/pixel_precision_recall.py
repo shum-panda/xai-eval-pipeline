@@ -50,7 +50,8 @@ class PixelPrecisionRecall(MetricBase):
             Dict[str, float]: Dictionary with 'precision' and 'recall'.
         """
         if heatmap.ndim == 3:
-            heatmap = heatmap[0]
+            # todo: used a quick fix to allow evaluation of Cam and Integrated gradients
+            heatmap = heatmap.mean(dim=0)
         if ground_truth.ndim == 3:
             ground_truth = ground_truth[0]
 

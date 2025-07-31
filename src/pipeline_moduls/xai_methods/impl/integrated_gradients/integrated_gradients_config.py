@@ -23,7 +23,7 @@ class IntegratedGradientsConfig(BaseXAIConfig):
     def get_defaults(cls) -> Dict[str, Any]:
         return {
             "n_steps": 50,
-            "internal_batch_size": None,
+            "internal_batch_size": 32,
             "multiply_by_inputs": True,
         }
 

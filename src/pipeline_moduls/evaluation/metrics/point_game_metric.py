@@ -41,7 +41,8 @@ class PointGameMetric(MetricBase):
             Tuple[int, int]: Coordinates (x, y) of maximum value.
         """
         if heatmap.ndim == 3:
-            heatmap = heatmap[0]
+            # todo: used a quick fix to allow evaluation of Cam and Integrated gradients
+            heatmap = heatmap.mean(dim=0)
 
         if heatmap.ndim != 2:
             raise ValueError(f"Invalid heatmap shape: {heatmap.shape}")

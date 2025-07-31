@@ -3,16 +3,17 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import torch
 from PIL import Image
 
+from pipeline_moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
 from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
 )
 from src.pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
-from src.pipeline_moduls.evaluation.xai_evaluator import bbox_to_mask_tensor
 
 
 class Visualiser:
@@ -84,11 +85,9 @@ class Visualiser:
             ax_original.axis("off")
 
             ax_attribution = fig.add_subplot(gs[1, 0])
-            attribution: torch.Tensor = result.attribution
-            if attribution.dim() == 3 and attribution.shape[0] == 3:
-                # Über die Kanäle mitteln, ergibt [224, 224]
-                attribution = attribution.mean(dim=0, keepdim=False)
-            attribution_np = attribution.cpu().numpy().squeeze(0)
+            attribution_np: np.ndarray = self._prepare_attribution_for_heatmap(
+                result.attribution
+            )
 
             sns.heatmap(
                 attribution_np,
@@ -153,7 +152,23 @@ class Visualiser:
             return None
         except Exception as e:
             self.logger.error(f"Error during visualization: {e}")
-            return None
+            raise
+
+    def _prepare_attribution_for_heatmap(self, attribution: torch.Tensor) -> np.ndarray:
+        if attribution.dim() > 2:
+            attribution = attribution.mean(dim=0)
+        attribution_np = attribution.detach().cpu().numpy()
+
+        # Optional: Absolutwert (besonders für IG sinnvoll)
+        attribution_np = np.abs(attribution_np)
+
+        # Normalisieren
+        attribution_np -= attribution_np.min()
+        max_val = attribution_np.max()
+        if max_val != 0:
+            attribution_np /= max_val
+
+        return attribution_np
 
     def _extract_individual_metrics(
         self, metrics: Optional[Union[EvaluationSummary, MetricResults]]
@@ -258,7 +273,6 @@ class Visualiser:
             f"True Label: {result.true_label} ({true_label_str})",
             f"Correct: {'[+] Yes' if result.prediction_correct else '[-] No'}",
         ]
-
 
         info_lines.extend(
             [

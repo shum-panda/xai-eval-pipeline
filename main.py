@@ -1,11 +1,12 @@
 import hydra
 from omegaconf import OmegaConf
 
+from src.control.orchestrator import Orchestrator
 from src.control.utils.config_dataclasses.master_config import MasterConfig
-from src.control.xai_orchestrator import XAIOrchestrator
 
 
-@hydra.main(version_base=None, config_path="config", config_name="config")
+@hydra.main(version_base=None, config_path="config",
+            config_name="config_guided_backprop")
 def main(cfg: MasterConfig) -> None:
     """
     Main entry point for the XAI pipeline using Hydra configuration.
@@ -16,7 +17,7 @@ def main(cfg: MasterConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 
     # 2) Initialize pipeline with Hydra config
-    pipeline = XAIOrchestrator(cfg)
+    pipeline = Orchestrator(cfg)
 
     # 3) Full Evaluation
     print("\nRunning full evaluation...")
