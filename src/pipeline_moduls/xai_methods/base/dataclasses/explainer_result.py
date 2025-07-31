@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+import torch
 from torch import Tensor
 
 
@@ -19,7 +20,7 @@ class ExplainerResult:
     @property
     def correct_predictions(self) -> Tensor:
         """Boolean tensor indicating correct predictions"""
-        return self.predictions.argmax(dim=1) == self.target_labels
+        return self.predictions == self.target_labels
 
     @property
     def accuracy(self) -> float:
@@ -36,11 +37,24 @@ class ExplainerResult:
         """Total number of predictions"""
         return len(self.target_labels)
 
-    def get_summary(self) -> Dict[str, Any]:
-        """Get evaluation summary"""
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Create a dict summary for logging or export,
+        avoiding large tensor data but including shapes and metrics.
+        """
+
+        def safe_shape(tensor):
+            return tuple(tensor.shape) if isinstance(tensor, torch.Tensor) else None
+
         return {
             "accuracy": self.accuracy,
             "correct": self.num_correct,
             "total": self.num_total,
-            "attribution_shape": tuple(self.attributions.shape),
+            "attribution_shape": safe_shape(self.attributions),
+            "probabilities_shape": safe_shape(self.probabilities),
+            "predictions_shape": safe_shape(self.predictions),
+            "confidence_shape": safe_shape(self.confidence),
+            "target_labels_shape": safe_shape(self.target_labels),
+            "topk_predictions_shape": safe_shape(self.topk_predictions),
+            "topk_confidences_shape": safe_shape(self.topk_confidences),
         }

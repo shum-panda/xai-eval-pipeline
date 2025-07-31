@@ -103,8 +103,7 @@ class ImageNetValDataset(Dataset):
         labels = []
         with label_file.open("r") as f:
             for line in f:
-                # Labels sind 1-indexiert, konvertiere zu 0-indexiert
-                label = int(line.strip()) - 1
+                label = int(line.strip())
                 labels.append(label)
         return labels
 

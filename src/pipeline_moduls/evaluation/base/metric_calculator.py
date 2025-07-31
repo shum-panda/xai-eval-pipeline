@@ -60,7 +60,8 @@ class MetricCalculator:
         )
         for metric in self.metrics:
             result = metric.calculate(heatmap, ground_truth)
-            results[metric.get_name()] = result
+            metric_name = metric.get_name().lower()
+            results[metric_name] = result
 
         self._logger.debug(f"Metric results: {results}")
         return results

@@ -4,13 +4,13 @@ import torch
 from captum.attr import LayerGradCam  # type: ignore
 from torch import Tensor, nn
 
-from src.control.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 from src.pipeline_moduls.xai_methods.impl.grad_cam.grad_cam_config import (
     GradCAMConfig,
 )
+from utils.with_cuda_cleanup import with_cuda_cleanup
 
 
 class GradCamExplainer(BaseExplainer):
@@ -18,14 +18,7 @@ class GradCamExplainer(BaseExplainer):
     Explainer class implementing GradCAM using Captum's LayerGradCam.
     """
 
-    @property
-    def parameters(self) -> Dict[str, str]:
-        """Returns a dictionary of parameter names and their stringified values."""
-        return {
-            "target_layer": str(self.target_layer),
-            "relu_attributions": str(self.relu_attributions),
-            "interpolate_mode": str(self.interpolate_mode),
-        }
+
 
     def __init__(
         self, model: XAIModel, use_defaults: bool = True, **kwargs: object
@@ -86,6 +79,33 @@ class GradCamExplainer(BaseExplainer):
             self._logger.error(f"Error computing GradCAM attributions: {str(e)}")
             raise
 
+    def check_input(self, **kwargs: Any) -> BaseXAIConfig:
+        """
+        Validates and returns a GradCAMConfig based on input kwargs.
+
+        Args:
+            **kwargs: Raw configuration values.
+
+        Returns:
+            GradCAMConfig: Validated configuration object.
+
+        Raises:
+            ValueError: If configuration values are invalid.
+        """
+        try:
+            config = GradCAMConfig(**kwargs)
+            config.validate()
+        except (TypeError, ValueError) as e:
+            self._logger.error(f"Invalid config: {e}")
+            raise
+
+        try:
+            config.target_layer = self._select_target_layer(config.target_layer)
+        except Exception as e:
+            raise ValueError(f"Invalid target_layer: {e}")
+
+        return config
+
     def _select_target_layer(self, layer_idx: Union[str, int]) -> str:
         """
         Select a convolutional layer as the GradCAM target.
@@ -97,7 +117,6 @@ class GradCamExplainer(BaseExplainer):
             str: name of The selected target layer.
         """
         model = self._model.pytorch_model
-        selected: Union[str, tuple[str, nn.Module], int] = layer_idx
         conv_modules: list[tuple[str, nn.Module]] = []
 
         for name, module in model.named_modules():
@@ -134,33 +153,6 @@ class GradCamExplainer(BaseExplainer):
 
         return selected[0]
 
-    def check_input(self, **kwargs: Any) -> BaseXAIConfig:
-        """
-        Validates and returns a GradCAMConfig based on input kwargs.
-
-        Args:
-            **kwargs: Raw configuration values.
-
-        Returns:
-            GradCAMConfig: Validated configuration object.
-
-        Raises:
-            ValueError: If configuration values are invalid.
-        """
-        try:
-            config = GradCAMConfig(**kwargs)
-            config.validate()
-        except (TypeError, ValueError) as e:
-            self._logger.error(f"Invalid config: {e}")
-            raise
-
-        try:
-            config.target_layer = self._select_target_layer(config.target_layer)
-        except Exception as e:
-            raise ValueError(f"Invalid target_layer: {e}")
-
-        return config
-
     def _setup_with_validated_params(self, config: BaseXAIConfig) -> None:
         """
         Sets up the explainer with a validated GradCAMConfig.
@@ -192,6 +184,15 @@ class GradCamExplainer(BaseExplainer):
             f"relu_attributions: {self.relu_attributions}"
             f"grad_cam: {self.grad_cam}"
         )
+
+    @property
+    def parameters(self) -> Dict[str, str]:
+        """Returns a dictionary of parameter names and their stringified values."""
+        return {
+            "target_layer": str(self.target_layer),
+            "relu_attributions": str(self.relu_attributions),
+            "interpolate_mode": str(self.interpolate_mode),
+        }
 
     @classmethod
     def get_name(cls) -> str:

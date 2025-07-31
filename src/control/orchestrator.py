@@ -1,21 +1,25 @@
 import dataclasses
 import logging
-import math
 import time
 from logging import Logger
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 
 import mlflow
+import pandas as pd
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision import transforms  # type: ignore
+from tqdm import tqdm
 
 import src.pipeline_moduls.evaluation.metrics  # noqa: F401
+from pipeline_moduls.data.image_net_label_mapper import ImageNetLabelMapper
+from pipeline_moduls.metaanlyse.xai_meta_analysis import XaiMetaAnalysis
+from pipeline_moduls.resultmanager.result_manager import ResultManager
 from src.control.utils.config_dataclasses.master_config import MasterConfig
 from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from src.control.utils.error.xai_explanation_error import XAIExplanationError
 from src.control.utils.set_up_logger import setup_logger
-from src.control.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
 from src.pipeline_moduls.data.image_net_val_dataset import (
     ImageNetValDataset,
@@ -28,13 +32,13 @@ from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
 from src.pipeline_moduls.evaluation.xai_evaluator import XAIEvaluator
 from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 from src.pipeline_moduls.models.base.xai_model_factory import XAIModelFactory
-from src.pipeline_moduls.ResultManager.result_manager import ResultManager
 from src.pipeline_moduls.visualization.visualisation import Visualiser
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.xai_factory import XAIFactory
+from utils.with_cuda_cleanup import with_cuda_cleanup
 
 
-class XAIOrchestrator:
+class Orchestrator:
     """
     Central orchestrator of the entire XAI pipeline.
     Coordinates models, datasets, explainers, evaluation, and visualization,
@@ -53,7 +57,7 @@ class XAIOrchestrator:
         self._pipeline_status: str = "initialized"
         self._current_step: str = "none"
         self._pipeline_error: Optional[Exception] = None
-        self._individual_metrics: Optional[List[Any]] = None
+        self._individual_metrics: List[Any] = []
         self._mlflow_run: Optional[mlflow.ActiveRun] = None
         self._logger: Logger = logging.getLogger(__name__)
         self._config: MasterConfig = config
@@ -116,15 +120,6 @@ class XAIOrchestrator:
             "mlflow_active": self._mlflow_run is not None,
         }
 
-    def reset_pipeline_state(self) -> None:
-        """
-        Resets pipeline status to initial state for new runs.
-        """
-        self._pipeline_status = "initialized"
-        self._current_step = "none"
-        self._pipeline_error = None
-        self._logger.info("Pipeline state reset")
-
     def run(self) -> Dict[str, Any]:
         """
         Extended run() method with status tracking.
@@ -158,84 +153,56 @@ class XAIOrchestrator:
             self._current_step = "explainer_creation"
             self._logger.info(f"Starting step: {self._current_step}")
             explainer = self.create_explainer(
-                explainer_name=self._config.xai.name, **self._config.xai.kwargs
+                explainer_name=self._config.xai.name,
+                explainer_parameters=self._config.xai.kwargs,
+                use_defaults=self._config.xai.use_defaults,
             )
 
             self._current_step = "pipeline_execution"
             self._logger.info(f"Starting step: {self._current_step}")
-            xai_results = self.run_pipeline(dataloader, explainer)
-            self._logger.info(
+            xai_results = self.run_explanation_pipeline(dataloader, explainer)
+            self._logger.debug(
                 "XAI result example after transformation:" f" {xai_results[0]}"
             )
             self._current_step = "results_evaluation"
             self._logger.info(f"Starting step: {self._current_step}")
-            summary = self.evaluate_results(results)
+            summary = self.evaluate_results(xai_results)
 
             self._current_step = "results_saving"
             self._logger.info(f"Starting step: {self._current_step}")
-            self.save_results(results, summary)
+            self.save_results(summary)
+
+            self._current_step = "meta analysis"
+            self._logger.info(f"Starting step: {self._current_step}")
+            self.xai_meta_analyse()
 
             self._current_step = "visualization"
             self._logger.info(f"Starting step: {self._current_step}")
-            self.visualize_results_if_needed(results, summary)
-
             self.visualize_results_if_needed(xai_results, summary)
         except Exception as e:
             self._pipeline_status = "failed"
             self._pipeline_error = e
             self._logger.error(f"PIPELINE FAILED at step: {self._current_step}")
             self._logger.error(f"Error: {str(e)}")
-            if self._config.experiment.emergency_export_enabled:
-                self.emergency_export()
             raise
         else:
             self._logger.info("Pipeline completed successfully!")
-            return {
-                "status": "success",
-                "total_samples": len(xai_results),
-                "output_dir": self._config.experiment.output_dir,
-                "explainer": self._config.xai.name,
-                "_model": self._config.model.name,
-            }
+            self._pipeline_status = "completed"
+            self._current_step = "completed"
         finally:
             self._current_step = "finalization"
             self._logger.info(f"Starting step: {self._current_step}")
             self.finalize_run()
 
-            self._pipeline_status = "completed"
-            self._current_step = "completed"
+        return {
+            "status": self._pipeline_status,
+            "total_samples": len(xai_results),
+            "output_dir": self._config.experiment.output_dir,
+            "explainer": self._config.xai.name,
+            "_model": self._config.model.name,
+        }
 
-            return {
-                "status": "success",
-                "total_samples": len(results),
-                "output_dir": self._config.experiment.output_dir,
-                "explainer": self._config.xai.name,
-                "model": self._config.model.name,
-            }
-
-        except Exception as e:
-            self._pipeline_status = "failed"
-            self._pipeline_error = e
-            self._logger.error(f"PIPELINE FAILED at step: {self._current_step}")
-            self._logger.error(f"Error: {str(e)}")
-            raise
-
-    def prepare_experiment(self) -> None:
-        """
-        Starts the MLflow experiment and logs parameters.
-        """
-        self._logger.info(f"Starting experiment: {self._config.experiment.name}")
-        if mlflow.active_run() is None:
-            self._mlflow_run = mlflow.start_run(run_name=self._config.experiment.name)
-        else:
-            self._mlflow_run = mlflow.active_run()
-
-        mlflow.log_param("_model_name", self._config.model.name)
-        mlflow.log_param("explainer_name", self._config.xai.name)
-        mlflow.log_param("batch_size", self._config.data.batch_size)
-        mlflow.log_param("max_batches", self._config.data.max_batches)
-
-    def run_pipeline(
+    def run_explanation_pipeline(
         self,
         dataloader: DataLoader[ImageNetValDataset],
         explainer: BaseExplainer,
@@ -253,14 +220,20 @@ class XAIOrchestrator:
         self._logger.info(f"Processing samples with {self._config.xai.name}...")
         results: List[XAIExplanationResult] = []
 
-        for result in self.process_dataloader(
+        max_batches = self._config.data.max_batches
+        for batch in self.process_dataloader(
             dataloader=dataloader,
             explainer=explainer,
-            max_batches=self._config.data.max_batches,
+            max_batches=max_batches,
         ):
-            results.append(result)
-            self._result_manager.add_results("step_1", [result])
+            if self._config.model.transform:
+                transformed_batch = [self.transform_result(r) for r in batch]
+            else:
+                transformed_batch = batch
 
+            results.extend(transformed_batch)
+
+        self._result_manager.add_results(results)
         self._logger.info(
             "Finished processing. Total results collected: " f"{len(results)}"
         )
@@ -282,8 +255,8 @@ class XAIOrchestrator:
             f"Processing {len(results)} results for individual metrics..."
         )
 
-        for i, result in enumerate(results):
-            if result.prediction_correct is not None and result.prediction_correct:
+        for i, result in enumerate(tqdm(results, desc="Processing results")):
+            if result.prediction_correct:
                 correct_predictions += 1
 
             total_processing_time += result.processing_time
@@ -291,85 +264,48 @@ class XAIOrchestrator:
             metrics = self._evaluator.evaluate_single_result(result)
             individual_metrics.append(metrics)
 
-            if (i + 1) % 10 == 0:
-                self._logger.info(
-                    f"Processed {i + 1}/{len(results)} individual metrics"
-                )
+        self._individual_metrics.extend(individual_metrics)
 
-        self._individual_metrics = individual_metrics
+        summary = self._evaluator.create_summary_from_individual_metrics(
+            results=results,
+            individual_metrics=individual_metrics,
+            correct_predictions=correct_predictions,
+            total_processing_time=total_processing_time,
+        )
 
-        # Save tensor to disk
-        torch.save(attribution, attribution_path)
-        self._logger.debug(f"Saved attribution to {attribution_path}")
+        self._logger.info("Evaluation metrics calculation finished!")
 
-        return attribution_path
+        for key, value in summary.to_dict().items():
+            if isinstance(value, (int, float)):
+                mlflow.log_metric(key, value)
 
-    def _update_streaming_stats(self, result: XAIExplanationResult, metrics) -> None:
-        """Update running statistics"""
-        stats = self._streaming_stats
-
-        # Basic stats
-        stats["total_samples"] += 1
-        if result.prediction_correct:
-            stats["correct_predictions"] += 1
-        if result.has_bbox:
-            stats["samples_with_bbox"] += 1
-        stats["total_processing_time"] += result.processing_time
-
-        # Metric stats
-        if metrics and metrics.values:
-            for metric_name, metric_value in metrics.values.items():
-                if isinstance(metric_value, (int, float)):
-                    if metric_name not in stats["metric_sums"]:
-                        stats["metric_sums"][metric_name] = 0.0
-                        stats["metric_counts"][metric_name] = 0
-
-                    stats["metric_sums"][metric_name] += float(metric_value)
-                    stats["metric_counts"][metric_name] += 1
-
-                elif isinstance(metric_value, dict):
-                    # Handle nested metrics
-                    for sub_key, sub_value in metric_value.items():
-                        if isinstance(sub_value, (int, float)):
-                            full_key = f"{metric_name}_{sub_key}"
-                            if full_key not in stats["metric_sums"]:
-                                stats["metric_sums"][full_key] = 0.0
-                                stats["metric_counts"][full_key] = 0
-
-                            stats["metric_sums"][full_key] += float(sub_value)
-                            stats["metric_counts"][full_key] += 1
-
-
+        return summary
 
     def save_results(self, summary: EvaluationSummary) -> None:
         """
-        Save results and evaluation summary to disk and log artifacts to MLflow.
+        Saves results and evaluation summary to disk and logs artifacts to MLflow.
 
         Args:
-            summary: Evaluation summary object containing aggregate metrics
+            summary (EvaluationSummary): Evaluation summary object.
         """
         output_dir = Path(self._config.experiment.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save CSV with metrics using PRE-CALCULATED individual metrics
-        csv_path = output_dir / "results_with_metrics.csv"
+        individual_metrics = self._individual_metrics
+        self._logger.info(f"individual_metics: {individual_metrics}")
 
-        self._logger.info("Using pre-calculated individual metrics for CSV export")
-        self._result_manager.save_dataframe_with_metrics(
-            path=str(csv_path),
-            evaluation_summary=summary,
-            individual_metrics=self._streaming_metrics,
+        csv_path = self._result_manager.save_dataframe_with_metrics(
+            path=output_dir,
+            individual_metrics=self._individual_metrics,
         )
 
         mlflow.log_artifact(str(csv_path), artifact_path="evaluation/csv_results")
         self._logger.info(f"CSV with metrics saved to {csv_path}")
 
-        # Save summary as YAML
-        summary_path = output_dir / "metrics_summary.yaml"
-        with open(summary_path, "w") as f:
-            import yaml
-
-            yaml.dump(dataclasses.asdict(summary), f)
+        # Save summary
+        summary_path = self._result_manager.save_evaluation_summary_to_file(
+            summary, output_dir
+        )
         mlflow.log_artifact(
             str(summary_path), artifact_path="evaluation/metrics_summary"
         )
@@ -383,49 +319,6 @@ class XAIOrchestrator:
             delattr(self, "_individual_metrics")
             self._logger.info("Individual metrics cleaned up from memory")
 
-    def visualize_results_if_needed(
-        self, results: List[XAIExplanationResult], summary: EvaluationSummary
-    ) -> None:
-        """
-        Generates and logs visualizations if configured to do so.
-
-        Args:
-            results (List[XAIExplanationResult]): List of explanation results.
-            summary (EvaluationSummary): Evaluation summary.
-        """
-        if not self._config.visualization.save and not self._config.visualization.show:
-            return
-
-        output_dir = Path(self._config.experiment.output_dir)
-        vis_dir = output_dir / "visualizations"
-        vis_dir.mkdir(exist_ok=True)
-
-        visualizer = Visualiser(show=self._config.visualization.show, save_path=vis_dir)
-
-        max_vis = min(self._config.visualization.max_visualizations, len(results))
-        self._logger.info(f"Creating {max_vis} visualizations...")
-
-        # Use individual metrics if available
-        individual_metrics = getattr(self, "_individual_metrics", None)
-
-        for i in range(max_vis):
-            result = results[i]
-
-            if individual_metrics and i < len(individual_metrics):
-                metrics_for_this_result = individual_metrics[i]
-                self._logger.debug(f"Using individual metrics for {result.image_name}")
-            else:
-                # Fallback to summary (not ideal)
-                metrics_for_this_result = summary
-                self._logger.warning(f"Using summary metrics for {result.image_name}")
-
-            vis_path = visualizer.create_visualization(result, metrics_for_this_result)
-
-            if vis_path and self._config.visualization.save:
-                mlflow.log_artifact(vis_path, artifact_path="visualizations")
-
-        self._logger.info(f"Generated {max_vis} visualizations in {vis_dir}")
-
     def finalize_run(self) -> None:
         """
         Ends the MLflow run if active and logs the run ID.
@@ -435,115 +328,7 @@ class XAIOrchestrator:
             self._logger.info(f"MLflow run ended: {self._mlflow_run.info.run_id}")
             self._mlflow_run = None
 
-    def setup_dataloader(
-        self,
-        project_root: Optional[Path],
-        batch_size: int,
-        num_workers: int,
-        pin_memory: bool,
-        shuffle: bool,
-        target_size: Optional[List[int]],
-        transform: Optional[transforms.Compose],
-    ) -> DataLoader[ImageNetValDataset]:
-        """
-        Sets up the ImageNet DataLoader with configurable parameters.
-
-        Args:
-            project_root (Optional[Path]): Root path of the project.
-                If None, it is inferred automatically.
-            batch_size (int): Batch size for loading the dataset.
-            num_workers (int): Number of subprocesses used for data loading.
-            pin_memory (bool): Whether to pin memory (recommended for GPU).
-            shuffle (bool): Whether to shuffle the dataset during loading.
-            target_size (Optional[List[int]]): List with to Arguments for Target size
-            for resizing images.
-            transform (Optional[transforms.Compose]): Optional custom transform to
-            apply.
-
-        Returns:
-            DataLoader: Configured PyTorch DataLoader with ImageNet validation data.
-
-        Notes:
-            Uses `create_dataloader()` internally and expects compatibility with
-            `ImageNetSample` and `explain_collate_fn`.
-        """
-        if project_root is None:
-            project_root = Path(__file__).resolve().parents[2]
-
-        image_dir = project_root / "data" / "extracted" / "validation_images"
-        annot_dir = project_root / "data" / "extracted" / "bounding_boxes"
-        label_file = (
-            project_root / "data" / "raw" / "ILSVRC2012_validation_ground_truth.txt"
-        )
-
-        dataloader = create_dataloader(
-            image_dir=image_dir,
-            annot_dir=annot_dir,
-            label_file=label_file,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
-            shuffle=shuffle,
-            target_size=target_size,
-            transform=transform,
-            custom_collate_fn=explain_collate_fn,
-        )
-
-        self._logger.info(
-            f"DataLoader setup complete: {len(dataloader.dataset)} samples in "  # type: ignore
-            f"{len(dataloader)} batches "
-            f"(batch_size={batch_size}, shuffle={shuffle})"
-        )
-
-        return dataloader
-
-    def create_explainer(
-        self, explainer_name: str, **additional_kwargs: Any
-    ) -> BaseExplainer:
-        """
-        Creates an explainer with runtime parameter validation.
-
-        Args:
-            explainer_name (str): Name of the explainer.
-            **additional_kwargs: Additional parameters to override config.
-
-        Returns:
-            BaseExplainer: Configured explainer instance.
-
-        Raises:
-            TypeError, ValueError, Exception: If creation fails.
-        """
-        logger = logging.getLogger(__name__)
-
-        config_kwargs = self._config.xai.kwargs.copy()
-        config_kwargs.update(additional_kwargs)
-
-        use_defaults = self._config.xai.use_defaults
-
-        logger.info(f"Creating {explainer_name} explainer...")
-        logger.info(f"Use defaults: {use_defaults}")
-        logger.debug(f"Parameters: {config_kwargs}")
-
-        try:
-            explainer = self._xai_factory.create_explainer(
-                name=explainer_name,
-                model=self._model,
-                use_defaults=use_defaults,
-                **config_kwargs,
-            )
-            return explainer
-        except TypeError as e:
-            logger.error(f"Failed to create {explainer_name}: {e}")
-            logger.error("Check if the parameters have the right types")
-            logger.error("Check your config parameters or set 'use_defaults: true'")
-            raise
-        except ValueError as e:
-            logger.error(f"Failed to create {explainer_name}: {e}")
-            logger.error("Check your config parameters or set 'use_defaults: true'")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error creating {explainer_name}: {e}")
-            raise
+        self.cleanup_individual_metrics()
 
     @with_cuda_cleanup
     def process_dataloader(
@@ -551,7 +336,7 @@ class XAIOrchestrator:
         dataloader: DataLoader[ImageNetValDataset],
         explainer: BaseExplainer,
         max_batches: Optional[int] = None,
-    ) -> Iterator[XAIExplanationResult]:
+    ) -> Iterator[List[XAIExplanationResult]]:
         """
         Iterates over a DataLoader and explains each batch using a given XAI explainer.
         Yields XAIExplanationResult objects for each image in a memory-efficient way.
@@ -571,38 +356,6 @@ class XAIOrchestrator:
 
         failed_batches: List[int] = []
 
-        for batch_idx, batch in enumerate(dataloader):
-            if max_batches is not None and batch_idx >= max_batches:
-                break
-
-            xai_batch: XAIInputBatch = batch
-
-            try:
-                results = self.explain_batch(xai_batch, explainer)
-            except XAIExplanationError as e:
-                failed_batches.append(batch_idx)
-                image_names = (
-                    xai_batch.image_names
-                    if xai_batch.image_names
-                    else ["<unknown>"] * len(xai_batch.images_tensor)
-                )
-                self._logger.warning(f"[Batch {batch_idx}] could not be explained: {e}")
-                self._logger.debug(f"[Batch {batch_idx}] image names: {image_names}")
-                continue
-            except TypeError as e:
-                failed_batches.append(batch_idx)
-                self._logger.error(f"[Batch {batch_idx}] TypeError: {e}")
-                self._logger.debug(
-                    "Batch content: " f"{[path for path in xai_batch.image_paths]}"
-                )
-                continue
-            except Exception as e:
-                failed_batches.append(batch_idx)
-                self._logger.error(f"[Batch {batch_idx}] Unexpected error: {e}")
-                self._logger.debug(
-                    "Batch content: " f"{[path for path in xai_batch.image_paths]}"
-                )
-                continue
         # tqdm Progressbar einrichten
         with tqdm(total=total_batches, desc="Explaining batches") as pbar:
             for batch_idx, batch in enumerate(dataloader):
@@ -643,11 +396,9 @@ class XAIOrchestrator:
                     )
                     pbar.update(1)
                     continue
-
-            for res in results:
-                yield res
-
-                pbar.update(1)  # Fortschritt nach jedem Batch aktualisieren
+                else:
+                    yield results
+                pbar.update(1)
 
         if failed_batches:
             self._logger.warning(
@@ -732,25 +483,35 @@ class XAIOrchestrator:
             results.append(result)
 
         return results
-    def transform_result(
-        self,
-        result: XAIExplanationResult,
-        transform: bool,
-        class_to_val_tensor: torch.Tensor,
-        label_lookup: Dict[int, str],
-    ) -> XAIExplanationResult:
-        orig_class = result.predicted_class
-        mapped_class = (
-            int(class_to_val_tensor[orig_class] - 1) if transform else (orig_class)
-        )
 
-        true_label_val_idx = (
-            result.true_label if result.true_label is not None else None
-        )
-        true_label_name = (
-            label_lookup.get(true_label_val_idx, f"Class {true_label_val_idx}")
-            if true_label_val_idx is not None
-            else None
+    def transform_result(self, result: XAIExplanationResult) -> XAIExplanationResult:
+        """
+        Applies class label transformation and enriches the result with metadata.
+
+        This method maps the predicted class to a validation class index,
+        sets readable class names for both predicted and true labels,
+        determines if the prediction was correct, and stores the original
+        predicted class before transformation.
+
+        Note:
+            This method assumes transformation is required.
+            The caller must ensure it is only called if `transform=True`.
+
+        Args:
+            result (XAIExplanationResult): The explanation result to transform.
+
+        Returns:
+            XAIExplanationResult: A copy of the result with transformed labels,
+            class names, and a correctness flag.
+        """
+        label_lookup = self.label_mapper.class_id_to_label
+        class_to_val_tensor = self.label_mapper.class_to_val_tensor
+        orig_class: int = result.predicted_class
+        mapped_class: int = int(class_to_val_tensor[orig_class])
+
+        true_label_val_idx = result.true_label
+        true_label_name = label_lookup.get(
+            true_label_val_idx, f"Class {true_label_val_idx}"
         )
 
         prediction_correct = (
@@ -762,9 +523,7 @@ class XAIOrchestrator:
         return dataclasses.replace(
             result,
             predicted_class=mapped_class,
-            predicted_class_before_transform=(
-                orig_class if transform else result.predicted_class_before_transform
-            ),
+            predicted_class_before_transform=orig_class,
             predicted_class_name=label_lookup.get(
                 mapped_class, f"Class {mapped_class}"
             ),
@@ -807,12 +566,13 @@ class XAIOrchestrator:
             mlflow.log_artifact(str(save_path), artifact_path="meta_analysis/plots")
 
         # Threshold-Analyse
-        grouped, threshold_fig = analysis.threshold_analysis("metric_IoU")
+        grouped, threshold_fig = analysis.threshold_analysis("iou")
         threshold_img_path = plot_dir / "threshold_iou_score.png"
         threshold_fig.savefig(threshold_img_path)
         plt.close(threshold_fig)
-        mlflow.log_artifact(str(threshold_img_path),
-                            artifact_path="meta_analysis/plots")
+        mlflow.log_artifact(
+            str(threshold_img_path), artifact_path="meta_analysis/plots"
+        )
 
         # Gruppierte Daten als CSV speichern & loggen
         threshold_csv_path = meta_dir / "threshold_iou_score.csv"
@@ -820,3 +580,169 @@ class XAIOrchestrator:
         mlflow.log_artifact(str(threshold_csv_path), artifact_path="meta_analysis")
 
         self._logger.info(f"Meta-Analyse gespeichert in {meta_dir.resolve()}")
+
+    def visualize_results_if_needed(
+        self, results: List[XAIExplanationResult], summary: EvaluationSummary
+    ) -> None:
+        """
+        Generates and logs visualizations if configured to do so.
+
+        Args:
+            results (List[XAIExplanationResult]): List of explanation results.
+            summary (EvaluationSummary): Evaluation summary.
+        """
+        if not self._config.visualization.save and not self._config.visualization.show:
+            return
+
+        output_dir = Path(self._config.experiment.output_dir)
+        vis_dir = output_dir / "visualizations"
+        vis_dir.mkdir(exist_ok=True)
+
+        visualizer = Visualiser(show=self._config.visualization.show, save_path=vis_dir)
+
+        max_vis = min(self._config.visualization.max_visualizations, len(results))
+        self._logger.info(f"Creating {max_vis} visualizations...")
+
+        # Use individual metrics if available
+        individual_metrics = getattr(self, "_individual_metrics", None)
+
+        for i in range(max_vis):
+            result = results[i]
+
+            if individual_metrics and i < len(individual_metrics):
+                metrics_for_this_result = individual_metrics[i]
+                self._logger.debug(f"Using individual metrics for {result.image_name}")
+            else:
+                # Fallback to summary (not ideal)
+                metrics_for_this_result = summary
+                self._logger.warning(f"Using summary metrics for {result.image_name}")
+
+            vis_path = visualizer.create_visualization(result, metrics_for_this_result)
+
+            if vis_path and self._config.visualization.save:
+                mlflow.log_artifact(vis_path, artifact_path="visualizations")
+
+        self._logger.info(f"Generated {max_vis} visualizations in {vis_dir}")
+
+    def prepare_experiment(self) -> None:
+        """
+        Starts the MLflow experiment and logs parameters.
+        """
+        self._logger.info(f"Starting experiment: {self._config.experiment.name}")
+        if mlflow.active_run() is None:
+            self._mlflow_run = mlflow.start_run(run_name=self._config.experiment.name)
+        else:
+            self._mlflow_run = mlflow.active_run()
+
+        mlflow.log_param("_model_name", self._config.model.name)
+        mlflow.log_param("explainer_name", self._config.xai.name)
+        mlflow.log_param("batch_size", self._config.data.batch_size)
+        mlflow.log_param("max_batches", self._config.data.max_batches)
+
+    def setup_dataloader(
+        self,
+        project_root: Optional[Path],
+        batch_size: int,
+        num_workers: int,
+        pin_memory: bool,
+        shuffle: bool,
+        target_size: Optional[List[int]],
+        transform: Optional[transforms.Compose],
+    ) -> DataLoader[ImageNetValDataset]:
+        """
+        Sets up the ImageNet DataLoader with configurable parameters.
+
+        Args:
+            project_root (Optional[Path]): Root path of the project.
+                If None, it is inferred automatically.
+            batch_size (int): Batch size for loading the dataset.
+            num_workers (int): Number of subprocesses used for data loading.
+            pin_memory (bool): Whether to pin memory (recommended for GPU).
+            shuffle (bool): Whether to shuffle the dataset during loading.
+            target_size (Optional[List[int]]): List with to Arguments for Target size
+            for resizing images.
+            transform (Optional[transforms.Compose]): Optional custom transform to
+            apply.
+
+        Returns:
+            DataLoader: Configured PyTorch DataLoader with ImageNet validation data.
+
+        Notes:
+            Uses `create_dataloader()` internally and expects compatibility with
+            `ImageNetSample` and `explain_collate_fn`.
+        """
+        if project_root is None:
+            project_root = Path(__file__).resolve().parents[2]
+
+        image_dir = project_root / "data" / "extracted" / "validation_images"
+        annot_dir = project_root / "data" / "extracted" / "bounding_boxes"
+        label_file = (
+            project_root / "data" / "raw" / "ILSVRC2012_validation_ground_truth.txt"
+        )
+
+        dataloader = create_dataloader(
+            image_dir=image_dir,
+            annot_dir=annot_dir,
+            label_file=label_file,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            shuffle=shuffle,
+            target_size=target_size,
+            transform=transform,
+            custom_collate_fn=explain_collate_fn,
+        )
+
+        self._logger.info(
+            f"DataLoader setup complete: {len(dataloader.dataset)} samples in "  # type: ignore
+            f"{len(dataloader)} batches "
+            f"(batch_size={batch_size}, shuffle={shuffle})"
+        )
+
+        return dataloader
+
+    def create_explainer(
+        self, explainer_name: str, explainer_parameters: Any, use_defaults: bool
+    ) -> BaseExplainer:
+        """
+        Creates an explainer with runtime parameter validation.
+
+        Args:
+            explainer_name (str): Name of the explainer (e.g., 'grad_cam').
+            explainer_parameters (dict): Parameters for the chosen explainer.
+                Passed as keyword arguments to the explainer's constructor.
+            use_defaults (bool): If True, unspecified parameters will be filled with
+                default values.
+        Returns:
+            BaseExplainer: Configured explainer instance.
+        Raises:
+            TypeError, ValueError, Exception: If creation fails.
+        """
+        logger = logging.getLogger(__name__)
+
+        config_kwargs = explainer_parameters
+
+        logger.info(f"Creating {explainer_name} explainer...")
+        logger.info(f"Use defaults: {use_defaults}")
+        logger.debug(f"Parameters: {config_kwargs}")
+
+        try:
+            explainer = self._xai_factory.create_explainer(
+                name=explainer_name,
+                model=self._model,
+                use_defaults=use_defaults,
+                **config_kwargs,
+            )
+            return explainer
+        except TypeError as e:
+            logger.error(f"Failed to create {explainer_name}: {e}")
+            logger.error("Check if the parameters have the right types")
+            logger.error("Check your config parameters or set 'use_defaults: true'")
+            raise
+        except ValueError as e:
+            logger.error(f"Failed to create {explainer_name}: {e}")
+            logger.error("Check your config parameters or set 'use_defaults: true'")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error creating {explainer_name}: {e}")
+            raise

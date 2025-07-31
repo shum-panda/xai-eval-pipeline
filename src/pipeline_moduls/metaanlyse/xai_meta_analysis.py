@@ -14,10 +14,10 @@ class XaiMetaAnalysis:
     """
 
     metrics: List[str] = [
-        "metric_IoU",
-        "metric_PixelPrecisionRecall_precision",
-        "metric_PixelPrecisionRecall_recall",
-        "metric_point_game",
+        "iou",
+        "pixelprecisionrecall_precision",
+        "pixelprecisionrecall_recall",
+        "point_game",
         "prediction_confidence",
     ]
 

@@ -1,6 +1,6 @@
 experiment:
-  name: vgg16_experiment           # Name of the experiment run
-  output_dir: results/resnet50_experiment # Directory where results will be saved
+  name: resnet50_grad          # Name of the experiment run
+  output_dir: results/resnet50_grad_cam # Directory where results will be  saved
   top_k: 10
 
 hardware:
@@ -8,9 +8,10 @@ hardware:
   device: cuda:0                    # Device to use (e.g., cuda:0, cpu)
 
 model:
-  name: vgg16                   # Model architecture (e.g., resnet50, vgg16)
+  name: resnet50                   # Model architecture (e.g., resnet50, vgg16)
   pretrained: true                  # Load pretrained weights
   weights_path: null             # Path to custom weights file (null to skip)
+  transform: true
 
 data:
   dataset_name: imagenet_val        # Name of the dataset (used for logging only)
@@ -23,29 +24,29 @@ data:
   augmentation:
     horizontal_flip: false          # Apply random horizontal flips during training
     random_crop: false              # Apply random crops during training
-  max_samples: 200                  # Maximum number of samples to process
+ # max_samples: 200                  # Maximum number of samples to process
   batch_size: 16                  # Number of samples per batch
-  max_batches: 1                  # Limit number of batches processed (null for no limit)
+  max_batches: 10           # Limit number of batches processed (null for no limit)
   num_workers: 4                    # Number of workers for data loading
-  pin_memory: true                  # Whether to use pinned memory (recommended with CUDA)
+  pin_memory: true           # Whether to use pinned memory (recommended with CUDA)
 
 xai:
   name: grad_cam
   use_defaults: true
   kwargs:
-    target_layer: -1
+    {}
 
 metric:
   kwargs:
     {
-      "iou": { "threshold": 0.5 },
-      "pixel_precision_recall": { "threshold": 0.7 }
+      "iou": { "threshold": 0.3 },
+      "pixel_precision_recall": { "threshold": 0.3 }
     }
 
 visualization:
   save: true                        # Save visualizations of explanations
-  show: false                       # Show visualizations during runsave_format: png                  # Format for saved images (e.g., png, jpg)
+  show: false                       # Show visualizations during run
   max_visualizations: 50            # Limit number of visualizations saved (null for no limit)
 
 logging:
-  level: DEBUG                    # Logging level (e.g., DEBUG, INFO, WARNING)
+  level: INFO                   # Logging level (e.g., DEBUG, INFO, WARNING)

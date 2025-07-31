@@ -5,26 +5,16 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 import torch
-from torch import Tensor
 from tqdm import tqdm
 
+from pipeline_moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
 from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
-from src.control.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline_moduls.evaluation.base.metric_calculator import MetricCalculator
 from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
 )
 from src.pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
-
-
-def bbox_to_mask_tensor(bbox, shape=(224, 224)) -> Tensor:
-    """
-    Wandelt eine einzelne Bounding Box (Tensor [1, 4]) in eine Binärmaske [1, H, W] um.
-    """
-    mask = torch.zeros((1, *shape), dtype=torch.float32, device=bbox.device)
-    x1, y1, x2, y2 = bbox[0].int()  # [1, 4] → [4]
-    mask[0, y1:y2, x1:x2] = 1.0
-    return mask
+from utils.with_cuda_cleanup import with_cuda_cleanup
 
 
 class XAIEvaluator:
@@ -67,7 +57,6 @@ class XAIEvaluator:
         metric_values = self.metric_calculator.evaluate(
             heatmap=attribution, ground_truth=bbox_mask
         )
-        self._logger.info(f"metric value{metric_values}")
         self._logger.debug(f"metric value{metric_values}")
         return MetricResults(values=metric_values)
 
@@ -151,103 +140,148 @@ class XAIEvaluator:
         correct_predictions: int,
         total_processing_time: float,
     ) -> EvaluationSummary:
-        """Aggregiere Metriken zu dynamischer Summary"""
+        """
+        Aggregate evaluation metrics across samples to create an EvaluationSummary.
 
+        This method computes summary statistics such as average metric values,
+        prediction accuracy, and average processing time, based on the collected
+        XAIExplanationResult and MetricResults.
+
+        Args:
+            results (List[XAIExplanationResult]): List of processed XAI results.
+            metrics_list (List[MetricResults]): List of computed metrics per sample.
+            correct_predictions (int): Number of correct model predictions.
+            total_processing_time (float): Total time spent on explanation processing (in seconds).
+
+        Returns:
+            EvaluationSummary: A summary object containing aggregated metrics and metadata.
+        """
         logger = self._logger
-        logger.info("Beginne Aggregation der Metriken...")
+        logger.info("Starting metric aggregation...")
 
         explainer_name = results[0].explainer_name if results else "unknown"
         model_name = results[0].model_name if results else "unknown"
-        logger.info(f"Explainer: {explainer_name}, Modell: {model_name}")
-        logger.info(f"{len(metrics_list)} Samples mit Metriken vorhanden")
+        logger.debug(f"Explainer: {explainer_name}, Model: {model_name}")
+        logger.debug(f"{len(metrics_list)} samples contain metric values")
 
-        metric_averages = {}
+        metric_averages: Dict[str, float] = {}
         if metrics_list:
-            logger.debug(f"metric liste:{metrics_list}")
             metric_keys = list(metrics_list[0].values.keys())
-            logger.info(f"Gefundene Metrik-Schlüssel: {metric_keys}")
+            logger.debug(f"Detected metric keys: {metric_keys}")
 
             for key in metric_keys:
                 try:
-                    # KORREKTUR: m.values[key] statt m[key]
                     values = [m.values[key] for m in metrics_list if key in m.values]
-                    logger.info(f"Bearbeite Metrik '{key}' mit {len(values)} Werten")
-
-                    if not values:
-                        logger.warning(f"Keine Werte für Metrik '{key}' gefunden")
-                        continue
-
-                    # Check for nested dicts
-                    if isinstance(values[0], dict):
-                        logger.info(
-                            f"Metrik '{key}' enthält verschachtelte Werte: "
-                            f"{list(values[0].keys())}"
-                        )
-                        for sub_key in values[0]:
-                            try:
-                                sub_vals = [v[sub_key] for v in values if sub_key in v]
-                                if sub_vals:
-                                    mean_val = float(np.mean(sub_vals))
-                                    metric_averages[f"average_{key}_{sub_key}"] = (
-                                        mean_val
-                                    )
-                                    logger.info(
-                                        f"Aggregiert: {key}.{sub_key} -> {mean_val:.4f}"
-                                    )
-                            except Exception as e:
-                                logger.warning(
-                                    f"Fehler bei Sub-Metrik {key}.{sub_key}: {e}"
-                                )
-                    else:
-                        mean_val = float(np.mean(values))
-                        metric_averages[f"average_{key}"] = mean_val
-                        logger.info(f"Aggregiert: {key} -> {mean_val:.4f}")
-
+                    aggregated = self._aggregate_metric(key, values)
+                    metric_averages.update(aggregated)
                 except Exception as e:
-                    logger.warning(f"Fehler bei Aggregation von {key}: {e}")
+                    logger.warning(f"Failed to aggregate metric '{key}': {e}")
+                    raise
 
         prediction_accuracy = correct_predictions / len(results) if results else 0.0
         average_processing_time = (
             total_processing_time / len(results) if results else 0.0
         )
-        logger.info(f"Prediction Accuracy: {prediction_accuracy:.4f}")
-        logger.info(f"Avg Processing Time: {average_processing_time:.4f}s")
+        logger.debug(f"Prediction accuracy: {prediction_accuracy:.4f}")
+        logger.debug(f"Average processing time: {average_processing_time:.4f}s")
 
         summary = EvaluationSummary(
             explainer_name=explainer_name,
             model_name=model_name,
             total_samples=len(results),
             samples_with_bbox=len(metrics_list),
-            prediction_accuracy=float(prediction_accuracy),
-            correct_predictions=int(correct_predictions),
-            average_processing_time=float(average_processing_time),
-            total_processing_time=float(total_processing_time),
+            prediction_accuracy=prediction_accuracy,
+            correct_predictions=correct_predictions,
+            average_processing_time=average_processing_time,
+            total_processing_time=total_processing_time,
             evaluation_timestamp=datetime.now().isoformat(),
             metric_averages=metric_averages,
         )
 
-        logger.info("EvaluationSummary erfolgreich erstellt.")
+        logger.info("EvaluationSummary successfully created.")
         return summary
+
+    def _flatten_and_average_nested_metric(
+        self, key: str, values: List[Dict[str, float]]
+    ) -> Dict[str, float]:
+        """
+        Compute average values for nested submetrics.
+
+        This function takes a list of dictionaries representing submetrics (e.g.,
+        precision, recall), and returns a dictionary with averaged values using a
+        prefixed metric name.
+
+        Args:
+            key (str): The name of the parent metric (e.g., "precision_recall").
+            values (List[Dict[str, float]]): A list of submetric dictionaries.
+
+        Returns:
+            Dict[str, float]: A dictionary with averaged submetrics in the form
+                {"average_<key>_<sub_key>": value}.
+        """
+        result: Dict[str, float] = {}
+        for sub_key in values[0]:
+            sub_vals = [v[sub_key] for v in values if sub_key in v]
+            if sub_vals:
+                mean_val = float(np.mean(sub_vals))
+                result[f"average_{key}_{sub_key}"] = mean_val
+        return result
+
+    def _aggregate_metric(self, key: str, values: List[Any]) -> Dict[str, float]:
+        """
+        Aggregate a single metric based on its type (float or nested dict).
+
+        Args:
+            logger (Any): Logger instance used for logging.
+            key (str): Name of the metric to aggregate.
+            values (List[Any]): List of metric values across samples. Can be float or
+            nested dict.
+
+        Returns:
+            Dict[str, float]: Dictionary of averaged metrics (possibly flattened).
+        """
+        logger = self._logger
+        result: Dict[str, float] = {}
+        if not values:
+            logger.warning(f"No values found for metric '{key}'")
+            return result
+
+        if isinstance(values[0], dict):
+            logger.debug(
+                f"Metric '{key}' contains submetrics:" f" {list(values[0].keys())}"
+            )
+            try:
+                result.update(self._flatten_and_average_nested_metric(key, values))
+            except Exception as e:
+                logger.warning(f"Failed to aggregate submetrics of '{key}': {e}")
+                raise
+        elif isinstance(values[0], (int, float)):
+            mean_val = float(np.mean(values))
+            result[f"average_{key}"] = mean_val
+            logger.debug(f"Aggregated: {key} -> {mean_val:.4f}")
+        else:
+            logger.warning(
+                f"Unsupported data type for metric '{key}': {type(values[0])}"
+            )
+        return result
 
     def _log_summary(self, summary: EvaluationSummary) -> None:
         """Logge dynamische Evaluation Summary"""
-        self._logger.info(f"Evaluation Summary für {summary.explainer_name}:")
-        self._logger.info(f"  Model: {summary.model_name}")
-        self._logger.info(f"  Total Samples: {summary.total_samples}")
-        self._logger.info(f"  Samples with BBox: {summary.samples_with_bbox}")
-        self._logger.info(f"  Prediction Accuracy: {summary.prediction_accuracy:.3f}")
-        self._logger.info(f"  Correct Predictions: {summary.correct_predictions}")
-        self._logger.info(
-            f"  Average Processing Time: {summary.average_processing_time:.3f}s"
-        )
-        self._logger.info(
-            f"  Total Processing Time: {summary.total_processing_time:.3f}s"
-        )
-        self._logger.info(f"  Evaluation Time: {summary.evaluation_timestamp}")
+        log = self._logger.info  # kürzer, aber optional
+
+        log(f"Evaluation Summary für {summary.explainer_name}:")
+        log(f"  Model:                 {summary.model_name}")
+        log(f"  Total Samples:         {summary.total_samples}")
+        log(f"  Samples with BBox:     {summary.samples_with_bbox}")
+        log(f"  Prediction Accuracy:   {summary.prediction_accuracy:.3f}")
+        log(f"  Correct Predictions:   {summary.correct_predictions}")
+        log(f"  Avg Processing Time:   {summary.average_processing_time:.3f}s")
+        log(f"  Total Processing Time: {summary.total_processing_time:.3f}s")
+        log(f"  Evaluation Time:       {summary.evaluation_timestamp}")
 
         if summary.metric_averages:
-            self._logger.info("  Dynamische XAI-Metriken:")
+            log("  Dynamische XAI-Metriken:")
             for key, value in summary.metric_averages.items():
-                self._logger.info(f"    {key}: {value:.4f}")
+                log(f"    {key:20}: {value:.4f}")
         else:
-            self._logger.info("  Keine XAI-Metriken berechnet.")
+            log("  Keine XAI-Metriken berechnet.")
