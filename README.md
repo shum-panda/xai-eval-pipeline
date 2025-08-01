@@ -8,9 +8,10 @@ A modular pipeline to evaluate and compare explainable AI (XAI) methods on vario
 
 - [Overview](#overview)  
 - [Installation](#installation)  
+- [Dataset Setup](#dataset-setup)  
 - [Configuration](#configuration)  
 - [Usage](#usage)  
-- [How to Contribute / Development](#how-to-contribute--development)  
+- [Development & Contribution](#development--contribution)  
 - [Testing](#testing)  
 - [License](#license)  
 - [Contact](#contact)  
@@ -19,14 +20,15 @@ A modular pipeline to evaluate and compare explainable AI (XAI) methods on vario
 
 ## Overview
 
-This project provides a flexible and extensible framework to evaluate, benchmark, and visualize explainability methods for machine learning models, targeting scientific researchers who want to systematically compare XAI techniques.
+This project provides a flexible and extensible framework to evaluate, benchmark, and visualize explainability methods for machine learning models.  
+It targets scientific researchers who want to systematically compare XAI techniques.
 
-- Supports multiple datasets and models  
-- Modular explainers integration  
-- Comprehensive evaluation metrics  
-- Visualization tools for explainability results
+Features include:
 
-*More detailed description and architecture diagram can be added here.*
+- Support for multiple datasets and model backbones  
+- Modular explainer integration (e.g., Grad-CAM, Score-CAM, Guided Backprop, etc.)  
+- Evaluation metrics to quantify explanation quality  
+- Visualization tools for qualitative comparison  
 
 ---
 
@@ -34,118 +36,147 @@ This project provides a flexible and extensible framework to evaluate, benchmark
 
 ### Prerequisites
 
-- Python 3.x (tested on 3.10+)  
-- Poetry for dependency management  
-- CUDA (optional, if using GPU-enabled torch builds)  
+- Python 3.10+  
+- [Poetry](https://python-poetry.org/) for dependency management  
 
-### Step-by-step installation
+### Install the pipeline
 
-1. Clone the repository:
-
-   ```bash
+```bash
    git clone https://github.com/shum-panda/xai-eval-pipeline.git
    cd xai-eval-pipeline
-   ```
-
-2. Install dependencies using Poetry:
-
-   ```bash
    poetry install
-   ```
-
-3. (Optional) If you require GPU support and specific CUDA versions, ensure your system matches the CUDA requirements and that the PyTorch CUDA package source is properly configured.
+```
 
 ---
 
+### 🔒 ImageNet Validation Dataset (ILSVRC2012) & Ground Truth
+
+Due to licensing restrictions, the ImageNet dataset and its annotations **cannot be automatically downloaded** or distributed with this repository.
+
+---
+
+#### Setup Instructions
+
+1. Register at [image-net.org](https://image-net.org/download-images)  
+2. Download the following files from the official source:  
+   - `ILSVRC2012_img_val.tar` (validation images)  
+   - `ILSVRC2012_bbox_val_v3.tgz` (bounding box annotations)  
+   -  `ILSVRC2012_validation_ground_truth.txt`  
+3. Place all files in the folder `daten/raw/`  
+4. Run the extraction script **once** to extract both images and bounding boxes:
+```bash
+  poetry run python src/pipeline_moduls/data/data_scripts/img_extraction_script.py
+```
+
+Resulting directory structure:
+```
+daten/
+├── raw/
+│   ├── ILSVRC2012_img_val.tar
+│   ├── ILSVRC2012_bbox_val_v3.tgz
+│   └── ILSVRC2012_validation_ground_truth.txt
+└── extracted/
+    ├── imagenet_val/
+    │   ├── ILSVRC2012_val_00000001.JPEG
+    │   └── ...
+    └── bounding_boxes/
+        ├── ILSVRC2012_val_00000001.xml
+        └── ...
+```
+
+⚠️ The pipeline expects images in `daten/extracted/imagenet_val`, bounding box XMLs in 
+`daten/extracted/bounding_boxes`, and validation labels from configured 
+paths.
+
+Running the extraction script multiple times is unnecessary unless you replace or  
+add new raw archives.
+
 ## Configuration
 
-The pipeline uses YAML configuration files to specify:
+Pipeline behavior is controlled via YAML config files located in `configs/`.
+
+You can configure:
 
 - Dataset paths and parameters  
-- Model checkpoints and settings  
-- Explainer methods and their hyperparameters  
-- Evaluation metrics to compute  
-- Visualization options  
-
-Example configuration files are provided in the `configs/` directory.
+- Model architectures and checkpoints  
+- Explainer types and hyperparameters  
+- Evaluation metrics  
+- Visualization settings  
 
 To run the pipeline with a specific config:
 
 ```bash
-poetry run python main.py --config configs/example.yaml
+  poetry run python main.py --config configs/example.yaml
 ```
 
-*Add further notes on customizing configs, overriding parameters, etc.*
+You can override individual parameters via CLI or Hydra syntax if needed.
 
 ---
 
 ## Usage
 
-### Basic usage
-
-Run the full pipeline with default config:
+### Full pipeline run
 
 ```bash
-poetry run python main.py
+  poetry run python main.py
 ```
 
 ### Running specific modules
 
-You can run individual modules such as model training, explanation generation, evaluation, or visualization by specifying commands or config flags.  
+You can also run stages like explanation generation or evaluation independently by adjusting your config or using subcommands.
 
-*Add usage examples or CLI flags.*
+*Add usage patterns or command options as needed.*
 
 ---
 
-## How to Contribute / Development
+## Development & Contribution
 
 ### Development setup
 
-1. Clone the repo and install dev dependencies:
-
-   ```bash
-   git clone https://github.com/yourusername/xai-eval-pipeline.git
+```bash
+   git clone https://github.com/shum-panda/xai-eval-pipeline.git
    cd xai-eval-pipeline
    poetry install
-   ```
+```
 
-2. (Optional) Setup pre-commit hooks, linters, etc.
+You can extend:
 
-3. Implement new explainers, metrics, or dataset loaders by extending the modular interfaces.
+- New XAI explainers via the plugin system  
+- Evaluation metrics via the metric registry  
+- Dataset readers or pre-processing pipelines  
 
-### Coding style
+### Code style & tools
 
-- Use [Black](https://github.com/psf/black) for formatting  
-- Use [Ruff](https://github.com/charliermarsh/ruff) for linting
+- Format code with [Black](https://github.com/psf/black)  
+- Lint code using [Ruff](https://github.com/charliermarsh/ruff)  
+- Type checking is done with `mypy` (if configured)
 
 ---
 
 ## Testing
 
-### Running tests
-
-The project uses `pytest`. To run tests:
+The project uses `pytest` for testing. To run all tests:
 
 ```bash
-poetry run pytest tests/
+  poetry run pytest tests/
 ```
 
-*Add notes on coverage, test structure, writing new tests.*
+*Test structure and coverage notes can be added here.*
 
 ---
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.  
+See the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## Contact
 
-For questions or contributions, please open issues or contact:
+For questions, ideas, or contributions:
 
-- Shium Mohammed Rahman – shium.m.r@gmail.com  
+- **Shium Mohammed Rahman** – shium.m.r@gmail.com  
 - GitHub: [shum-panda](https://github.com/shum-panda)
 
 ---
-
