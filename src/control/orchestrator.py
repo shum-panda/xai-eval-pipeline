@@ -164,6 +164,7 @@ class Orchestrator:
             self._logger.debug(
                 "XAI result example after transformation:" f" {xai_results[0]}"
             )
+            # in einem Batch process durchlaufen wird
             self._current_step = "results_evaluation"
             self._logger.info(f"Starting step: {self._current_step}")
             summary = self.evaluate_results(xai_results)
