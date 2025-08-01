@@ -7,7 +7,7 @@ from src.control.utils.config_dataclasses.master_config import MasterConfig
 
 
 def run_multiple_configs(config_names: list[str]) -> None:
-    with initialize(version_base=None, config_path="config"):
+    with initialize(version_base=None, config_path="config/experiments"):
         for config_name in config_names:
             try:
                 print(f"\n🔁 Running config: {config_name}")
