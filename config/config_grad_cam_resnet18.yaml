@@ -1,6 +1,6 @@
 experiment:
-  name: vgg16_grad          # Name of the experiment run
-  output_dir: results/vgg16_grad_cam # Directory where results will be  saved
+  name: resnet18_grad          # Name of the experiment run
+  output_dir: results/resnet18_grad_cam # Directory where results will be  saved
   top_k: 10
 
 hardware:
@@ -8,7 +8,7 @@ hardware:
   device: cuda:0                    # Device to use (e.g., cuda:0, cpu)
 
 model:
-  name: vgg16                 # Model architecture (e.g., resnet50, vgg16)
+  name: resnet18                   # Model architecture (e.g., resnet50, vgg16)
   pretrained: true                  # Load pretrained weights
   weights_path: null             # Path to custom weights file (null to skip)
   transform: true
