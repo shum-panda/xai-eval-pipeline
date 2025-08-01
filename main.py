@@ -6,7 +6,7 @@ from src.control.utils.config_dataclasses.master_config import MasterConfig
 
 
 @hydra.main(version_base=None, config_path="config",
-            config_name="config_guided_backprop")
+            config_name="config_grad_cam")
 def main(cfg: MasterConfig) -> None:
     """
     Main entry point for the XAI pipeline using Hydra configuration.
