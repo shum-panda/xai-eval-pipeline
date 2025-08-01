@@ -102,7 +102,7 @@ def main() -> int:
 
     # Projektpfad
     try:
-        project_root = Path(__file__).resolve().parents[2]
+        project_root = Path(__file__).resolve().parents[4]
     except IndexError:
         logger.error("❌ __file__-Pfad ist zu kurz verschachtelt für parents[2]")
         return 1
