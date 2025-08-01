@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import torch
+import yaml
 
 from pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
     ExplainerResult,
@@ -347,9 +348,9 @@ class ResultManager:
         return df
 
     def save_evaluation_summary_to_file(
-        self,
-        summary: EvaluationSummary,
-        output_dir: Optional[Path] = None,
+            self,
+            summary: EvaluationSummary,
+            output_dir: Optional[Path] = None,
     ) -> Path:
         """
         Save the evaluation summary to a YAML file.
@@ -368,8 +369,9 @@ class ResultManager:
 
         summary_path = output_dir / "metrics_summary.yaml"
 
-        with open(summary_path, "w"):
-            dataclasses.asdict(summary)
+        # Serialize and write the data
+        with open(summary_path, "w") as f:
+            yaml.safe_dump(dataclasses.asdict(summary), f)
 
         self._logger.info(f"Evaluation summary saved to {summary_path}")
         return summary_path
