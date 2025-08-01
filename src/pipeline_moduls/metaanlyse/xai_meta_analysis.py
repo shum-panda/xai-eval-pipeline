@@ -161,7 +161,7 @@ if __name__ == "__main__":
             mlflow.log_artifact(str(filepath))
 
         # Threshold-Analyse
-        grouped, fig = analysis.threshold_analysis("metric_IoU")
+        grouped, fig = analysis.threshold_analysis("iou")
         threshold_plot_path = meta_plot_dir / "threshold_iou_score.png"
         fig.savefig(threshold_plot_path)
         plt.close(fig)
