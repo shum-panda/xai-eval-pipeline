@@ -31,7 +31,7 @@ from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
 )
 from src.pipeline_moduls.evaluation.xai_evaluator import XAIEvaluator
 from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
-from src.pipeline_moduls.models.base.xai_model_factory import XAIModelFactory
+from src.pipeline_moduls.models.xai_model_factory import XAIModelFactory
 from src.pipeline_moduls.visualization.visualisation import Visualiser
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.xai_factory import XAIFactory
