@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
+from sympy import false
+
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 
 
@@ -21,9 +23,9 @@ class GradCAMConfig(BaseXAIConfig):
             Typical values are 'bilinear', 'nearest', etc.
     """
 
-    target_layer: Union[str, int] = -1
-    relu_attributions: bool = True
-    interpolate_mode: str = "bilinear"
+    target_layer: Union[str, int]= None
+    relu_attributions: bool= None
+    interpolate_mode: str= None
 
     @classmethod
     def get_defaults(cls) -> Dict[str, Any]:
@@ -66,6 +68,10 @@ class GradCAMConfig(BaseXAIConfig):
         Raises:
             ValueError: If 'interpolate_mode' is not in the list of valid modes.
         """
+        for field in self.get_required_params():
+            if getattr(self, field, None) is None:
+                raise ValueError(f"Required parameter '{field}' is missing.")
+
         if self.interpolate_mode not in self.get_valid_interpolate_modes():
             raise ValueError(
                 f"Invalid interpolate_mode: '{self.interpolate_mode}'. "

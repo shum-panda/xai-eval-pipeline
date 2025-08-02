@@ -10,7 +10,7 @@ class ScoreCAMConfig(BaseXAIConfig):
     Configuration class for ScoreCAM.
     """
 
-    target_layer: Union[str, int] = -1
+    target_layer: Union[str, int] = None
 
     def get_defaults(self) -> Dict[str, Any]:
         """

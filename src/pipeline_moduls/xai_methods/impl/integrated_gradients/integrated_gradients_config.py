@@ -15,9 +15,9 @@ class IntegratedGradientsConfig(BaseXAIConfig):
         multiply_by_inputs (bool): Whether to multiply attributions by the input.
     """
 
-    n_steps: int = 50
+    n_steps: int = None
     internal_batch_size: Optional[int] = None
-    multiply_by_inputs: bool = True
+    multiply_by_inputs: bool = None
 
     @classmethod
     def get_defaults(cls) -> Dict[str, Any]:

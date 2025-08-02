@@ -61,7 +61,8 @@ class IntegratedGradientsExplainer(BaseExplainer):
 
     def check_input(self, **kwargs: Any) -> BaseXAIConfig:
         try:
-            config = IntegratedGradientsConfig(**kwargs)
+            config = IntegratedGradientsConfig(use_defaults=self._use_defaults,
+                                               **kwargs)
             config.validate()
         except (TypeError, ValueError) as e:
             self._logger.error(f"Invalid config: {e}")

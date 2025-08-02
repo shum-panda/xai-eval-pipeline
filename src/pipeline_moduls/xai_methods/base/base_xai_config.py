@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 @dataclass
 class BaseXAIConfig(ABC):
-    use_defaults: bool = True  # <-- zentrales Pflichtfeld mit Defaultwert
+    use_defaults: bool
 
     def __post_init__(self):
         if self.use_defaults:

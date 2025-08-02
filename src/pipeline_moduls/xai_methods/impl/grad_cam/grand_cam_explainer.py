@@ -18,8 +18,6 @@ class GradCamExplainer(BaseExplainer):
     Explainer class implementing GradCAM using Captum's LayerGradCam.
     """
 
-
-
     def __init__(
         self, model: XAIModel, use_defaults: bool = True, **kwargs: object
     ) -> None:
@@ -92,8 +90,14 @@ class GradCamExplainer(BaseExplainer):
         Raises:
             ValueError: If configuration values are invalid.
         """
+        if self._use_defaults:
+            # Default-Werte hart hinzufügen, falls nicht gesetzt
+            defaults = GradCAMConfig.get_defaults()
+            for k, v in defaults.items():
+                kwargs.setdefault(k, v)
         try:
-            config = GradCAMConfig(**kwargs)
+            self._logger.info(f"kwargs {kwargs}")
+            config = GradCAMConfig(use_defaults=self._use_defaults,**kwargs)
             config.validate()
         except (TypeError, ValueError) as e:
             self._logger.error(f"Invalid config: {e}")

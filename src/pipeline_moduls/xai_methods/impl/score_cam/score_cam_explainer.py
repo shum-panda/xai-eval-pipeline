@@ -33,16 +33,39 @@ class ScoreCamExplainer(BaseExplainer):
         attribution = torch.zeros((B, H, W), device=images.device)
 
         for i in range(C):
-            upsampled = F.interpolate(fmap[:, i:i+1], size=images.shape[-2:], mode="bilinear", align_corners=False)
-            masked_input = images * upsampled
+            # Upsample feature map channel i to image size
+            upsampled = F.interpolate(
+                fmap[:, i : i + 1], size=images.shape[-2:], mode="bilinear", align_corners=False
+            )  # shape (B,1,H_img,W_img)
+
+            if images.shape[1] == 1:
+                upsampled_expanded = upsampled
+            else:
+                upsampled_expanded = upsampled.expand(-1, images.shape[1], -1, -1)
+
+            # Element-wise multiply (broadcasting works now)
+            masked_input = images * upsampled_expanded
+
+            # Get prediction scores and softmax
             scores = self._model.get_predictions(masked_input)
             probs = torch.softmax(scores, dim=1)
+
+            # Get weights for target classes
             weights = probs[range(B), target_classes]
+
+            # Accumulate weighted maps (remove channel dim)
             attribution += weights.view(B, 1, 1) * upsampled.squeeze(1)
+            print(f"Image shape: {images.shape}")
+            print(f"Upsampled shape: {upsampled.shape}")
+            print(f"Upsampled expanded shape: {upsampled_expanded.shape}")
 
         self._remove_hook()
+
+        # ReLU and normalize attribution map
         attribution = F.relu(attribution)
-        attribution = attribution / (attribution.max(dim=-1)[0].max(dim=-1)[0].view(B, 1, 1) + 1e-8)
+        max_val = attribution.amax(dim=(-2, -1), keepdim=True)
+        attribution = attribution / (max_val + 1e-8)
+
         return attribution.detach().cpu()
 
     def _register_hook(self) -> None:
@@ -65,7 +88,7 @@ class ScoreCamExplainer(BaseExplainer):
 
     def check_input(self, **kwargs: Any) -> BaseXAIConfig:
         try:
-            config = ScoreCAMConfig(**kwargs)
+            config = ScoreCAMConfig(use_defaults=self._use_defaults, **kwargs)
             config.validate()
         except (TypeError, ValueError) as e:
             self._logger.error(f"Invalid ScoreCAM config: {e}")
@@ -75,16 +98,6 @@ class ScoreCamExplainer(BaseExplainer):
         return config
 
     def _select_target_layer(self, layer_idx: Union[str, int]) -> str:
-        """
-        Select a convolutional layer as the ScoreCAM target.
-
-        Args:
-            layer_idx (Union[str, int]): Index or name of the desired layer.
-
-        Returns:
-            str: name of The selected target layer.
-        #todo: abstract cam
-        """
         model = self._model.pytorch_model
         conv_modules: list[tuple[str, nn.Module]] = []
 
