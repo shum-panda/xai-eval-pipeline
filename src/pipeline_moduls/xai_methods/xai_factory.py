@@ -1,20 +1,22 @@
 import logging
 from typing import List
 
-from pipeline_moduls.xai_methods.impl.guided_backprop.guided_backprop_expl import \
-    GuidedBackpropExplainer
-from pipeline_moduls.xai_methods.impl.score_cam.score_cam_explainer import (
-    ScoreCamExplainer
+from src.pipeline_moduls.models.base.xai_model import XAIModel
+from src.pipeline_moduls.xai_methods.impl.guided_backprop.guided_backprop_expl import (
+    GuidedBackpropExplainer,
 )
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.xai_methods.impl.score_cam.score_cam_explainer import (
+    ScoreCamExplainer,
+)
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.explainer_registry import ExplainerRegistry
 from src.pipeline_moduls.xai_methods.impl.grad_cam.grand_cam_explainer import (
     GradCamExplainer,
 )
 from src.pipeline_moduls.xai_methods.impl.integrated_gradients. \
-    integrated_gradients_explainer import (IntegratedGradientsExplainer)
-
+integrated_gradients_explainer import (
+    IntegratedGradientsExplainer,
+)
 
 
 class XAIFactory:

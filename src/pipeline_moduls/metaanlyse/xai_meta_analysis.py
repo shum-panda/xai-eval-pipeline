@@ -135,6 +135,31 @@ class XaiMetaAnalysis:
         ax.set_ylabel("Prediction Accuracy (mean)")
         return grouped, fig
 
+    def scatter(self, metric: str) -> Tuple[pd.DataFrame, plt.Figure]:
+        """
+        Scatter plot of a given metric vs. prediction correctness.
+
+        Args:
+            metric (str): Metric to analyze.
+
+        Returns:
+            Tuple[pd.DataFrame, plt.Figure]: Raw data (metric vs. correctness) and
+            scatter plot figure.
+        """
+        if metric not in self.df.columns:
+            raise ValueError(f"Metric '{metric}' not found in DataFrame.")
+
+        data = self.df[[metric, "prediction_confidence"]].dropna()
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.scatter(data[metric], data["prediction_confidence"], alpha=0.4)
+        ax.set_title(f"Prediction Confidence vs. {metric}")
+        ax.set_xlabel(metric)
+        ax.set_ylabel("Prediction Confidence")
+        ax.grid(True)
+
+        return data, fig
+
 
 if __name__ == "__main__":
     with mlflow.start_run(run_name="meta Analysis"):
@@ -166,6 +191,13 @@ if __name__ == "__main__":
         fig.savefig(threshold_plot_path)
         plt.close(fig)
         mlflow.log_artifact(str(threshold_plot_path))
+
+        # Threshold-Analyse
+        grouped_2, fig2 = analysis.scatter("iou")
+        scatter_plot_path = meta_plot_dir / "prediction_confidence_iou_score.png"
+        fig2.savefig(scatter_plot_path)
+        plt.close(fig2)
+        mlflow.log_artifact(str(scatter_plot_path))
 
         # CSV speichern
         threshold_csv_path = meta_analysis_dir / "threshold_iou_score.csv"

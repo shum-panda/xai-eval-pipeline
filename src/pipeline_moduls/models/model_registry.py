@@ -2,7 +2,7 @@ import logging
 import threading
 from typing import Dict, List, Optional, Type
 
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.models.base.xai_model import XAIModel
 
 
 class ModelRegistry:

@@ -13,9 +13,10 @@ from torchvision import transforms  # type: ignore
 from tqdm import tqdm
 
 import src.pipeline_moduls.evaluation.metrics  # noqa: F401
-from pipeline_moduls.data.image_net_label_mapper import ImageNetLabelMapper
-from pipeline_moduls.metaanlyse.xai_meta_analysis import XaiMetaAnalysis
-from pipeline_moduls.resultmanager.result_manager import ResultManager
+from src.pipeline_moduls.data.image_net_label_mapper import ImageNetLabelMapper
+from src.pipeline_moduls.metaanlyse.xai_meta_analysis import XaiMetaAnalysis
+from src.pipeline_moduls.models.base.xai_model import XAIModel
+from src.pipeline_moduls.resultmanager.result_manager import ResultManager
 from src.control.utils.config_dataclasses.master_config import MasterConfig
 from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from src.control.utils.error.xai_explanation_error import XAIExplanationError
@@ -30,7 +31,6 @@ from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
 )
 from src.pipeline_moduls.evaluation.xai_evaluator import XAIEvaluator
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
 from src.pipeline_moduls.models.xai_model_factory import XAIModelFactory
 from src.pipeline_moduls.visualization.visualisation import Visualiser
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
@@ -635,7 +635,11 @@ class Orchestrator:
         else:
             self._mlflow_run = mlflow.active_run()
 
-        mlflow.log_param("_model_name", self._config.model.name)
+        mlflow.pytorch.log_model(
+            self._model.pytorch_model,
+            name="model",
+            registered_model_name=self._config.model.name,
+        )
         mlflow.log_param("explainer_name", self._config.xai.name)
         mlflow.log_param("batch_size", self._config.data.batch_size)
         mlflow.log_param("max_batches", self._config.data.max_batches)

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Type
 import torch
 from torch import nn
 
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.models.base.xai_model import XAIModel
 
 
 class CustomModel(XAIModel):
@@ -13,6 +13,10 @@ class CustomModel(XAIModel):
 
     Supports either passing a model class (to instantiate) or a model instance directly.
     """
+
+    @property
+    def pytorch_model(self) -> torch.nn.Module:
+        return  self.model
 
     def __init__(
         self,
@@ -148,12 +152,3 @@ class CustomModel(XAIModel):
             "sample_conv_layers": conv_layers[-3:] if conv_layers else [],
             "config": self.config,
         }
-
-    def get_pytorch_model(self) -> nn.Module:
-        """
-        Return the underlying PyTorch model.
-
-        Returns:
-            nn.Module: The encapsulated PyTorch model.
-        """
-        return self.model

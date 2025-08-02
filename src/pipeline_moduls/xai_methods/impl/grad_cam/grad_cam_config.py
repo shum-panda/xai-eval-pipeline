@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
-from sympy import false
-
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 
 
@@ -23,9 +21,9 @@ class GradCAMConfig(BaseXAIConfig):
             Typical values are 'bilinear', 'nearest', etc.
     """
 
-    target_layer: Union[str, int]= None
-    relu_attributions: bool= None
-    interpolate_mode: str= None
+    target_layer: Union[str, int]
+    relu_attributions: bool
+    interpolate_mode: str
 
     @classmethod
     def get_defaults(cls) -> Dict[str, Any]:

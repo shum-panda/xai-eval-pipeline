@@ -4,7 +4,7 @@ import torch
 from captum.attr import LayerGradCam  # type: ignore
 from torch import Tensor, nn
 
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.models.base.xai_model import XAIModel
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 from src.pipeline_moduls.xai_methods.impl.grad_cam.grad_cam_config import (
@@ -77,7 +77,7 @@ class GradCamExplainer(BaseExplainer):
             self._logger.error(f"Error computing GradCAM attributions: {str(e)}")
             raise
 
-    def check_input(self, **kwargs: Any) -> BaseXAIConfig:
+    def _check_input(self, **kwargs: Any) -> BaseXAIConfig:
         """
         Validates and returns a GradCAMConfig based on input kwargs.
 
@@ -97,7 +97,7 @@ class GradCamExplainer(BaseExplainer):
                 kwargs.setdefault(k, v)
         try:
             self._logger.info(f"kwargs {kwargs}")
-            config = GradCAMConfig(use_defaults=self._use_defaults,**kwargs)
+            config = GradCAMConfig(use_defaults=self._use_defaults, **kwargs)
             config.validate()
         except (TypeError, ValueError) as e:
             self._logger.error(f"Invalid config: {e}")

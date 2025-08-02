@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Dict
 
 from torch import Tensor
 
@@ -27,6 +28,13 @@ class XAIInterface(ABC):
              and evaluation metrics.
         """
 
+    @classmethod
     @abstractmethod
-    def get_name(self) -> str:
+    def get_name(cls) -> str:
         """Return the name identifier of this explainer"""
+
+    @property
+    @abstractmethod
+    def parameters(self) -> Dict[str, str]:
+        """Returns a dictionary of parameter names and their stringified values."""
+        pass

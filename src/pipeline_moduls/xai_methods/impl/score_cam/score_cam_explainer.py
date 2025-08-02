@@ -1,10 +1,12 @@
+from typing import Any, Dict, Union
+
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
-from typing import Any, Dict, Union
 
-from pipeline_moduls.xai_methods.impl.score_cam.score_cam_config import ScoreCAMConfig
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.models.base.xai_model import XAIModel
+from src.pipeline_moduls.xai_methods.impl.score_cam.score_cam_config import (
+    ScoreCAMConfig)
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 from utils.with_cuda_cleanup import with_cuda_cleanup
@@ -15,7 +17,9 @@ class ScoreCamExplainer(BaseExplainer):
     Explainer using a simplified ScoreCAM implementation.
     """
 
-    def __init__(self, model: XAIModel, use_defaults: bool = True, **kwargs: object) -> None:
+    def __init__(
+        self, model: XAIModel, use_defaults: bool = True, **kwargs: object
+    ) -> None:
         self.target_layer = None
         self.feature_map = None
         self.hook_handle = None
@@ -35,7 +39,10 @@ class ScoreCamExplainer(BaseExplainer):
         for i in range(C):
             # Upsample feature map channel i to image size
             upsampled = F.interpolate(
-                fmap[:, i : i + 1], size=images.shape[-2:], mode="bilinear", align_corners=False
+                fmap[:, i : i + 1],
+                size=images.shape[-2:],
+                mode="bilinear",
+                align_corners=False,
             )  # shape (B,1,H_img,W_img)
 
             if images.shape[1] == 1:
@@ -86,7 +93,7 @@ class ScoreCamExplainer(BaseExplainer):
     def _setup_with_validated_params(self, config: ScoreCAMConfig) -> None:
         self.target_layer = config.target_layer
 
-    def check_input(self, **kwargs: Any) -> BaseXAIConfig:
+    def _check_input(self, **kwargs: Any) -> BaseXAIConfig:
         try:
             config = ScoreCAMConfig(use_defaults=self._use_defaults, **kwargs)
             config.validate()

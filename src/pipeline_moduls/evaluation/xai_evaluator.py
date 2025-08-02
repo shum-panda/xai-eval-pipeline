@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from pipeline_moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
+from src.pipeline_moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
 from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from src.pipeline_moduls.evaluation.base.metric_calculator import MetricCalculator
 from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
@@ -151,13 +151,19 @@ class XAIEvaluator:
             results (List[XAIExplanationResult]): List of processed XAI results.
             metrics_list (List[MetricResults]): List of computed metrics per sample.
             correct_predictions (int): Number of correct model predictions.
-            total_processing_time (float): Total time spent on explanation processing (in seconds).
+            total_processing_time (float): Total time spent on explanation processing
+            (in seconds).
 
         Returns:
-            EvaluationSummary: A summary object containing aggregated metrics and metadata.
+            EvaluationSummary: A summary object containing aggregated metrics and
+            metadata.
         """
         logger = self._logger
         logger.info("Starting metric aggregation...")
+
+        valid_metrics = [m for m in metrics_list if
+                         m is not None and m.values is not None]
+
 
         explainer_name = results[0].explainer_name if results else "unknown"
         model_name = results[0].model_name if results else "unknown"
@@ -165,13 +171,13 @@ class XAIEvaluator:
         logger.debug(f"{len(metrics_list)} samples contain metric values")
 
         metric_averages: Dict[str, float] = {}
-        if metrics_list:
-            metric_keys = list(metrics_list[0].values.keys())
+        if valid_metrics:
+            metric_keys = list(valid_metrics[0].values.keys())
             logger.debug(f"Detected metric keys: {metric_keys}")
 
             for key in metric_keys:
                 try:
-                    values = [m.values[key] for m in metrics_list if key in m.values]
+                    values = [m.values[key] for m in valid_metrics if key in m.values]
                     aggregated = self._aggregate_metric(key, values)
                     metric_averages.update(aggregated)
                 except Exception as e:

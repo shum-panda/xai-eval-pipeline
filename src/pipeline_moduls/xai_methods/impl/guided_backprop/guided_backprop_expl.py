@@ -1,13 +1,16 @@
 from typing import Any, Dict
 
 import torch
-from torch import Tensor
 from captum.attr import GuidedBackprop  # type: ignore
+from torch import Tensor
 
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.models.base.xai_model import XAIModel
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
-from src.pipeline_moduls.xai_methods.impl.guided_backprop.guided_backprop_config import GuidedBackpropConfig
+from src.pipeline_moduls.xai_methods.impl.guided_backprop.guided_backprop_config \
+    import (
+    GuidedBackpropConfig,
+)
 from utils.with_cuda_cleanup import with_cuda_cleanup
 
 
@@ -20,7 +23,9 @@ class GuidedBackpropExplainer(BaseExplainer):
     def parameters(self) -> Dict[str, str]:
         return {}
 
-    def __init__(self, model: XAIModel, use_defaults: bool = True, **kwargs: object) -> None:
+    def __init__(
+        self, model: XAIModel, use_defaults: bool = True, **kwargs: object
+    ) -> None:
         self.guided_backprop = None
         super().__init__(model, use_defaults, **kwargs)
 
@@ -48,7 +53,7 @@ class GuidedBackpropExplainer(BaseExplainer):
         attributions = torch.abs(attributions)
         return attributions.detach().cpu()
 
-    def check_input(self, **kwargs: Any) -> BaseXAIConfig:
+    def _check_input(self, **kwargs: Any) -> BaseXAIConfig:
         config = GuidedBackpropConfig(**kwargs)
         config.validate()
         return config

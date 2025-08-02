@@ -3,10 +3,11 @@ from typing import Any, Dict
 from captum.attr import IntegratedGradients  # type: ignore
 from torch import Tensor
 
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.models.base.xai_model import XAIModel
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
-from src.pipeline_moduls.xai_methods.impl.integrated_gradients.integrated_gradients_config import (
+from src.pipeline_moduls.xai_methods.impl.integrated_gradients. \
+integrated_gradients_config import (
     IntegratedGradientsConfig,
 )
 from utils.with_cuda_cleanup import with_cuda_cleanup
@@ -59,10 +60,11 @@ class IntegratedGradientsExplainer(BaseExplainer):
             self._logger.error(f"Error computing Integrated Gradients: {str(e)}")
             raise
 
-    def check_input(self, **kwargs: Any) -> BaseXAIConfig:
+    def _check_input(self, **kwargs: Any) -> BaseXAIConfig:
         try:
-            config = IntegratedGradientsConfig(use_defaults=self._use_defaults,
-                                               **kwargs)
+            config = IntegratedGradientsConfig(
+                use_defaults=self._use_defaults, **kwargs
+            )
             config.validate()
         except (TypeError, ValueError) as e:
             self._logger.error(f"Invalid config: {e}")

@@ -24,8 +24,11 @@ def run_multiple_configs(config_names: list[str]) -> None:
 
 if __name__ == "__main__":
     run_multiple_configs([
-        "config_score_cam",
-        "config_guided_backprop",
-        "config_integrated_gradient",
-        "config_grad_cam_vgg16",
+        "config_vgg16_grad_cam",
+        "config_resnet18_grad_cam",
+        "config_resnet34_grad_cam",
+        "config_resnet50_grad_cam",
+        "config_resnet50_score_cam",
+        "config_resnet50_guided_backprop",
+        "config_resnet50_integrated_gradient",
     ])

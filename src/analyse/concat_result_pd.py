@@ -4,7 +4,6 @@ from typing import List
 
 import pandas as pd
 from hydra import compose, initialize
-from omegaconf import DictConfig
 
 from analyse.experiment_collection import ExperimentCollection
 
@@ -43,15 +42,15 @@ def load_experiment_df(config_name: str) -> pd.DataFrame:
         cfg = compose(config_name=config_name)
         print(cfg.experiment.output_dir)
 
-
-
-    output_dir = PROJECT_ROOT/ Path(cfg.experiment.output_dir)
+    output_dir = PROJECT_ROOT / Path(cfg.experiment.output_dir)
     csv_path = output_dir / RESULT_FILENAME
     if not csv_path.exists():
         raise FileNotFoundError(f"Missing result CSV: {csv_path}")
 
     df = pd.read_csv(csv_path)
-    model_name, explainer_name = extract_model_and_explainer_from_config_name(config_name)
+    model_name, explainer_name = extract_model_and_explainer_from_config_name(
+        config_name
+    )
 
     df["model_name"] = model_name
     df["explainer_name"] = explainer_name
@@ -73,7 +72,6 @@ def load_all_experiments(config_names: List[str]) -> ExperimentCollection:
     return ExperimentCollection(dfs)
 
 
-import os
 
 if __name__ == "__main__":
     config_names = find_experiment_configs()
@@ -129,4 +127,3 @@ if __name__ == "__main__":
             exp_collection.plot_metric_comparison(metric=metric, save_dir=plot_dir)
         except Exception as e:
             print(f"⚠️ Fehler beim Plotten von {metric}: {e}")
-

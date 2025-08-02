@@ -5,7 +5,7 @@ from typing import Any, Dict
 import torch
 from torch import Tensor
 
-from pipeline_moduls.models.base.interface.xai_model import XAIModel
+from src.pipeline_moduls.models.base.xai_model import XAIModel
 from src.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig
 from src.pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
     ExplainerResult,
@@ -37,7 +37,7 @@ class BaseExplainer(XAIInterface, ABC):
         self._use_defaults = use_defaults
 
         # Validate and setup configuration
-        self.validated_config: BaseXAIConfig = self.check_input(**kwargs)
+        self.validated_config: BaseXAIConfig = self._check_input(**kwargs)
         self._setup_with_validated_params(self.validated_config)
 
     def explain(
@@ -90,7 +90,7 @@ class BaseExplainer(XAIInterface, ABC):
         pass
 
     @abstractmethod
-    def check_input(self, **kwargs: Any) -> BaseXAIConfig:
+    def _check_input(self, **kwargs: Any) -> BaseXAIConfig:
         """
         Validate and return a configuration object for the explainer.
 

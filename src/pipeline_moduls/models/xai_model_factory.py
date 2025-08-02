@@ -2,9 +2,9 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional, Type
 
-from src.pipeline_moduls.models.base.interface.xai_model import XAIModel
-from src.pipeline_moduls.models.model_registry import ModelRegistry
+from pipeline_moduls.models.base.xai_model import XAIModel
 from src.pipeline_moduls.models.implementation.pytorch_hub_model import PytorchHubModel
+from src.pipeline_moduls.models.model_registry import ModelRegistry
 
 
 class XAIModelFactory:
