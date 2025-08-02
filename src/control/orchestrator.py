@@ -7,12 +7,14 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 
 import mlflow
 import pandas as pd
+import torch
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision import transforms  # type: ignore
 from tqdm import tqdm
 
 import src.pipeline_moduls.evaluation.metrics  # noqa: F401
+from src.pipeline_moduls.evaluation.streaming_evaluator import StreamingEvaluator
 from src.pipeline_moduls.data.image_net_label_mapper import ImageNetLabelMapper
 from src.pipeline_moduls.metaanlyse.xai_meta_analysis import XaiMetaAnalysis
 from src.pipeline_moduls.models.base.xai_model import XAIModel
@@ -91,6 +93,10 @@ class Orchestrator:
         # Evaluator and Visualizer
         self._logger.debug(config.metric.kwargs)
         self._evaluator: XAIEvaluator = XAIEvaluator(metric_kwargs=config.metric.kwargs)
+        self._streaming_evaluator = StreamingEvaluator(
+            base_evaluator=self._evaluator,
+            logger=self._logger
+        )
         self._visualiser: Visualiser = Visualiser(
             show=self._config.visualization.show,
             save_path=Path(self._config.experiment.output_dir),
@@ -120,27 +126,288 @@ class Orchestrator:
             "mlflow_active": self._mlflow_run is not None,
         }
 
-    def run(self) -> Dict[str, Any]:
+    def process_dataset_streaming(
+            self,
+            dataset,
+            explainer: BaseExplainer,
+            max_samples: Optional[int] = None,
+            batch_size: int = 50
+    ) -> Iterator[XAIExplanationResult]:
         """
-        Extended run() method with status tracking.
-        (Robust error handling comes in step 3)
+        Process dataset and yield XAI results one by one for streaming evaluation.
 
-        Returns:
-            Dict[str, Any]: Summary information of the run on success.
+        Args:
+            dataset: Dataset to process
+            explainer: XAI explainer to use
+            max_samples: Maximum number of samples to process
+            batch_size: Batch size for model inference (not evaluation batching)
 
-        Raises:
-            Exception: Propagates exceptions encountered during execution.
+        Yields:
+            XAIExplanationResult: Individual processed results
         """
-        self._pipeline_status = "running"
+        self._logger.info(f"Starting streaming dataset processing...")
+
+        dataloader = self.setup_dataloader(
+            project_root=None,
+            batch_size=self._config.data.batch_size,
+            num_workers=self._config.data.num_workers,
+            pin_memory=self._config.data.pin_memory,
+            shuffle=self._config.data.shuffle,
+            target_size=self._config.data.resize,
+            transform=None,
+        )
+
+        total_processed = 0
+
+        for batch_idx, batch in enumerate(tqdm(dataloader, desc="Processing batches")):
+            if max_samples and total_processed >= max_samples:
+                break
+
+            # Process batch and yield individual results
+            for result in self._process_batch_streaming(batch, explainer):
+                total_processed += 1
+                yield result
+
+                if max_samples and total_processed >= max_samples:
+                    break
+
+        self._logger.info(f"Streaming processing completed: {total_processed} results")
+
+    def _process_batch_streaming(
+            self,
+            batch: XAIInputBatch,
+            explainer: BaseExplainer
+    ) -> Iterator[XAIExplanationResult]:
+        """
+        Process a single batch and yield individual results.
+
+        Args:
+            batch: Input batch
+            explainer: XAI explainer
+
+        Yields:
+            XAIExplanationResult: Individual processed results
+        """
+        try:
+            # Model predictions for the batch
+            with torch.no_grad():
+                predictions = self._model.pytorch_model(batch.images_tensor.to(
+                    self._config.hardware.device))
+                probabilities = torch.softmax(predictions, dim=1)
+                predicted_classes = torch.argmax(predictions, dim=1)
+                confidences = torch.max(probabilities, dim=1)[0]
+
+            # Process each item in the batch
+            for i in range(batch.images_tensor.size(0)):
+                try:
+                    result = self._process_single_item_streaming(
+                        batch, i, explainer, predicted_classes[i], confidences[i]
+                    )
+                    if result:
+                        yield result
+
+                except Exception as e:
+                    self._logger.error(f"Failed to process batch item {i}: {e}")
+                    continue
+
+        except Exception as e:
+            self._logger.error(f"Failed to process batch: {e}")
+            return
+
+    def _process_single_item_streaming(
+            self,
+            batch: XAIInputBatch,
+            item_idx: int,
+            explainer: BaseExplainer,
+            predicted_class: torch.Tensor,
+            confidence: torch.Tensor
+    ) -> Optional[XAIExplanationResult]:
+        """
+        Process a single item from batch and return XAI result.
+        Memory-optimized version that doesn't store large tensors.
+        """
+        start_time = time.time()
 
         try:
-            self._current_step = "experiment_preparation"
-            self._logger.info(f"Starting step: {self._current_step}")
-            self.prepare_experiment()
+            # Extract single item data from XAIInputBatch
+            single_image = batch.images_tensor[
+                           item_idx:item_idx + 1]  # Keep batch dimension
+            true_label = batch.labels_int[item_idx]  # Use labels_int list, not tensor
+            image_name = batch.image_names[item_idx]
+            image_path = batch.image_paths[item_idx]
 
-            self._current_step = "dataloader_setup"
-            self._logger.info(f"Starting step: {self._current_step}")
-            dataloader = self.setup_dataloader(
+            # Generate explanation
+            explainer_result = explainer.explain(
+                images=single_image,
+                target_labels=predicted_class.unsqueeze(0),
+                top_k=10
+            )
+
+            # Extract attribution tensor (this is the memory-heavy part)
+            attribution = explainer_result.attributions[0].cpu()
+
+            # Get bbox info from XAIInputBatch structure
+            bbox_info = {}
+            has_bbox = False
+
+            # Check if we have bounding box data for this item
+            if (item_idx < len(batch.boxes_list) and
+                    batch.boxes_list[item_idx] is not None and
+                    len(batch.boxes_list[item_idx]) > 0):
+                bbox_tensor = batch.boxes_list[item_idx]  # Tensor with shape [N, 4]
+                bbox_path = batch.bbox_paths[item_idx]
+
+                bbox_info = {
+                    'bbox_tensor': bbox_tensor,  # Raw bounding box coordinates
+                    'bbox_path': bbox_path,  # Path to XML annotation file
+                    'num_objects': len(bbox_tensor)  # Number of objects in image
+                }
+                has_bbox = True
+
+            # Create result
+            processing_time = time.time() - start_time
+
+            result = XAIExplanationResult(
+                image=None,  # Don't store image tensor to save memory
+                image_name=image_name,
+                image_path=image_path,
+                predicted_class=predicted_class.item(),
+                true_label=true_label,
+                prediction_confidence=confidence.item(),
+                prediction_correct=(predicted_class.item() == true_label),
+                attribution=attribution,
+                explainer_result=explainer_result,
+                explainer_name=explainer.get_name(),
+                has_bbox=has_bbox,
+                bbox_info=bbox_info,
+                bbox=batch.boxes_list[item_idx] if has_bbox else None,
+                model_name=self._config.model.name,
+                processing_time=processing_time
+            )
+
+            return result
+
+        except Exception as e:
+            self._logger.error(f"Error processing item {item_idx}: {e}")
+            return None
+
+    def run_streaming_evaluation(
+            self,
+            dataset,
+            explainer: BaseExplainer,
+            max_samples: Optional[int] = None,
+            evaluation_batch_size: int = 50,
+            store_individual_for_csv: bool = True
+    ) -> EvaluationSummary:
+        """
+        Run complete pipeline with streaming evaluation.
+
+        Args:
+            dataset: Dataset to process
+            explainer: XAI explainer
+            max_samples: Maximum samples to process
+            evaluation_batch_size: Batch size for evaluation progress updates
+            store_individual_for_csv: Whether to store individual metrics for CSV
+
+        Returns:
+            EvaluationSummary: Final evaluation summary
+        """
+        self._logger.info("Starting streaming evaluation pipeline...")
+
+        # Reset streaming evaluator
+        self._streaming_evaluator.reset_for_new_run(
+            store_individual=store_individual_for_csv
+        )
+
+        # Create result stream
+        result_stream = self.process_dataset_streaming(
+            dataset=dataset,
+            explainer=explainer,
+            max_samples=max_samples,
+            batch_size=32  # Model inference batch size
+        )
+
+        # Process stream with progress updates
+        progress_updates = self._streaming_evaluator.process_result_stream(
+            result_stream=result_stream,
+            batch_size=evaluation_batch_size
+        )
+
+        # Log progress updates
+        for progress in progress_updates:
+            self._log_progress_update(progress)
+
+            # Log intermediate metrics to MLflow
+            if progress["current_metric_averages"]:
+                for metric_name, value in progress["current_metric_averages"].items():
+                    mlflow.log_metric(f"running_{metric_name}", value,
+                                      step=progress["total_processed"])
+
+        # Create final summary
+        summary = self._streaming_evaluator.create_final_summary()
+
+        # Log final metrics to MLflow
+        for key, value in summary.to_dict().items():
+            if isinstance(value, (int, float)):
+                mlflow.log_metric(f"final_{key}", value)
+
+        self._logger.info("Streaming evaluation completed!")
+        return summary
+
+    def _log_progress_update(self, progress: Dict[str, Any]) -> None:
+        """Log progress update information"""
+        self._logger.info(
+            f"Batch {progress['batch_number']}: "
+            f"Processed {progress['total_processed']} samples "
+            f"({progress['samples_with_bbox']} with bbox), "
+            f"Accuracy: {progress['prediction_accuracy']:.3f}, "
+            f"Avg time: {progress['avg_processing_time']:.3f}s"
+        )
+
+        if progress["current_metric_averages"]:
+            self._logger.info("Current metric averages:")
+            for metric, value in progress["current_metric_averages"].items():
+                self._logger.info(f"  {metric}: {value:.4f}")
+
+    def save_streaming_results(self, summary: EvaluationSummary) -> None:
+        """
+        Save streaming evaluation results.
+        Only saves individual metrics if they were stored.
+        """
+        output_dir = Path(self._config.experiment.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save summary
+        summary_path = self._result_manager.save_evaluation_summary_to_file(
+            summary, output_dir
+        )
+        mlflow.log_artifact(str(summary_path),
+                            artifact_path="evaluation/metrics_summary")
+
+        # Save CSV only if individual metrics were stored
+        individual_metrics = self._streaming_evaluator.get_individual_metrics_for_csv()
+        if individual_metrics:
+            self._logger.info("Saving individual metrics to CSV...")
+            csv_path = self._result_manager.save_dataframe_with_metrics(
+                path=output_dir,
+                individual_metrics=individual_metrics,
+            )
+            mlflow.log_artifact(str(csv_path), artifact_path="evaluation/csv_results")
+        else:
+            self._logger.info(
+                "Individual metrics were not stored - skipping CSV export")
+
+
+    def run(self) -> Dict[str, Any]:
+        """
+        Main run method using streaming evaluation
+        """
+        try:
+            self._pipeline_status = "running"
+            self._current_step = "setup"
+
+            # Setup
+            dataset = self.setup_dataloader(
                 project_root=None,
                 batch_size=self._config.data.batch_size,
                 num_workers=self._config.data.num_workers,
@@ -149,59 +416,39 @@ class Orchestrator:
                 target_size=self._config.data.resize,
                 transform=None,
             )
+            explainer = self.create_explainer(self._config.xai.name,
+                                              self._config.xai.kwargs,
+                                              self._config.xai.use_defaults)
 
-            self._current_step = "explainer_creation"
-            self._logger.info(f"Starting step: {self._current_step}")
-            explainer = self.create_explainer(
-                explainer_name=self._config.xai.name,
-                explainer_parameters=self._config.xai.kwargs,
-                use_defaults=self._config.xai.use_defaults,
+            # Run streaming evaluation
+            self._current_step = "evaluation"
+            summary = self.run_streaming_evaluation(
+                dataset=dataset,
+                explainer=explainer,
+                max_samples=self._config.data.batch_size*self._config.data.max_batches,
+                evaluation_batch_size=50,  # Evaluation progress batch size
+                store_individual_for_csv=True
             )
 
-            self._current_step = "pipeline_execution"
-            self._logger.info(f"Starting step: {self._current_step}")
-            xai_results = self.run_explanation_pipeline(dataloader, explainer)
-            self._logger.debug(
-                "XAI result example after transformation:" f" {xai_results[0]}"
-            )
-            # in einem Batch process durchlaufen wird
-            self._current_step = "results_evaluation"
-            self._logger.info(f"Starting step: {self._current_step}")
-            summary = self.evaluate_results(xai_results)
+            # Save results
+            self._current_step = "saving"
+            self.save_streaming_results(summary)
 
-            self._current_step = "results_saving"
-            self._logger.info(f"Starting step: {self._current_step}")
-            self.save_results(summary)
-
-            self._current_step = "meta analysis"
-            self._logger.info(f"Starting step: {self._current_step}")
-            self.xai_meta_analyse()
-
-            self._current_step = "visualization"
-            self._logger.info(f"Starting step: {self._current_step}")
-            self.visualize_results_if_needed(xai_results, summary)
-        except Exception as e:
-            self._pipeline_status = "failed"
-            self._pipeline_error = e
-            self._logger.error(f"PIPELINE FAILED at step: {self._current_step}")
-            self._logger.error(f"Error: {str(e)}")
-            raise
-        else:
-            self._logger.info("Pipeline completed successfully!")
             self._pipeline_status = "completed"
-            self._current_step = "completed"
-        finally:
-            self._current_step = "finalization"
-            self._logger.info(f"Starting step: {self._current_step}")
-            self.finalize_run()
+            self._current_step = "finished"
 
-        return {
-            "status": self._pipeline_status,
-            "total_samples": len(xai_results),
-            "output_dir": self._config.experiment.output_dir,
-            "explainer": self._config.xai.name,
-            "_model": self._config.model.name,
-        }
+            return {
+                "status": "success",
+                "summary": summary.to_dict(),
+                "total_samples": summary.total_samples,
+                "samples_with_bbox": summary.samples_with_bbox
+            }
+
+        except Exception as e:
+            self._pipeline_error = e
+            self._pipeline_status = "failed"
+            self._logger.error(f"Pipeline failed: {e}")
+            raise
 
     def run_explanation_pipeline(
         self,

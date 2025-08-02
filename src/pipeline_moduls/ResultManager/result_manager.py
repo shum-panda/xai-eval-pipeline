@@ -198,13 +198,16 @@ class ResultManager:
         individual_metrics: Optional[List[MetricResults]] = None,
     ) -> Path:
         """
-        Save the internal DataFrame as a CSV file, optionally enriched with individual metrics.
+        Save the internal DataFrame as a CSV file, optionally enriched with
+        individual metrics.
 
-        This method extends the DataFrame with per-sample metrics if provided, then saves it to disk.
+        This method extends the DataFrame with per-sample metrics if provided,
+        then saves it to disk.
 
         Args:
             path (Path): Directory path where the CSV file should be saved.
-            individual_metrics (Optional[List[MetricResults]]): Optional list of per-sample metric
+            individual_metrics (Optional[List[MetricResults]]): Optional list of
+            per-sample metric
                 results to enrich the DataFrame before saving.
 
         Returns:
@@ -348,9 +351,9 @@ class ResultManager:
         return df
 
     def save_evaluation_summary_to_file(
-            self,
-            summary: EvaluationSummary,
-            output_dir: Optional[Path] = None,
+        self,
+        summary: EvaluationSummary,
+        output_dir: Optional[Path] = None,
     ) -> Path:
         """
         Save the evaluation summary to a YAML file.
