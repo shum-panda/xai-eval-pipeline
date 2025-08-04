@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 import yaml
 
-from pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
+from src.pipeline_moduls.xai_methods.base.dataclasses.explainer_result import (
     ExplainerResult,
 )
 from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
@@ -213,7 +213,7 @@ class ResultManager:
         df = self.dataframe
         path = path / "results_with_metrics.csv"
         if individual_metrics is not None:
-            self._logger.info("Adding individual metrics to DataFrame for export")
+            self._logger.debug("Adding individual metrics to DataFrame for export")
             df = self._add_individual_metrics_to_df(df, individual_metrics)
         else:
             self._logger.warning("No metrics provided. Saving raw DataFrame.")
@@ -253,15 +253,26 @@ class ResultManager:
 
         # Discover all available metrics dynamically
         all_metric_keys = set()
+        nested_metric_keys = set()
         for metrics in individual_metrics:
             if metrics and metrics.values:
-                all_metric_keys.update(metrics.values.keys())
+                for key, value in metrics.values.items():
+                    if isinstance(value, dict):
+                        # For nested metrics, add the sub-keys
+                        for sub_key in value.keys():
+                            nested_metric_keys.add(f"{key}_{sub_key}")
+                    else:
+                        # For simple metrics, add directly
+                        all_metric_keys.add(key)
 
-        self._logger.info(f"Discovered metrics: {sorted(all_metric_keys)}")
+        self._logger.debug(f"Discovered simple metrics: {sorted(all_metric_keys)}")
+        self._logger.debug(f"Discovered nested metrics: {sorted(nested_metric_keys)}")
 
         # Initialize columns for all discovered metrics + JSON column
         for metric_key in all_metric_keys:
             df[f"{metric_key}"] = None
+        for nested_key in nested_metric_keys:
+            df[nested_key] = None
         df["evaluation_metrics_json"] = None
 
         # Fill metric values dynamically
@@ -329,7 +340,7 @@ class ResultManager:
         Returns:
             DataFrame with summary metric columns
         """
-        self._logger.info("Adding summary metrics to all DataFrame rows")
+        self._logger.debug("Adding summary metrics to all DataFrame rows")
 
         # Add summary metrics as new columns
         df["prediction_accuracy_summary"] = evaluation_summary.prediction_accuracy
