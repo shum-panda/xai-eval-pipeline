@@ -53,6 +53,15 @@ class XAIEvaluator:
             return None
 
         attribution = result.attribution
+        
+        # Remove batch dimension if present (single sample evaluation)
+        if attribution.dim() == 3 and attribution.shape[0] == 1:
+            attribution = attribution.squeeze(0)  # Remove batch dimension [1, H, W] -> [H, W]
+        elif attribution.dim() != 2:
+            raise ValueError(
+                f"Attribution has unexpected dimensions {attribution.shape}. "
+                f"Expected [H, W] after removing batch dimension."
+            )
 
         metric_values = self.metric_calculator.evaluate(
             heatmap=attribution, ground_truth=bbox_mask
