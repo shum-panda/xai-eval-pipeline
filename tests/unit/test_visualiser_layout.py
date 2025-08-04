@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 from PIL import Image
+from mlflow.models import predict
 
 from src.pipeline_moduls.visualization.visualisation import Visualiser
 
@@ -28,7 +29,9 @@ def test_visualiser_layout():
         model_name="DummyModel",
         explainer_name="DummyExplainer",
         predicted_class=123,
+        predicted_class_name="test",
         true_label=456,
+        true_label_name="test2",
         prediction_correct=False,
         attribution=dummy_attribution,
         has_bbox=True,
