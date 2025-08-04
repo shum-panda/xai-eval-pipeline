@@ -2,6 +2,7 @@ experiment:
   name: resnet50_grad          # Name of the experiment run
   output_dir: results/resnet50_grad_cam # Directory where results will be  saved
   top_k: 10
+  seed: 42                     # Random seed for reproducible results
 
 hardware:
   use_cuda: true                    # Whether to use CUDA for acceleration
@@ -25,8 +26,8 @@ data:
     horizontal_flip: false          # Apply random horizontal flips during training
     random_crop: false              # Apply random crops during training
  # max_samples: 200                  # Maximum number of samples to process
-  batch_size: 16                  # Number of samples per batch
-  max_batches: 70           # Limit number of batches processed (null for no limit)
+  batch_size: 32                  # Number of samples per batch
+  max_batches: 300           # Limit number of batches processed (null for no limit)
   num_workers: 4                    # Number of workers for data loading
   pin_memory: true           # Whether to use pinned memory (recommended with CUDA)
 
@@ -50,3 +51,8 @@ visualization:
 
 logging:
   level: INFO                   # Logging level (e.g., DEBUG, INFO, WARNING)
+
+mlflow:
+  tracking_uri: "sqlite:///mlflow.db"
+  experiment_name: "xai_evaluation"
+  auto_log: true
