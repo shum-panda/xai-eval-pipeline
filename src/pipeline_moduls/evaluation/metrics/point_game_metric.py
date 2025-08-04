@@ -21,7 +21,7 @@ class PointGameMetric(MetricBase):
         Compute the Pointing Game score (1.0 or 0.0).
 
         Args:
-            heatmap (Tensor): Attribution heatmap of shape [1, H, W] or [H, W].
+            heatmap (Tensor): Attribution heatmap of shape [H, W] (2D only).
             ground_truth (Tensor): Binary mask of shape [1, H, W] or [H, W].
 
         Returns:
@@ -35,17 +35,17 @@ class PointGameMetric(MetricBase):
         Find the (x, y) coordinate of the maximum value in the heatmap.
 
         Args:
-            heatmap (Tensor): Tensor of shape [1, H, W] or [H, W].
+            heatmap (Tensor): Tensor of shape [H, W] (2D only).
 
         Returns:
             Tuple[int, int]: Coordinates (x, y) of maximum value.
         """
-        if heatmap.ndim == 3:
-            # todo: used a quick fix to allow evaluation of Cam and Integrated gradients
-            heatmap = heatmap.mean(dim=0)
-
         if heatmap.ndim != 2:
-            raise ValueError(f"Invalid heatmap shape: {heatmap.shape}")
+            raise ValueError(
+                f"Heatmap has unexpected dimensions {heatmap.shape}. "
+                f"Explainers must return 2D attributions (H, W) by aggregating "
+                f"multi-channel outputs in their _compute_attributions method."
+            )
 
         y, x = torch.nonzero(heatmap == heatmap.max(), as_tuple=True)
 

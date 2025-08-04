@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+import torch
 from captum.attr import IntegratedGradients  # type: ignore
 from torch import Tensor
 
@@ -52,6 +53,13 @@ class IntegratedGradientsExplainer(BaseExplainer):
             if self.multiply_by_inputs:
                 attributions = attributions * images
 
+            # Ensure consistent dimensionality with other methods
+            if attributions.dim() == 4 and attributions.shape[1] == 3:
+                # Use same aggregation method as Guided Backprop for consistency
+                attributions = attributions.max(dim=1)[0]  # [0] to get values, not indices
+            
+            attributions = torch.abs(attributions)
+            
             self._logger.debug(
                 f"Computed Integrated Gradients with shape: {attributions.shape}"
             )

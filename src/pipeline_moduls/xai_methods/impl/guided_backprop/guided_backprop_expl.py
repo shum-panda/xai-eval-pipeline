@@ -48,13 +48,13 @@ class GuidedBackpropExplainer(BaseExplainer):
 
         # Optional: Average over channels to get 2D heatmaps
         if attributions.dim() == 4 and attributions.shape[1] == 3:
-            attributions = attributions.mean(dim=1)
+            attributions = attributions.max(dim=1)
 
         attributions = torch.abs(attributions)
         return attributions.detach().cpu()
 
     def _check_input(self, **kwargs: Any) -> BaseXAIConfig:
-        config = GuidedBackpropConfig(**kwargs)
+        config = GuidedBackpropConfig(use_defaults=self._use_defaults, **kwargs)
         config.validate()
         return config
 

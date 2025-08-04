@@ -43,15 +43,20 @@ class PixelPrecisionRecall(MetricBase):
         Calculate pixel-wise precision and recall.
 
         Args:
-            heatmap (Tensor): Attribution map, expected shape [1, H, W] or [H, W].
+            heatmap (Tensor): Attribution map, expected shape [H, W] (2D only).
             ground_truth (Tensor): Binary mask or soft mask, shape [1, H, W] or [H, W].
 
         Returns:
             Dict[str, float]: Dictionary with 'precision' and 'recall'.
         """
-        if heatmap.ndim == 3:
-            # todo: used a quick fix to allow evaluation of Cam and Integrated gradients
-            heatmap = heatmap.mean(dim=0)
+        # Heatmap should already be 2D from explainer
+        if heatmap.ndim > 2:
+            raise ValueError(
+                f"Heatmap has unexpected dimensions {heatmap.shape}. "
+                f"Explainers must return 2D attributions by aggregating "
+                f"multi-channel outputs in their _compute_attributions method."
+            )
+        
         if ground_truth.ndim == 3:
             ground_truth = ground_truth[0]
 
