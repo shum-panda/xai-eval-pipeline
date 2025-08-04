@@ -20,3 +20,4 @@ ILSVRC2012_validation_ground_truth.txt
 # stabel file
 main.py
 /archive/old_results/
+/mlflow.db
