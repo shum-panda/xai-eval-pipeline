@@ -35,7 +35,7 @@ from src.pipeline_moduls.models.xai_model_factory import XAIModelFactory
 from src.pipeline_moduls.visualization.visualisation import Visualiser
 from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline_moduls.xai_methods.xai_factory import XAIFactory
-from utils.with_cuda_cleanup import with_cuda_cleanup
+from src.utils.with_cuda_cleanup import with_cuda_cleanup
 
 
 class Orchestrator:
@@ -245,26 +245,25 @@ class Orchestrator:
     ) -> EvaluationSummary:
         """
         Evaluates a batch of explanation results and logs metrics to MLflow.
+        Uses optimized batch processing for better performance.
         """
-        self._logger.info("Calculating evaluation metrics...")
+        self._logger.info("Calculating evaluation metrics using batch processing...")
 
-        individual_metrics: List[Any] = []
+        # Calculate prediction accuracy and processing time
         correct_predictions = 0
         total_processing_time = 0.0
 
-        self._logger.info(
-            f"Processing {len(results)} results for individual metrics..."
-        )
-
-        for i, result in enumerate(tqdm(results, desc="Processing results")):
+        for result in results:
             if result.prediction_correct:
                 correct_predictions += 1
-
             total_processing_time += result.processing_time
 
-            metrics = self._evaluator.evaluate_single_result(result)
-            individual_metrics.append(metrics)
-
+        self._logger.info(f"Using batch evaluation for {len(results)} results...")
+        
+        # Use optimized batch processing instead of individual processing
+        individual_metrics = self._evaluator.evaluate_batch_metrics(results)
+        
+        # Store metrics for later use
         self._individual_metrics.extend(individual_metrics)
 
         summary = self._evaluator.create_summary_from_individual_metrics(
@@ -274,7 +273,7 @@ class Orchestrator:
             total_processing_time=total_processing_time,
         )
 
-        self._logger.info("Evaluation metrics calculation finished!")
+        self._logger.info("Batch evaluation metrics calculation finished!")
 
         for key, value in summary.to_dict().items():
             if isinstance(value, (int, float)):
@@ -293,7 +292,7 @@ class Orchestrator:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         individual_metrics = self._individual_metrics
-        self._logger.info(f"individual_metics: {individual_metrics}")
+        self._logger.debug(f"Individual metrics: {len(individual_metrics)} results")
 
         csv_path = self._result_manager.save_dataframe_with_metrics(
             path=output_dir,
@@ -318,7 +317,7 @@ class Orchestrator:
         """
         if hasattr(self, "_individual_metrics"):
             delattr(self, "_individual_metrics")
-            self._logger.info("Individual metrics cleaned up from memory")
+            self._logger.debug("Individual metrics cleaned up from memory")
 
     def finalize_run(self) -> None:
         """
