@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import mlflow
 import pandas as pd
 import seaborn as sns
+import numpy as np
+from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
 
 
 class XaiMetaAnalysis:
@@ -15,8 +17,8 @@ class XaiMetaAnalysis:
 
     metrics: List[str] = [
         "iou",
-        "pixelprecisionrecall_precision",
-        "pixelprecisionrecall_recall",
+        "pixel_precision",
+        "pixel_recall",
         "point_game",
         "prediction_confidence",
     ]
@@ -159,6 +161,315 @@ class XaiMetaAnalysis:
         ax.grid(True)
 
         return data, fig
+
+    def calculate_model_method_f1_scores(self, threshold: float = 0.5) -> pd.DataFrame:
+        """
+        Berechnet F1-Scores für Point Game pro Modell und Methode.
+        
+        Args:
+            threshold: Schwellenwert für Point Game Hit/Miss
+            
+        Returns:
+            DataFrame mit detaillierten F1-Score Metriken
+        """
+        if 'point_game' not in self.df.columns:
+            return pd.DataFrame()
+        
+        results = []
+        
+        # Group by model and explainer if available, otherwise just by available columns
+        groupby_cols = []
+        if 'model_name' in self.df.columns:
+            groupby_cols.append('model_name')
+        if 'explainer_name' in self.df.columns:
+            groupby_cols.append('explainer_name')
+        
+        if not groupby_cols:
+            # Fallback: analyze the entire dataset as one group
+            groupby_cols = ['dataset']  # Use a dummy column
+            self.df['dataset'] = 'all'
+        
+        for group_values, group_data in self.df.groupby(groupby_cols):
+            if isinstance(group_values, str):
+                group_values = [group_values]
+            
+            # Create group identifier
+            group_dict = dict(zip(groupby_cols, group_values))
+            
+            # Convert point game to binary
+            y_true = group_data['prediction_correct'].astype(int)
+            y_pred_point_game = (group_data['point_game'] >= threshold).astype(int)
+            
+            if len(np.unique(y_true)) > 1 and len(np.unique(y_pred_point_game)) > 1:
+                f1 = f1_score(y_true, y_pred_point_game)
+                precision = precision_score(y_true, y_pred_point_game)
+                recall = recall_score(y_true, y_pred_point_game)
+                
+                tn, fp, fn, tp = confusion_matrix(y_true, y_pred_point_game).ravel()
+                
+                result = {
+                    **group_dict,
+                    'f1_score': f1,
+                    'precision': precision,
+                    'recall': recall,
+                    'true_positives': tp,
+                    'true_negatives': tn,
+                    'false_positives': fp,
+                    'false_negatives': fn,
+                    'total_samples': len(group_data),
+                    'threshold_used': threshold
+                }
+            else:
+                result = {
+                    **group_dict,
+                    'f1_score': np.nan,
+                    'precision': np.nan,
+                    'recall': np.nan,
+                    'true_positives': np.nan,
+                    'true_negatives': np.nan,
+                    'false_positives': np.nan,
+                    'false_negatives': np.nan,
+                    'total_samples': len(group_data),
+                    'threshold_used': threshold
+                }
+            
+            results.append(result)
+        
+        return pd.DataFrame(results)
+
+    def calculate_iou_distribution_stats(self) -> pd.DataFrame:
+        """
+        Berechnet IoU-Verteilungsstatistiken pro Modell/Methode und Korrektheit.
+        
+        Returns:
+            DataFrame mit IoU-Statistiken aufgeteilt nach Prediction Correctness
+        """
+        if 'iou' not in self.df.columns:
+            return pd.DataFrame()
+        
+        results = []
+        
+        # Group by model and explainer if available
+        groupby_cols = []
+        if 'model_name' in self.df.columns:
+            groupby_cols.append('model_name')
+        if 'explainer_name' in self.df.columns:
+            groupby_cols.append('explainer_name')
+        
+        if not groupby_cols:
+            groupby_cols = ['dataset']
+            self.df['dataset'] = 'all'
+        
+        for group_values, group_data in self.df.groupby(groupby_cols):
+            if isinstance(group_values, str):
+                group_values = [group_values]
+            
+            group_dict = dict(zip(groupby_cols, group_values))
+            
+            # Split by prediction correctness
+            correct_data = group_data[group_data['prediction_correct'] == True]['iou']
+            incorrect_data = group_data[group_data['prediction_correct'] == False]['iou']
+            
+            # Calculate statistics for correctly classified
+            if len(correct_data) > 0:
+                correct_stats = {
+                    **group_dict,
+                    'prediction_correctness': 'correct',
+                    'count': len(correct_data),
+                    'mean_iou': correct_data.mean(),
+                    'std_iou': correct_data.std(),
+                    'median_iou': correct_data.median(),
+                    'min_iou': correct_data.min(),
+                    'max_iou': correct_data.max(),
+                    'q25_iou': correct_data.quantile(0.25),
+                    'q75_iou': correct_data.quantile(0.75)
+                }
+                results.append(correct_stats)
+            
+            # Calculate statistics for incorrectly classified
+            if len(incorrect_data) > 0:
+                incorrect_stats = {
+                    **group_dict,
+                    'prediction_correctness': 'incorrect',
+                    'count': len(incorrect_data),
+                    'mean_iou': incorrect_data.mean(),
+                    'std_iou': incorrect_data.std(),
+                    'median_iou': incorrect_data.median(),
+                    'min_iou': incorrect_data.min(),
+                    'max_iou': incorrect_data.max(),
+                    'q25_iou': incorrect_data.quantile(0.25),
+                    'q75_iou': incorrect_data.quantile(0.75)
+                }
+                results.append(incorrect_stats)
+        
+        return pd.DataFrame(results)
+
+    def generate_model_method_comparison_plots(self, save_dir: Path) -> Dict[str, Path]:
+        """
+        Erstellt Vergleichsplots für Modell/Methoden-Kombinationen.
+        
+        Args:
+            save_dir: Verzeichnis zum Speichern der Plots
+            
+        Returns:
+            Dictionary mit Plot-Namen und Pfaden
+        """
+        save_dir = Path(save_dir)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        
+        plot_paths = {}
+        
+        # 1. Enhanced F1 Score Comparison with Method Focus
+        f1_scores = self.calculate_model_method_f1_scores()
+        if not f1_scores.empty:
+            # Create separate plots for models with multiple methods
+            if 'model_name' in f1_scores.columns and 'explainer_name' in f1_scores.columns:
+                models_with_multiple_methods = f1_scores.groupby('model_name')['explainer_name'].nunique()
+                models_with_multiple_methods = models_with_multiple_methods[models_with_multiple_methods > 1].index
+                
+                if len(models_with_multiple_methods) > 0:
+                    # Create method comparison plot for models with multiple methods
+                    fig, axes = plt.subplots(1, len(models_with_multiple_methods), 
+                                           figsize=(8 * len(models_with_multiple_methods), 6))
+                    
+                    if len(models_with_multiple_methods) == 1:
+                        axes = [axes]
+                    
+                    fig.suptitle('F1 Score Comparison: Methods per Model', fontsize=16, fontweight='bold')
+                    
+                    for idx, model in enumerate(models_with_multiple_methods):
+                        model_data = f1_scores[f1_scores['model_name'] == model]
+                        
+                        ax = axes[idx]
+                        bars = ax.bar(range(len(model_data)), model_data['f1_score'], 
+                                     color=plt.cm.viridis(np.linspace(0, 1, len(model_data))))
+                        
+                        # Add value labels on bars
+                        for i, (bar, f1_val) in enumerate(zip(bars, model_data['f1_score'])):
+                            height = bar.get_height()
+                            ax.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                                   f'{f1_val:.3f}', ha='center', va='bottom', fontweight='bold')
+                        
+                        ax.set_title(f'{model}\nMethod Comparison', fontweight='bold')
+                        ax.set_ylabel('F1 Score')
+                        ax.set_xlabel('XAI Method')
+                        ax.set_xticks(range(len(model_data)))
+                        ax.set_xticklabels(model_data['explainer_name'], rotation=45)
+                        ax.grid(True, alpha=0.3)
+                        ax.set_ylim(0, max(model_data['f1_score']) * 1.1)
+                    
+                    plt.tight_layout()
+                    plot_path = save_dir / 'f1_score_method_comparison.png'
+                    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+                    plt.close()
+                    plot_paths['f1_score_method_comparison'] = plot_path
+                
+                # General heatmap for all combinations
+                fig, ax = plt.subplots(figsize=(12, 8))
+                pivot_data = f1_scores.pivot(index='model_name', columns='explainer_name', values='f1_score')
+                
+                mask = pivot_data.isnull()
+                sns.heatmap(pivot_data, annot=True, fmt='.3f', cmap='viridis', ax=ax, 
+                           mask=mask, cbar_kws={'label': 'F1 Score'})
+                ax.set_title('F1 Scores: Point Game vs Prediction Correctness\n(All Model-Method Combinations)', 
+                           fontsize=14, fontweight='bold')
+                ax.set_xlabel('XAI Method')
+                ax.set_ylabel('Model')
+                
+                plt.tight_layout()
+                plot_path = save_dir / 'f1_score_heatmap.png'
+                plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+                plt.close()
+                plot_paths['f1_score_heatmap'] = plot_path
+        
+        # 2. Enhanced IoU Distribution Comparison with Method-specific Analysis
+        iou_stats = self.calculate_iou_distribution_stats()
+        if not iou_stats.empty:
+            # Create comprehensive IoU comparison
+            fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+            fig.suptitle('IoU Analysis: Model-Method Performance Comparison', fontsize=16, fontweight='bold')
+            
+            # Top-left: Mean IoU comparison
+            ax = axes[0, 0]
+            correct_stats = iou_stats[iou_stats['prediction_correctness'] == 'correct']
+            incorrect_stats = iou_stats[iou_stats['prediction_correctness'] == 'incorrect']
+            
+            if not correct_stats.empty and not incorrect_stats.empty:
+                x = np.arange(len(correct_stats))
+                width = 0.35
+                
+                bars1 = ax.bar(x - width/2, correct_stats['mean_iou'], width, 
+                              label='Correctly Classified', alpha=0.8, color='green')
+                bars2 = ax.bar(x + width/2, incorrect_stats['mean_iou'], width,
+                              label='Incorrectly Classified', alpha=0.8, color='red')
+                
+                # Add value labels
+                for bars in [bars1, bars2]:
+                    for bar in bars:
+                        height = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                               f'{height:.3f}', ha='center', va='bottom', fontsize=8)
+                
+                ax.set_xlabel('Model-Method Combinations')
+                ax.set_ylabel('Mean IoU')
+                ax.set_title('Mean IoU: Correct vs Incorrect Classifications')
+                ax.legend()
+                
+                # Set x-axis labels
+                if 'model_name' in correct_stats.columns:
+                    labels = [f"{row['model_name']}\n{row.get('explainer_name', 'N/A')}" 
+                             for _, row in correct_stats.iterrows()]
+                    ax.set_xticks(x)
+                    ax.set_xticklabels(labels, rotation=0, fontsize=9)
+            
+            # Top-right: Overall IoU distribution
+            ax = axes[0, 1]
+            if 'iou' in self.df.columns:
+                sns.boxplot(data=self.df, x='prediction_correct', y='iou', ax=ax)
+                ax.set_title('Overall IoU Distribution by Prediction Correctness')
+                ax.set_xlabel('Prediction Correct')
+                ax.set_ylabel('IoU Score')
+            
+            # Bottom-left: IoU by method (if multiple methods exist)
+            ax = axes[1, 0]
+            if 'explainer_name' in self.df.columns and self.df['explainer_name'].nunique() > 1:
+                sns.violinplot(data=self.df, x='explainer_name', y='iou', ax=ax)
+                ax.set_title('IoU Distribution by XAI Method')
+                ax.set_xlabel('XAI Method')
+                ax.set_ylabel('IoU Score')
+                plt.setp(ax.get_xticklabels(), rotation=45)
+            else:
+                ax.text(0.5, 0.5, 'Single method analysis', ha='center', va='center', 
+                       transform=ax.transAxes, fontsize=12)
+                ax.set_title('Method Analysis')
+            
+            # Bottom-right: Method performance heatmap
+            ax = axes[1, 1]
+            if len(correct_stats) > 1:
+                # Create performance comparison matrix
+                comparison_data = correct_stats.pivot_table(
+                    index='model_name', columns='explainer_name', values='mean_iou', fill_value=0)
+                
+                if comparison_data.shape[0] > 0 and comparison_data.shape[1] > 0:
+                    sns.heatmap(comparison_data, annot=True, fmt='.3f', cmap='RdYlGn', ax=ax,
+                               cbar_kws={'label': 'Mean IoU (Correct Classifications)'})
+                    ax.set_title('Mean IoU Performance Matrix\n(Correctly Classified Samples)')
+                    ax.set_xlabel('XAI Method')
+                    ax.set_ylabel('Model')
+                else:
+                    ax.text(0.5, 0.5, 'Insufficient data for heatmap', ha='center', va='center', 
+                           transform=ax.transAxes, fontsize=12)
+            else:
+                ax.text(0.5, 0.5, 'Single combination analysis', ha='center', va='center', 
+                       transform=ax.transAxes, fontsize=12)
+            
+            plt.tight_layout()
+            plot_path = save_dir / 'iou_distribution_comparison.png'
+            plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            plot_paths['iou_distribution_comparison'] = plot_path
+        
+        return plot_paths
 
 
 if __name__ == "__main__":
