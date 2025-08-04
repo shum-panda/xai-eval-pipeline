@@ -473,44 +473,196 @@ class XaiMetaAnalysis:
 
 
 if __name__ == "__main__":
-    with mlflow.start_run(run_name="meta Analysis"):
+    with mlflow.start_run(run_name="Comprehensive XAI Meta Analysis"):
         project_root = Path(__file__).resolve().parents[3]
-        output_dir = Path("results/resnet50_experiment")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        results_base_dir = project_root / "results"
+        
+        # Find all combined datasets for analysis
+        combined_datasets = [
+            ("resnet_xai_comparison", "combined_data_resnet_xai_methods.csv"),
+            ("models_gradcam_comparison2", "combined_data_models_gradcam.csv"),
+            ("vgg16_xai_comparison", "combined_data_vgg16_xai_methods.csv")
+        ]
+        
+        # Create comprehensive output directory
+        comprehensive_output_dir = results_base_dir / "comprehensive_xai_meta_analysis"
+        comprehensive_output_dir.mkdir(parents=True, exist_ok=True)
+        
+        all_results = {}
+        
+        print("=" * 80)
+        print("STARTING COMPREHENSIVE XAI META ANALYSIS")
+        print("=" * 80)
+        
+        for dataset_name, csv_filename in combined_datasets:
+            dataset_dir = results_base_dir / dataset_name
+            csv_path = dataset_dir / csv_filename
+            
+            if not csv_path.exists():
+                print(f"WARNING: Skipping {dataset_name}: {csv_path} not found")
+                continue
+            
+            print(f"\nAnalyzing: {dataset_name}")
+            print(f"Data source: {csv_path}")
+            
+            # Create output directory for this dataset
+            output_dir = comprehensive_output_dir / dataset_name
+            meta_analysis_dir = output_dir / "meta_analysis"
+            meta_plot_dir = meta_analysis_dir / "plots"
+            meta_analysis_dir.mkdir(parents=True, exist_ok=True)
+            meta_plot_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Load and analyze
+            try:
+                print(f"Reading CSV from {csv_path.resolve()}")
+                df = pd.read_csv(csv_path)
+                print(f"Loaded {len(df)} samples with {len(df.columns)} columns")
+                print(f"Models: {sorted(df['model_name'].unique())}")
+                print(f"Explainers: {sorted(df['explainer_name'].unique())}")
+                
+                analysis = XaiMetaAnalysis(df)
+                
+                dataset_results = {
+                    'data_path': str(csv_path),
+                    'total_samples': len(df),
+                    'models': list(df['model_name'].unique()),
+                    'explainers': list(df['explainer_name'].unique())
+                }
+                
+                print(f"Running analysis for {dataset_name}...")
+                
+                # 1. Original Plots erzeugen
+                print("Creating metric vs correctness plots...")
+                plots = analysis.plot_metric_vs_correctness()
+                for name, fig in plots.items():
+                    filepath = meta_plot_dir / f"{name}_vs_correctness.png"
+                    fig.savefig(filepath, dpi=300, bbox_inches='tight')
+                    plt.close(fig)
+                    mlflow.log_artifact(str(filepath))
+                print(f"   Created {len(plots)} metric comparison plots")
 
-        meta_analysis_dir = output_dir / "meta_analysis"
-        meta_plot_dir = meta_analysis_dir / "plots"
-        meta_analysis_dir.mkdir(parents=True, exist_ok=True)
-        meta_plot_dir.mkdir(parents=True, exist_ok=True)
+                # 2. Threshold-Analyse
+                print("Performing threshold analysis...")
+                try:
+                    grouped, fig = analysis.threshold_analysis("iou")
+                    threshold_plot_path = meta_plot_dir / "threshold_iou_score.png"
+                    fig.savefig(threshold_plot_path, dpi=300, bbox_inches='tight')
+                    plt.close(fig)
+                    mlflow.log_artifact(str(threshold_plot_path))
+                    
+                    threshold_csv_path = meta_analysis_dir / "threshold_iou_score.csv"
+                    grouped.to_csv(threshold_csv_path)
+                    mlflow.log_artifact(str(threshold_csv_path))
+                    print("   Threshold analysis completed")
+                except Exception as e:
+                    print(f"   WARNING: Threshold analysis failed: {e}")
 
-        csv_path = project_root / output_dir / "results_with_metrics.csv"
-        print(f"Reading CSV from {csv_path.resolve()}")
-        df = pd.read_csv(csv_path)
-        analysis = XaiMetaAnalysis(df)
+                # 3. Scatter-Analyse
+                print("Creating scatter analysis...")
+                try:
+                    grouped_2, fig2 = analysis.scatter("iou")
+                    scatter_plot_path = meta_plot_dir / "prediction_confidence_iou_score.png"
+                    fig2.savefig(scatter_plot_path, dpi=300, bbox_inches='tight')
+                    plt.close(fig2)
+                    mlflow.log_artifact(str(scatter_plot_path))
+                    print("   Scatter analysis completed")
+                except Exception as e:
+                    print(f"   WARNING: Scatter analysis failed: {e}")
 
-        # Plots erzeugen
-        plots = analysis.plot_metric_vs_correctness()
-        for name, fig in plots.items():
-            filepath = meta_plot_dir / f"{name}_vs_correctness.png"
-            fig.savefig(filepath)
-            plt.close(fig)
-            mlflow.log_artifact(str(filepath))
+                # 4. Neue erweiterte Analysen
+                print("Computing F1 scores...")
+                f1_scores_df = analysis.calculate_model_method_f1_scores()
+                if not f1_scores_df.empty:
+                    f1_csv_path = meta_analysis_dir / "f1_scores_by_model_method.csv"
+                    f1_scores_df.to_csv(f1_csv_path, index=False)
+                    mlflow.log_artifact(str(f1_csv_path))
+                    print(f"   F1 scores saved: {len(f1_scores_df)} records")
+                    dataset_results['f1_scores'] = f1_scores_df.to_dict('records')
+                else:
+                    print("   WARNING: No F1 scores computed (insufficient data)")
 
-        # Threshold-Analyse
-        grouped, fig = analysis.threshold_analysis("iou")
-        threshold_plot_path = meta_plot_dir / "threshold_iou_score.png"
-        fig.savefig(threshold_plot_path)
-        plt.close(fig)
-        mlflow.log_artifact(str(threshold_plot_path))
+                print("Computing IoU distribution statistics...")
+                iou_stats_df = analysis.calculate_iou_distribution_stats()
+                if not iou_stats_df.empty:
+                    iou_stats_csv_path = meta_analysis_dir / "iou_distribution_stats.csv"
+                    iou_stats_df.to_csv(iou_stats_csv_path, index=False)
+                    mlflow.log_artifact(str(iou_stats_csv_path))
+                    print(f"   IoU distribution stats saved: {len(iou_stats_df)} records")
+                    dataset_results['iou_stats'] = iou_stats_df.to_dict('records')
+                else:
+                    print("   WARNING: No IoU distribution stats computed")
 
-        # Threshold-Analyse
-        grouped_2, fig2 = analysis.scatter("iou")
-        scatter_plot_path = meta_plot_dir / "prediction_confidence_iou_score.png"
-        fig2.savefig(scatter_plot_path)
-        plt.close(fig2)
-        mlflow.log_artifact(str(scatter_plot_path))
-
-        # CSV speichern
-        threshold_csv_path = meta_analysis_dir / "threshold_iou_score.csv"
-        grouped.to_csv(threshold_csv_path)
-        mlflow.log_artifact(str(threshold_csv_path))
+                print("Creating model/method comparison plots...")
+                comparison_plots = analysis.generate_model_method_comparison_plots(meta_plot_dir)
+                for plot_name, plot_path in comparison_plots.items():
+                    mlflow.log_artifact(str(plot_path))
+                print(f"   Created {len(comparison_plots)} comparison plots")
+                dataset_results['plots_created'] = len(plots) + len(comparison_plots)
+                
+                all_results[dataset_name] = dataset_results
+                print(f"Analysis completed for {dataset_name}")
+                
+            except Exception as e:
+                print(f"ERROR: Error analyzing {dataset_name}: {e}")
+                continue
+        
+        # Create comprehensive summary
+        print("\n" + "=" * 80)
+        print("COMPREHENSIVE ANALYSIS SUMMARY")
+        print("=" * 80)
+        
+        summary_lines = [
+            f"XAI Meta Analysis Summary - {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            "",
+            "DATASETS ANALYZED:",
+        ]
+        
+        total_samples = 0
+        all_models = set()
+        all_explainers = set()
+        
+        for dataset_name, results in all_results.items():
+            summary_lines.extend([
+                f"",
+                f"DATASET: {dataset_name.upper()}:",
+                f"   Samples: {results['total_samples']:,}",
+                f"   Models: {', '.join(results['models'])}",
+                f"   Explainers: {', '.join(results['explainers'])}",
+                f"   Plots created: {results.get('plots_created', 0)}",
+            ])
+            
+            total_samples += results['total_samples']
+            all_models.update(results['models'])
+            all_explainers.update(results['explainers'])
+            
+            # Add F1 score summary
+            if 'f1_scores' in results:
+                f1_data = results['f1_scores']
+                valid_f1_scores = [item['f1_score'] for item in f1_data if not pd.isna(item['f1_score'])]
+                if valid_f1_scores:
+                    avg_f1 = np.mean(valid_f1_scores)
+                    summary_lines.append(f"   Average F1 Score: {avg_f1:.3f}")
+        
+        summary_lines.extend([
+            "",
+            "OVERALL SUMMARY:",
+            f"   Total samples analyzed: {total_samples:,}",
+            f"   Unique models: {len(all_models)} ({', '.join(sorted(all_models))})",
+            f"   Unique explainers: {len(all_explainers)} ({', '.join(sorted(all_explainers))})",
+            f"   Datasets processed: {len(all_results)}",
+            "",
+            f"Results saved to: {comprehensive_output_dir}",
+        ])
+        
+        summary_text = "\n".join(summary_lines)
+        print(summary_text)
+        
+        # Save comprehensive summary
+        summary_file = comprehensive_output_dir / "comprehensive_summary.txt"
+        with open(summary_file, 'w', encoding='utf-8') as f:
+            f.write(summary_text)
+        mlflow.log_artifact(str(summary_file))
+        
+        print(f"\nCOMPREHENSIVE XAI META ANALYSIS COMPLETED!")
+        print(f"All results saved to: {comprehensive_output_dir}")
+        print("=" * 80)
