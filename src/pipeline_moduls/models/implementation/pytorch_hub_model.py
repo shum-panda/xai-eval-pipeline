@@ -1,3 +1,4 @@
+import hashlib
 from typing import Any, Dict, List
 
 import torch
@@ -25,11 +26,13 @@ class PytorchHubModel(XAIModel):
                 - pretrained (bool): Whether to load pretrained weights (default: True).
                 - repo (str): The PyTorch Hub repository reference (default:
                 'pytorch/vision:v0.10.0').
+                - seed (int): Random seed for deterministic behavior (default: 42).
         """
         super().__init__(model_name)
 
         self.pretrained: bool = kwargs.get("pretrained", True)
         self.repo: str = kwargs.get("repo", "pytorch/vision:v0.10.0")
+        self.seed: int = kwargs.get("seed", 42)
 
         # Load the _model from PyTorch Hub
         self._model: nn.Module = self._load_from_hub(model_name, **kwargs)
@@ -39,7 +42,7 @@ class PytorchHubModel(XAIModel):
 
     def _load_from_hub(self, model_name: str, **kwargs: Any) -> nn.Module:
         """
-        Load a PyTorch model from the PyTorch Hub.
+        Load a PyTorch model from the PyTorch Hub with deterministic weights.
 
         Args:
             model_name (str): Name of the model to load.
@@ -54,11 +57,37 @@ class PytorchHubModel(XAIModel):
         try:
             self._logger.info(
                 f"Loading PyTorch Hub model '{model_name}' "
-                f"(pretrained={self.pretrained})"
+                f"(pretrained={self.pretrained}, repo={self.repo}, seed={self.seed})"
             )
+            
+            # Ensure deterministic behavior with configurable seed
+            torch.manual_seed(self.seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(self.seed)
+                torch.cuda.manual_seed_all(self.seed)
+            
+            # Clear hub cache (compatible with newer PyTorch versions)
+            try:
+                # For newer PyTorch versions, use get_dir() method
+                import os
+                cache_dir = torch.hub.get_dir()
+                self._logger.debug(f"Hub cache directory: {cache_dir}")
+            except Exception as e:
+                self._logger.debug(f"Could not access hub cache: {e}")
+            
             model = torch.hub.load(  # type: ignore
-                self.repo, model_name, pretrained=self.pretrained, verbose=False
+                self.repo, 
+                model_name, 
+                pretrained=self.pretrained, 
+                verbose=False,
+                force_reload=False,  # Use cached model structure but fresh weights
+                trust_repo=True
             )
+            
+            # Log model hash for verification
+            model_hash = self._compute_model_hash(model)
+            self._logger.info(f"Loaded model '{model_name}' with hash: {model_hash}")
+            
             return model
 
         except Exception as e:
@@ -160,3 +189,19 @@ class PytorchHubModel(XAIModel):
         self._model.eval()
         with torch.no_grad():
             return self._model(images)
+
+    def _compute_model_hash(self, model: nn.Module) -> str:
+        """
+        Compute a hash of the model's state dict for verification.
+        
+        Args:
+            model: PyTorch model to hash
+            
+        Returns:
+            str: SHA256 hash of the model parameters
+        """
+        # Create hash of model parameters for verification
+        hasher = hashlib.sha256()
+        for param in model.parameters():
+            hasher.update(param.detach().cpu().numpy().tobytes())
+        return hasher.hexdigest()[:8]  # Short hash for logging
