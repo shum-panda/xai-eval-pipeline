@@ -138,9 +138,9 @@ class GradCamExplainer(BaseExplainer):
                     break
             else:
                 self._logger.warning(
-                    f"Layer name {layer_idx} not found. Using last conv layer."
+                    f"Layer name {layer_idx} not found."
                 )
-                selected = conv_modules[-1]
+                raise ValueError(f"Layer name {layer_idx} not found.")
         elif isinstance(layer_idx, int):
             if layer_idx == -1 or layer_idx >= len(conv_modules):
                 self._logger.info("Using last convolutional layer.")
