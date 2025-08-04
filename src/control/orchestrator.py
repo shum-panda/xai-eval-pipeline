@@ -85,8 +85,11 @@ class Orchestrator:
         self._model_factory: XAIModelFactory = XAIModelFactory()
         self._xai_factory: XAIFactory = XAIFactory()
 
-        # Load model
-        self._model: XAIModel = self._model_factory.create(config.model.name)
+        # Load model with seed from experiment config
+        self._model: XAIModel = self._model_factory.create(
+            config.model.name, 
+            seed=config.experiment.seed
+        )
 
         # Evaluator and Visualizer
         self._logger.debug(config.metric.kwargs)
