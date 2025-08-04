@@ -80,12 +80,18 @@ class BaseExplainer(XAIInterface, ABC):
         """
         Compute attributions (i.e., explanations) for given inputs.
 
+        IMPORTANT: This method MUST return 2D attribution maps of shape (B, H, W).
+        If the explainer produces multi-channel attributions (B, C, H, W), 
+        they must be aggregated to 2D within this method using an appropriate
+        strategy (e.g., max, mean, L2-norm).
+
         Args:
             images (Tensor): Input image tensor of shape (B, C, H, W).
             target_classes (Tensor): Target classes for attribution.
 
         Returns:
-            Tensor: Attribution maps, typically of shape (B, H, W) or (B, C, H, W).
+            Tensor: Attribution maps of shape (B, H, W). 
+                   Each element represents the attribution score for that spatial location.
         """
         pass
 
