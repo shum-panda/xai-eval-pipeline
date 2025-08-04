@@ -629,20 +629,26 @@ class Orchestrator:
         """
         Starts the MLflow experiment and logs parameters.
         """
+        # Configure MLflow from config
+        mlflow.set_tracking_uri(self._config.mlflow.tracking_uri)
+        mlflow.set_experiment(self._config.mlflow.experiment_name)
+        
+        # Enable autologging if configured
+        if self._config.mlflow.auto_log:
+            mlflow.pytorch.autolog()
+        
         self._logger.info(f"Starting experiment: {self._config.experiment.name}")
         if mlflow.active_run() is None:
-            self._mlflow_run = mlflow.start_run(run_name=self._config.experiment.name)
+            run_name = f"{self._config.experiment.name}_{self._config.model.name}_{self._config.xai.name}"
+            self._mlflow_run = mlflow.start_run(run_name=run_name)
         else:
             self._mlflow_run = mlflow.active_run()
 
-        mlflow.pytorch.log_model(
-            self._model.pytorch_model,
-            name="model",
-            registered_model_name=self._config.model.name,
-        )
-        mlflow.log_param("explainer_name", self._config.xai.name)
-        mlflow.log_param("batch_size", self._config.data.batch_size)
-        mlflow.log_param("max_batches", self._config.data.max_batches)
+        # Log comprehensive configuration parameters
+        self._log_comprehensive_config()
+
+        # Only log model if it's not already registered or if explicitly requested
+        self._log_model_conditionally()
 
     def setup_dataloader(
         self,
@@ -729,7 +735,8 @@ class Orchestrator:
 
         logger.info(f"Creating {explainer_name} explainer...")
         logger.info(f"Use defaults: {use_defaults}")
-        logger.debug(f"Parameters: {config_kwargs}")
+        logger.info(f"Parameters: {config_kwargs}")
+        logger.info(f"Model: {self._model.__class__.__name__}")
 
         try:
             explainer = self._xai_factory.create_explainer(
@@ -738,6 +745,8 @@ class Orchestrator:
                 use_defaults=use_defaults,
                 **config_kwargs,
             )
+            logger.info(f"Successfully created explainer: {explainer.__class__.__name__}")
+            logger.info(f"Explainer name method: {explainer.get_name()}")
             return explainer
         except TypeError as e:
             logger.error(f"Failed to create {explainer_name}: {e}")
@@ -751,3 +760,81 @@ class Orchestrator:
         except Exception as e:
             logger.error(f"Unexpected error creating {explainer_name}: {e}")
             raise
+
+    def _log_comprehensive_config(self) -> None:
+        """
+        Logs comprehensive configuration parameters to MLflow.
+        """
+        # Model configuration
+        mlflow.log_param("model_name", self._config.model.name)
+        mlflow.log_param("model_pretrained", self._config.model.pretrained)
+        mlflow.log_param("model_transform", self._config.model.transform)
+        
+        # Explainer configuration
+        mlflow.log_param("explainer_name", self._config.xai.name)
+        mlflow.log_param("explainer_use_defaults", self._config.xai.use_defaults)
+        for key, value in self._config.xai.kwargs.items():
+            mlflow.log_param(f"explainer_{key}", value)
+        
+        # Data configuration
+        mlflow.log_param("batch_size", self._config.data.batch_size)
+        mlflow.log_param("max_batches", self._config.data.max_batches)
+        mlflow.log_param("num_workers", self._config.data.num_workers)
+        mlflow.log_param("shuffle", self._config.data.shuffle)
+        mlflow.log_param("pin_memory", self._config.data.pin_memory)
+        mlflow.log_param("resize", str(self._config.data.resize))
+        
+        # Hardware configuration
+        mlflow.log_param("use_cuda", self._config.hardware.use_cuda)
+        mlflow.log_param("device", self._config.hardware.device)
+        
+        # Metric configuration
+        for metric_name, metric_config in self._config.metric.kwargs.items():
+            for key, value in metric_config.items():
+                mlflow.log_param(f"metric_{metric_name}_{key}", value)
+        
+        # Visualization configuration
+        mlflow.log_param("visualization_save", self._config.visualization.save)
+        mlflow.log_param("visualization_show", self._config.visualization.show)
+        mlflow.log_param("max_visualizations", self._config.visualization.max_visualizations)
+        
+        # Experiment configuration
+        mlflow.log_param("top_k", self._config.experiment.top_k)
+        mlflow.log_param("output_dir", self._config.experiment.output_dir)
+        mlflow.log_param("seed", self._config.experiment.seed)
+        
+        # Logging configuration
+        mlflow.log_param("logging_level", self._config.logging.level)
+
+    def _log_model_conditionally(self) -> None:
+        """
+        Logs the model to MLflow only if it's not already registered or if explicitly requested.
+        Prevents creating unnecessary model versions for the same model.
+        """
+        try:
+            from mlflow.tracking import MlflowClient
+            client = MlflowClient()
+            
+            # Check if model is already registered
+            try:
+                model_versions = client.search_model_versions(f"name='{self._config.model.name}'")
+                if model_versions:
+                    self._logger.info(f"Model '{self._config.model.name}' already registered with {len(model_versions)} version(s)")
+                    self._logger.info("Skipping model logging to avoid duplicate versions")
+                    return
+            except Exception:
+                # Model doesn't exist yet, proceed with logging
+                pass
+            
+            # Log model only if not already registered
+            self._logger.info(f"Logging new model: {self._config.model.name}")
+            mlflow.pytorch.log_model(
+                self._model.pytorch_model,
+                name="model",
+                registered_model_name=self._config.model.name,
+            )
+            self._logger.info(f"Model '{self._config.model.name}' successfully logged to MLflow")
+            
+        except Exception as e:
+            self._logger.warning(f"Failed to log model conditionally: {e}")
+            self._logger.info("Proceeding without model logging")

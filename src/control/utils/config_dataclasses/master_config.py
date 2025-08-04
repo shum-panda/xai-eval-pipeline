@@ -5,6 +5,7 @@ from src.control.utils.config_dataclasses.experiment_config import ExperimentCon
 from src.control.utils.config_dataclasses.hardware_config import HardwareConfig
 from src.control.utils.config_dataclasses.logging_config import LoggingConfig
 from src.control.utils.config_dataclasses.metric_config import MetricConfig
+from src.control.utils.config_dataclasses.mlflow_config import MLflowConfig
 from src.control.utils.config_dataclasses.model_config import ModelConfig
 from src.control.utils.config_dataclasses.visualization_config import (
     VisualizationConfig,
@@ -22,3 +23,4 @@ class MasterConfig:
     metric: MetricConfig = field(default_factory=MetricConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    mlflow: MLflowConfig = field(default_factory=MLflowConfig)
