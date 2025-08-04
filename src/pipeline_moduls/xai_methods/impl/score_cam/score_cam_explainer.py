@@ -34,16 +34,19 @@ class ScoreCamExplainer(BaseExplainer):
 
         fmap = self.feature_map  # (B, C, H, W)
         B, C, H, W = fmap.shape
-        attribution = torch.zeros((B, H, W), device=images.device)
+        img_h, img_w = images.shape[-2:]
+        
+        # Initialize attribution with correct image dimensions
+        attribution = torch.zeros((B, img_h, img_w), device=images.device)
 
         for i in range(C):
             # Upsample feature map channel i to image size
             upsampled = F.interpolate(
                 fmap[:, i : i + 1],
-                size=images.shape[-2:],
+                size=(img_h, img_w),
                 mode="bilinear",
                 align_corners=False,
-            )  # shape (B,1,H_img,W_img)
+            )  # shape (B, 1, H_img, W_img)
 
             if images.shape[1] == 1:
                 upsampled_expanded = upsampled
@@ -60,11 +63,10 @@ class ScoreCamExplainer(BaseExplainer):
             # Get weights for target classes
             weights = probs[range(B), target_classes]
 
-            # Accumulate weighted maps (remove channel dim)
-            attribution += weights.view(B, 1, 1) * upsampled.squeeze(1)
-            print(f"Image shape: {images.shape}")
-            print(f"Upsampled shape: {upsampled.shape}")
-            print(f"Upsampled expanded shape: {upsampled_expanded.shape}")
+            # Accumulate weighted maps - ensure proper broadcasting
+            # weights: (B,), upsampled: (B, 1, H_img, W_img)
+            weight_map = weights.view(B, 1, 1) * upsampled.squeeze(1)  # (B, H_img, W_img)
+            attribution += weight_map
 
         self._remove_hook()
 
