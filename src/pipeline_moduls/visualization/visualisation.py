@@ -155,13 +155,15 @@ class Visualiser:
             raise
 
     def _prepare_attribution_for_heatmap(self, attribution: torch.Tensor) -> np.ndarray:
-        # Attribution should already be 2D (H, W) from the explainer
-        if attribution.dim() > 2:
+        # Remove batch dimension if present (single sample visualization)
+        if attribution.dim() == 3 and attribution.shape[0] == 1:
+            attribution = attribution.squeeze(0)  # Remove batch dimension [1, H, W] -> [H, W]
+        elif attribution.dim() != 2:
             raise ValueError(
                 f"Attribution has unexpected dimensions {attribution.shape}. "
-                f"Explainers must return 2D attributions (H, W) by aggregating "
-                f"multi-channel outputs in their _compute_attributions method."
+                f"Expected [H, W] after removing batch dimension."
             )
+            
         attribution_np = attribution.detach().cpu().numpy()
 
         # Optional: Absolutwert (besonders für IG sinnvoll)
