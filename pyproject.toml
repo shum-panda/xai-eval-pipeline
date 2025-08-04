@@ -94,6 +94,7 @@ testpaths = [
   "tests"
 ]
 python_files = "test_*.py"
+python_paths = ["src"]
 
 [tool.ruff]
 line-length = 88
@@ -118,4 +119,6 @@ skip-magic-trailing-comma = false
 
 [tool.mypy-torchvision]
 ignore_missing_imports = true
+
+
 
