@@ -14,7 +14,7 @@ from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
 )
 from src.pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
-from utils.with_cuda_cleanup import with_cuda_cleanup
+from src.utils.with_cuda_cleanup import with_cuda_cleanup
 
 
 class XAIEvaluator:
@@ -100,7 +100,7 @@ class XAIEvaluator:
             # XAI Metriken
             metrics = self.evaluate_single_result(result)
             if metrics:
-                self._logger.info(f"append Metics {metrics} to list")
+                self._logger.debug(f"Appended metrics {metrics} to list")
                 metrics_list.append(metrics)
 
         summary = self._aggregate_metrics(
@@ -113,6 +113,111 @@ class XAIEvaluator:
         self._log_summary(summary)
         return summary
 
+    def evaluate_batch_metrics(
+        self, results: List[XAIExplanationResult]
+    ) -> List[Optional[MetricResults]]:
+        """
+        Efficiently evaluate metrics for a batch of results using vectorized operations.
+        
+        This method processes all results with bounding boxes at once,
+        significantly improving performance compared to individual processing.
+        
+        Args:
+            results: List of XAI explanation results
+            
+        Returns:
+            List of MetricResults (or None for results without bbox)
+        """
+        if not results:
+            return []
+            
+        self._logger.info(f"Batch evaluating {len(results)} results...")
+        
+        # Separate results with and without bounding boxes
+        valid_results = []
+        valid_indices = []
+        result_mapping = {}
+        
+        for i, result in enumerate(results):
+            if result.has_bbox:
+                valid_results.append(result)
+                valid_indices.append(i)
+                result_mapping[len(valid_results) - 1] = i
+        
+        if not valid_results:
+            self._logger.warning("No results with bounding boxes found for batch evaluation")
+            return [None] * len(results)
+        
+        self._logger.info(f"Processing {len(valid_results)} results with bounding boxes in batch")
+        
+        # Prepare batch tensors
+        attributions = []
+        bbox_masks = []
+        
+        for result in valid_results:
+            bbox_mask = bbox_to_mask_tensor(result.bbox)
+            if bbox_mask is not None and torch.sum(bbox_mask) > 0:
+                attributions.append(result.attribution)
+                bbox_masks.append(bbox_mask)
+            else:
+                # Mark as invalid by adding None placeholders
+                attributions.append(None)
+                bbox_masks.append(None)
+        
+        # Filter out invalid entries
+        valid_attributions = []
+        valid_bbox_masks = []
+        valid_batch_indices = []
+        
+        for i, (attr, mask) in enumerate(zip(attributions, bbox_masks)):
+            if attr is not None and mask is not None:
+                valid_attributions.append(attr)
+                valid_bbox_masks.append(mask)
+                valid_batch_indices.append(i)
+        
+        batch_metrics = []
+        if valid_attributions:
+            # Stack tensors for batch processing
+            try:
+                attribution_batch = torch.stack(valid_attributions)
+                bbox_mask_batch = torch.stack(valid_bbox_masks)
+                
+                # Batch evaluate metrics
+                batch_metric_results = self.metric_calculator.evaluate_batch(
+                    attribution_batch, bbox_mask_batch
+                )
+                
+                # Create MetricResults for each valid result
+                for metric_values in batch_metric_results:
+                    batch_metrics.append(MetricResults(values=metric_values))
+                    
+            except Exception as e:
+                self._logger.error(f"Batch evaluation failed, falling back to individual: {e}")
+                # Fallback to individual processing
+                for attr, mask in zip(valid_attributions, valid_bbox_masks):
+                    try:
+                        metric_values = self.metric_calculator.evaluate(attr, mask)
+                        batch_metrics.append(MetricResults(values=metric_values))
+                    except Exception as individual_e:
+                        self._logger.warning(f"Individual evaluation also failed: {individual_e}")
+                        batch_metrics.append(None)
+        
+        # Reconstruct full results list with proper ordering
+        final_metrics = [None] * len(results)
+        
+        valid_batch_idx = 0
+        for i, result in enumerate(results):
+            if result.has_bbox and i in valid_indices:
+                # Find the position in valid_results
+                valid_pos = valid_indices.index(i)
+                if valid_pos in valid_batch_indices:
+                    batch_pos = valid_batch_indices.index(valid_pos)
+                    if batch_pos < len(batch_metrics):
+                        final_metrics[i] = batch_metrics[batch_pos]
+        
+        self._logger.debug(f"Batch evaluation completed: {sum(1 for m in final_metrics if m is not None)} valid metrics")
+        return final_metrics
+
     def create_summary_from_individual_metrics(
         self,
         results: List[XAIExplanationResult],
@@ -124,7 +229,7 @@ class XAIEvaluator:
         Öffentliche Methode um Summary aus bereits berechneten individuellen Metriken
         zu erstellen
         """
-        self._logger.info("Creating summary from pre-calculated individual metrics...")
+        self._logger.debug("Creating summary from pre-calculated individual metrics")
 
         return self._aggregate_metrics(
             results=results,
@@ -159,7 +264,7 @@ class XAIEvaluator:
             metadata.
         """
         logger = self._logger
-        logger.info("Starting metric aggregation...")
+        logger.debug("Starting metric aggregation")
 
         valid_metrics = [m for m in metrics_list if
                          m is not None and m.values is not None]
