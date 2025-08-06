@@ -3,7 +3,7 @@ from typing import List
 from dataclasses import dataclass
 import time
 
-from control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
+from pipeline.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
 from pipeline_moduls.evaluation.dataclass.evaluation_summary import EvaluationSummary
 from pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
 

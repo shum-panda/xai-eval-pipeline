@@ -4,9 +4,8 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 from PIL import Image
-from mlflow.models import predict
 
-from src.pipeline_moduls.visualization.visualisation import Visualiser
+from src.pipeline.pipeline_moduls.visualization.visualisation import Visualiser
 
 
 def test_visualiser_layout():

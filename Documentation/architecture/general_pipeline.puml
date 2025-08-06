@@ -1,0 +1,121 @@
+@startuml main_pipeline_sequence
+!theme plain
+title XAI Pipeline - Hauptablauf (vereinfacht)
+
+participant User
+participant Orchestrator
+participant DataLoader
+participant XAIFactory
+participant Explainer as BaseExplainer
+participant Evaluator
+participant ResultManager
+participant SingleRunAnalyse
+participant Visualiser
+participant MLflow
+
+== Einzelner Pipeline Run ==
+
+User -> Orchestrator: run()
+
+Orchestrator -> MLflow: setup MLflow experiment
+note right
+Configure tracking URI
+Create experiment & run
+end note
+
+Orchestrator -> Orchestrator: prepare_experiment()
+note right
+Setup experiment parameters
+Log config to MLflow
+end note
+
+Orchestrator -> DataLoader: setup_dataloader()
+DataLoader --> Orchestrator: DataLoader instance
+
+Orchestrator -> XAIFactory: create_explainer(name, **kwargs)
+XAIFactory --> Orchestrator: BaseExplainer instance
+
+Orchestrator -> Orchestrator: run_pipeline(dataloader, explainer)
+note right
+Process all batches
+Generate XAIExplanationResults
+end note
+
+Orchestrator -> Evaluator: evaluate_results(results)
+Evaluator --> Orchestrator: EvaluationSummary
+Orchestrator -> MLflow: log_metrics(summary)
+
+Orchestrator -> ResultManager: save_results(results, summary)
+note right of ResultManager
+Save JSON, CSV, artifacts
+end note
+Orchestrator -> MLflow: log_artifacts(csv, summary)
+
+Orchestrator -> SingleRunAnalyse: xai_meta_analyse()
+note right of SingleRunAnalyse
+Load results CSV
+Calculate correlations
+Generate threshold analysis
+Create comparison plots
+end note
+SingleRunAnalyse --> Orchestrator: Meta analysis plots & data
+Orchestrator -> MLflow: log_artifacts(plots, analysis_csv)
+
+Orchestrator -> Visualiser: visualize_results_if_needed(results, summary)
+note right of Visualiser
+Generate heatmaps & plots
+end note
+Orchestrator -> MLflow: log_artifacts(visualizations)
+
+Orchestrator -> MLflow: end_run()
+Orchestrator -> Orchestrator: finalize_run()
+
+Orchestrator --> User: Pipeline completed
+
+== Nach mehreren Runs ==
+
+note over User
+User hat mehrere Runs mit 
+verschiedenen Konfigurationen
+durchgeführt
+end note
+
+User -> User: collect_run_configs()
+note right
+User sammelt Run-IDs und
+Config-Namen der zu 
+analysierenden Experimente
+end note
+
+User -> SingleRunAnalyse: cross_experiment_analysis(run_configs)
+note right of SingleRunAnalyse
+Übergreifende Analyse:
+- Vergleich verschiedener Modelle
+- Vergleich verschiedener XAI-Methoden
+- Performance vs. Erklärbarkeit
+- Konfiguration-Impact-Analyse
+end note
+
+SingleRunAnalyse -> MLflow: fetch_run_data(run_ids)
+MLflow --> SingleRunAnalyse: metrics, artifacts, configs
+
+SingleRunAnalyse -> SingleRunAnalyse: generate_comparison_reports()
+note right
+- Model Performance Comparison
+- XAI Method Effectiveness
+- Configuration Impact Analysis
+- Best Practice Recommendations
+end note
+
+SingleRunAnalyse --> User: Comprehensive Analysis Report
+note right
+Dashboard mit:
+- Vergleichsplots
+- Ranking-Tabellen  
+- Empfehlungen
+- Exportierbare Berichte
+end note
+
+@enduml
+
+

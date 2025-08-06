@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import List, Optional
 
@@ -10,8 +11,8 @@ KNOWN_METRICS = [
     "point_game",
     "prediction_confidence",
     "accuracy",
-    "pixel_precisionrecall_precision",
-    "pixel_precisionrecall_recall",
+    "pixelprecisionrecall_precision",
+    "pixelprecisionrecall_recall",
 ]
 
 
@@ -194,13 +195,31 @@ class ExperimentCollection:
 
         df = self.df.copy()
 
+        # Erkennung ob Methodenvergleich oder Modellvergleich
+        unique_models = df["model_name"].nunique()
+        unique_explainers = df["explainer_name"].nunique()
+
+        # Wenn mehr Explainer als Modelle -> Methodenvergleich
+        is_method_comparison = unique_explainers > unique_models
+
+        if is_method_comparison:
+            # Für Methodenvergleich: x-Achse = explainer_name, hue = model_name (falls mehrere)
+            x_var = "explainer_name"
+            hue_var = "model_name" if unique_models > 1 else None
+        else:
+            # Für Modellvergleich: x-Achse = model_name, hue = explainer_name
+            x_var = "model_name"
+            hue_var = hue
+
         # Sortierung setzen falls angegeben
         if order_models is not None:
             df["model_name"] = pd.Categorical(
                 df["model_name"], categories=order_models, ordered=True
             )
         if order_explainers is not None:
-            df[hue] = pd.Categorical(df[hue], categories=order_explainers, ordered=True)
+            df["explainer_name"] = pd.Categorical(
+                df["explainer_name"], categories=order_explainers, ordered=True
+            )
 
         # Stil-Konfiguration für bessere Lesbarkeit
         plt.style.use("default")
@@ -218,64 +237,89 @@ class ExperimentCollection:
             }
         )
 
-        # Violin Plot
-        sns.violinplot(
-            data=df,
-            x="model_name",
-            y=metric,
-            hue=hue,
-            split=True,
-            inner=None,
-            cut=0,
-            scale="count",
-            palette="Set2",
-            ax=ax,
-        )
+        # Erst Violin Plot als Hintergrund für Verteilungsform
+        if len(df[metric].dropna()) > 10:  # Nur wenn genug Daten vorhanden
+            violin_plot = sns.violinplot(
+                data=df,
+                x=x_var,
+                y=metric,
+                hue=hue_var,
+                split=False,  # Nicht splitten
+                inner=None,  # Keine inneren Markierungen
+                cut=0,
+                scale="area",  # Gleiche Fläche für bessere Vergleichbarkeit
+                palette="Set2",
+                alpha=0.3,  # Sehr transparent als Hintergrund
+                linewidth=0,  # Keine Umrandung
+                ax=ax,
+            )
 
-        # Box Plot Overlay
-        sns.boxplot(
+        # Dann Boxplot mit exakt gleichen Parametern für perfekte Überlagerung
+        box_plot = sns.boxplot(
             data=df,
-            x="model_name",
+            x=x_var,
             y=metric,
-            hue=hue,
+            hue=hue_var,
             showcaps=True,
-            boxprops={"facecolor": "none", "linewidth": 1.5},
-            showfliers=False,
-            whiskerprops={"linewidth": 2},
-            medianprops={"linewidth": 2, "color": "black"},
-            saturation=1,
-            width=0.2,
+            boxprops={"facecolor": "white", "linewidth": 1.2, "alpha": 0.9},
+            showfliers=True,  # Outliers anzeigen
+            whiskerprops={"linewidth": 1.2},
+            capprops={"linewidth": 1.2},
+            medianprops={"linewidth": 2.5, "color": "red"},
+            flierprops={"marker": "o", "alpha": 0.6, "markersize": 4},
+            width=0.6,  # Breiter für bessere Sichtbarkeit
             dodge=True,
             ax=ax,
         )
 
-        # Titel und Labels mit besserer Formatierung
-        ax.set_title(
-            f"Vergleich der Metrik '{metric}' nach Modell und Erklärer",
-            fontsize=16,
-            fontweight="bold",
-            pad=20,
-        )
-        ax.set_xlabel("Modell", fontsize=14, fontweight="bold")
-        ax.set_ylabel(metric.replace("_", " ").title(), fontsize=14, fontweight="bold")
+        # Titel und Labels basierend auf Vergleichstyp
+        if is_method_comparison:
+            title = f"Methodenvergleich: {metric}"
+            xlabel = "XAI-Methode"
+        else:
+            title = f"Modellvergleich: {metric}"
+            xlabel = "Modell"
+
+        ax.set_title(title, fontsize=16, fontweight="bold", pad=20)
+        ax.set_xlabel(xlabel, fontsize=14, fontweight="bold")
+
+        # Display-Namen für Plots beibehalten
+        display_name = metric
+        if metric == "pixelprecisionrecall_precision":
+            display_name = "pixel precision"
+        elif metric == "pixelprecisionrecall_recall":
+            display_name = "pixel recall"
+        else:
+            display_name = metric.replace("_", " ").title()
+
+        ax.set_ylabel(display_name, fontsize=14, fontweight="bold")
 
         # X-Achsen-Labels rotieren für bessere Lesbarkeit
         ax.tick_params(axis="x", rotation=45, labelsize=11)
         ax.tick_params(axis="y", labelsize=11)
 
-        # Modellnamen auf x-Achse kürzen falls zu lang
+        # X-Achsen-Labels kürzen falls zu lang
         labels = ax.get_xticklabels()
         shortened_labels = []
         for label in labels:
             text = label.get_text()
-            # Kürze lange Modellnamen
+            # Kürze lange Namen (sowohl Modell- als auch Methodennamen)
             if len(text) > 15:
-                # Entferne gemeinsame Präfixe
-                text = (
-                    text.replace("resnet", "RN")
-                    .replace("_grad", "_g")
-                    .replace("_integrated", "_int")
-                )
+                if is_method_comparison:
+                    # Kürze Methodennamen
+                    text = (
+                        text.replace("guided_backprop", "GuidedBP")
+                        .replace("integrated_gradients", "IntGrad")
+                        .replace("grad_cam", "GradCAM")
+                        .replace("score_cam", "ScoreCAM")
+                    )
+                else:
+                    # Kürze Modellnamen
+                    text = (
+                        text.replace("resnet", "RN")
+                        .replace("_grad", "_g")
+                        .replace("_integrated", "_int")
+                    )
             shortened_labels.append(text)
         ax.set_xticklabels(shortened_labels)
 
@@ -289,18 +333,20 @@ class ExperimentCollection:
                 unique_labels.append(label)
                 unique_handles.append(handle)
 
-        ax.legend(
-            unique_handles,
-            unique_labels,
-            title=hue.replace("_", " ").title(),
-            bbox_to_anchor=(1.05, 1),
-            loc="upper left",
-            fontsize=11,
-            title_fontsize=12,
-            frameon=True,
-            fancybox=True,
-            shadow=True,
-        )
+        # Legende nur anzeigen wenn hue_var gesetzt ist (mehrere Gruppen)
+        if hue_var is not None:
+            ax.legend(
+                unique_handles,
+                unique_labels,
+                title=hue_var.replace("_", " ").title(),
+                bbox_to_anchor=(1.05, 1),
+                loc="upper left",
+                fontsize=11,
+                title_fontsize=12,
+                frameon=True,
+                fancybox=True,
+                shadow=True,
+            )
 
         # Grid für bessere Lesbarkeit
         ax.grid(True, alpha=0.3, axis="y")
@@ -319,5 +365,6 @@ class ExperimentCollection:
         # Reset rcParams
         plt.rcParams.update(plt.rcParamsDefault)
 
-        print(f"✅ Verbesserter Plot gespeichert: {save_path.resolve()}")
+        logger = logging.getLogger(__name__)
+        logger.info(f"Plot saved: {save_path.resolve()}")
         return save_path

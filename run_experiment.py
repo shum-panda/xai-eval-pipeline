@@ -1,8 +1,8 @@
 import mlflow
 import hydra
 
-from control.utils.config_dataclasses.master_config import MasterConfig
-from control.xai_orchestrator import XAIOrchestrator
+from pipeline.control.utils import MasterConfig
+from pipeline.control import XAIOrchestrator
 
 
 @hydra.main(config_path="configs", config_name="default", version_base=None)

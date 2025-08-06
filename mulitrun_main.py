@@ -1,12 +1,10 @@
 import gc
 import traceback
 
-import hydra
 import torch
 from hydra import initialize, compose
-from omegaconf import OmegaConf
 
-from src.control.orchestrator import Orchestrator
+from pipeline.control.orchestrator import Orchestrator
 
 
 def cleanup_singletons():
@@ -62,14 +60,26 @@ def run_multiple_configs(config_names: list[str]) -> None:
                 
             except Exception as e:
                 print(f"❌ Error in {config_name}: {e}")
-
                 traceback.print_exc()
                 continue
+
+    # Nach allen Einzelläufen: Erstelle Vergleichsplots
+    print("\n📊 Creating comparison analysis...")
+    try:
+        from src.analyse.simple_analyzer import SimpleAnalyzer
+        
+        analyzer = SimpleAnalyzer()
+        analyzer.run_all_analyses()
+        
+        print("✅ Comparison analysis completed!")
+        
+    except Exception as e:
+        print(f"❌ Error creating comparison analysis: {e}")
+        traceback.print_exc()
 
 
 if __name__ == "__main__":
     run_multiple_configs([
-        "config_vgg16_score_cam",
         "config_vgg16_grad_cam",
         "config_resnet18_grad_cam",
         "config_resnet34_grad_cam",

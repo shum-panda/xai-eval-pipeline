@@ -1,14 +1,14 @@
 import hydra
 from omegaconf import OmegaConf
 
-from src.control.orchestrator import Orchestrator
-from src.control.utils.config_dataclasses.master_config import MasterConfig
+from pipeline.control.orchestrator import Orchestrator
+from pipeline.control.utils import MasterConfig
 
 
 @hydra.main(
     version_base=None,
     config_path="config/experiments",
-    config_name="config_resnet50_grad_cam",
+    config_name="config_resnet50_integrated_gradients",
 )
 def main(cfg: MasterConfig) -> None:
     """

@@ -1,0 +1,19 @@
+@startuml hybrid_processing_batch_in_module
+start
+:Gesamten Datensatz vorbereiten;
+partition "Attributionsgenerierung" {
+    repeat
+        :Kleinen Sub-Batch für Attributionen laden;
+        :Attributionsgenerierung auf Sub-Batch;
+    repeat while (weitere Sub-Batches in Batch?)
+}
+partition "Evaluation" {
+    repeat
+        :Kleinen Sub-Batch für Evaluation laden;
+        :Evaluation auf Sub-Batch;
+    repeat while (weitere Sub-Batches in Batch?)
+}
+:Visualisierung und MetrikAnalyse;
+:Aggregierte Ergebnisse speichern;
+stop
+@enduml

@@ -1,0 +1,101 @@
+@startuml Datenfluss und Dataclass-Verwendung in der XAI Pipeline
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ParticipantBackgroundColor #E8F4FD
+  ActorBackgroundColor #FFE6CC
+  NoteBackgroundColor #FFF2CC
+  ArrowColor #2E75B6
+}
+
+title Datenfluss und Dataclass-Verwendung in der XAI Pipeline
+
+' Definiere die Hauptkomponenten
+participant "Configuration\n(YAML)" as Config
+participant "Orchestrator" as Orch
+participant "DataLoader" as Data
+participant "XAI Method" as XAI
+participant "Evaluator" as Eval  
+participant "ResultManager" as Result
+participant "Output\n(CSV/Files)" as Output
+
+' Phase 1: Konfiguration
+activate Config
+Config -> Orch : **MasterConfig**\n- ExperimentConfig\n- HardwareConfig\n- ModelConfig\n- DataConfig\n- XAIConfig\n- MetricConfig\n- VisualizationConfig\n- LoggingConfig\n- MLflowConfig
+note right : Alle Pipeline-Einstellungen\nin strukturierter Hierarchie
+deactivate Config
+
+' Phase 2: Datenladung
+activate Data
+Data -> Data : **ImageNetSample**\n- image_name, image_path\n- image_tensor, label\n- bbox_path, bbox_tensor
+note right : Einzelne Bilder mit\nMetadaten und Bounding Boxes
+
+Data -> Data : Batch Collation
+Data -> Orch : **XAIInputBatch**\n- images_tensor\n- labels_tensor\n- boxes_list\n- image_paths, image_names\n- bbox_paths, labels_int
+note right : Gestapelte Eingabe für\nXAI-Erklärungsmethoden
+deactivate Data
+
+' Phase 3: XAI Verarbeitung  
+activate XAI
+Orch -> XAI : **XAIInputBatch**
+note left : Standardisierte Batch-Schnittstelle\nfür alle XAI-Methoden
+
+XAI -> XAI : Process with method-specific config:\n- **GradCAMConfig**\n- **IntegratedGradientsConfig**\n- **ScoreCAMConfig**\n- **GuidedBackpropConfig**
+note right : Methodenspezifische\nKonfigurationsklassen
+
+XAI -> Orch : **ExplainerResult**\n- attributions\n- probabilities, predictions\n- confidence, target_labels\n- topk_predictions, topk_confidences
+note right : Bereinigte Explainer-Ausgabe\nfür weitere Verarbeitung
+deactivate XAI
+
+' Phase 4: Ergebnis-Anreicherung
+activate Orch
+Orch -> Orch : Enrich with metadata
+Orch -> Orch : **XAIExplanationResult**\n- image, image_name, image_path\n- predicted_class, attribution\n- bbox, bbox_info\n- dataset_label, true_label\n- prediction_correct, confidence\n- explainer_result, explainer_name\n- model_name, processing_time\n- timestamp, explainer_params
+note right : Vollständiges Erklärungsprotokoll\nmit allen Metadaten
+deactivate Orch
+
+' Phase 5: Evaluation
+activate Eval
+Orch -> Eval : List[**XAIExplanationResult**]
+Eval -> Eval : Calculate metrics per sample
+Eval -> Eval : **MetricResults**\n- values: Dict[str, Any]\n(IoU, Point Game, Pixel Precision/Recall)
+note right : Flexible Metrik-Speicherung\nfür verschiedene Bewertungsarten
+
+Eval -> Eval : Aggregate results
+Eval -> Orch : **EvaluationSummary**\n- explainer_name, model_name\n- prediction_accuracy\n- average_processing_time\n- samples_with_bbox\n- metric_averages
+note right : Zusammengefasste\nBewertungsstatistiken
+deactivate Eval
+
+' Phase 6: Ergebnisverwaltung
+activate Result
+Orch -> Result : List[**XAIExplanationResult**] +\n**EvaluationSummary**
+Result -> Result : Build DataFrame\n(Remove large tensors)
+Result -> Result : Add metrics to DataFrame
+Result -> Output : CSV with results and metrics
+Result -> Output : YAML summary file
+note right : Serialisierung und\nSpeicherung der Ergebnisse
+deactivate Result
+
+' Zusätzliche Notizen für Datenklassen-Interfaces
+note over Config, Output
+**Wichtige Interface-Datenklassen:**
+
+**XAIInputBatch**: Zentrale Eingabeschnittstelle
+- Erstellt von: DataLoader collate function  
+- Verwendet von: Alle XAI-Explainer-Methoden
+
+**ExplainerResult**: XAI-Methoden-Ausgabeschnittstelle
+- Erstellt von: XAI-Explainer-Implementierungen
+- Verwendet von: Orchestrator für Anreicherung
+
+**XAIExplanationResult**: Haupt-Ergebnis-Schnittstelle  
+- Erstellt von: Orchestrator während Batch-Verarbeitung
+- Verwendet von: Evaluator, ResultManager, Visualizer
+
+**EvaluationSummary**: Bewertungs-Schnittstelle
+- Erstellt von: XAIEvaluator
+- Verwendet von: ResultManager für finale Berichterstattung
+end note
+
+@enduml

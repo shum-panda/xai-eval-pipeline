@@ -1,0 +1,9 @@
+@startuml staged_processing
+start
+:Gesamten Datensatz laden;
+:Modellinferenz auf gesamten Datensatz;
+:Attributionsgenerierung für gesamten Datensatz;
+:Evaluation des gesamten Datensatzes;
+:Visualisierung aller Ergebnisse;
+stop
+@enduml

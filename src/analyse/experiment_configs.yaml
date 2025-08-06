@@ -1,0 +1,124 @@
+# Experiment-Konfigurationen für verschiedene Analyse-Modi
+# Du kannst diese Listen nach Bedarf anpassen
+
+resnet_xai_methods:
+  description: "ResNet-Modelle mit verschiedenen XAI-Methoden vergleichen"
+  experiments:
+    - config_resnet50_grad_cam
+    - config_resnet50_integrated_gradients
+    - config_resnet50_guided_backprop
+  output_subdir: "resnet_xai_comparison"
+  
+  # Plot-Konfigurationen
+  plot_settings:
+    create_advanced_plots: true
+    create_classic_plots: true
+    plot_dpi: 300
+    figure_format: "png"
+    
+  # Spezielle Analysen für diesen Modus
+  analysis_focus:
+    - "explainer_comparison"  # Fokus auf Vergleich der XAI-Methoden
+    - "stability_analysis"    # Stabilität der verschiedenen Methoden
+    - "correlation_analysis"  # Korrelationen zwischen Metriken
+
+models_gradcam:
+  description: "Verschiedene Modelle mit GradCAM vergleichen"
+  experiments:
+    - config_resnet18_grad_cam
+    - config_resnet34_grad_cam
+    - config_resnet50_grad_cam
+    - config_vgg16_grad_cam
+    # Weitere Modelle können hier hinzugefügt werden:
+    # - config_efficientnet_grad_cam
+    # - config_mobilenet_grad_cam
+  output_subdir: "models_gradcam_comparison"
+  
+  # Plot-Konfigurationen
+  plot_settings:
+    create_advanced_plots: true
+    create_classic_plots: true
+    plot_dpi: 300
+    figure_format: "png"
+    
+  # Spezielle Analysen für diesen Modus
+  analysis_focus:
+    - "model_comparison"      # Fokus auf Modell-Vergleich
+    - "performance_analysis"  # Performance verschiedener Modelle
+    - "accuracy_analysis"     # Accuracy-Vergleich
+
+vgg16_xai_methods:
+  description: "VGG16-Modell mit verschiedenen XAI-Methoden vergleichen (GradCAM vs ScoreCAM)"
+  experiments:
+    - config_vgg16_grad_cam
+    - config_vgg16_score_cam
+  output_subdir: "vgg16_xai_comparison"
+  
+  # Plot-Konfigurationen
+  plot_settings:
+    create_advanced_plots: true
+    create_classic_plots: true
+    plot_dpi: 300
+    figure_format: "png"
+    
+  # Spezielle Analysen für diesen Modus
+  analysis_focus:
+    - "explainer_comparison"  # Fokus auf Vergleich der XAI-Methoden
+    - "stability_analysis"    # Stabilität der verschiedenen Methoden
+    - "correlation_analysis"  # Korrelationen zwischen Metriken
+    - "vgg16_performance"     # Spezifische VGG16 Performance-Analyse
+
+# Beispiel für weitere Analyse-Modi:
+# custom_analysis_1:
+#   description: "Deine eigene Analyse"
+#   experiments:
+#     - config_model1_method1
+#     - config_model2_method1
+#   output_subdir: "custom_analysis_1"
+#   plot_settings:
+#     create_advanced_plots: true
+#     create_classic_plots: false
+#     plot_dpi: 200
+#     figure_format: "svg"
+#   analysis_focus:
+#     - "custom_metric_analysis"
+
+# Globale Plot-Einstellungen (falls nicht spezifisch überschrieben)
+global_plot_settings:
+  default_figsize: [12, 8]
+  default_dpi: 300
+  color_palette: "husl"
+  style: "whitegrid"
+  
+# Verfügbare Plot-Typen
+available_plot_types:
+  overview:
+    - "dataset_overview"      # Überblick über Dataset
+    - "accuracy_heatmap"      # Accuracy als Heatmap
+    - "sample_distribution"   # Verteilung der Samples
+    
+  metrics:
+    - "radar_chart"           # Radar-Chart für Metriken
+    - "metric_rankings"       # Ranking der Metriken
+    - "pairwise_comparison"   # Paarweise Metrik-Vergleiche
+    - "metric_stability"      # Stabilität der Metriken
+    
+  correlations:
+    - "correlation_heatmap"   # Korrelations-Heatmap
+    - "correlation_network"   # Korrelations-Netzwerk
+    - "metric_vs_accuracy"    # Metriken vs Accuracy
+    
+  performance:
+    - "performance_dashboard" # Performance-Dashboard
+    - "confidence_analysis"   # Confidence-Analyse
+    - "error_analysis"        # Fehler-Analyse
+    
+  distributions:
+    - "metric_distributions"  # Metrik-Verteilungen
+    - "statistical_comparison" # Statistische Vergleiche
+    - "outlier_analysis"      # Ausreißer-Analyse
+    
+  advanced:
+    - "pca_analysis"          # Principal Component Analysis
+    - "clustering_analysis"   # Clustering-Analyse
+    - "model_ranking"         # Model-Ranking
