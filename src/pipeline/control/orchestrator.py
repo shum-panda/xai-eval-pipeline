@@ -13,29 +13,33 @@ from torchvision import transforms  # type: ignore
 from tqdm import tqdm
 
 import src.pipeline_moduls.evaluation.metrics  # noqa: F401
-from src.pipeline_moduls.data.image_net_label_mapper import ImageNetLabelMapper
-from src.pipeline_moduls.metaanlyse.xai_meta_analysis import XaiMetaAnalysis
-from src.pipeline_moduls.models.base.xai_model import XAIModel
-from src.pipeline_moduls.resultmanager.result_manager import ResultManager
-from src.control.utils.config_dataclasses.master_config import MasterConfig
-from src.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
-from src.control.utils.error.xai_explanation_error import XAIExplanationError
-from src.control.utils.set_up_logger import setup_logger
-from src.pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
-from src.pipeline_moduls.data.image_net_val_dataset import (
+from src.pipeline.control.utils.config_dataclasses.master_config import MasterConfig
+from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
+    XAIExplanationResult,
+)
+from src.pipeline.control.utils.error.xai_explanation_error import XAIExplanationError
+from src.pipeline.control.utils.set_up_logger import setup_logger
+from src.pipeline.pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
+from src.pipeline.pipeline_moduls.data.image_net_label_mapper import ImageNetLabelMapper
+from src.pipeline.pipeline_moduls.data.image_net_val_dataset import (
     ImageNetValDataset,
     create_dataloader,
 )
-from src.pipeline_moduls.data.utils.collate_fn import explain_collate_fn
-from src.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
+from src.pipeline.pipeline_moduls.data.utils.collate_fn import explain_collate_fn
+from src.pipeline.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
 )
-from src.pipeline_moduls.evaluation.xai_evaluator import XAIEvaluator
-from src.pipeline_moduls.models.xai_model_factory import XAIModelFactory
-from src.pipeline_moduls.visualization.visualisation import Visualiser
-from src.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
-from src.pipeline_moduls.xai_methods.xai_factory import XAIFactory
-from src.utils.with_cuda_cleanup import with_cuda_cleanup
+from src.pipeline.pipeline_moduls.evaluation.xai_evaluator import XAIEvaluator
+from src.pipeline.pipeline_moduls.models.base.xai_model import XAIModel
+from src.pipeline.pipeline_moduls.models.xai_model_factory import XAIModelFactory
+from src.pipeline.pipeline_moduls.resultmanager.result_manager import ResultManager
+from src.pipeline.pipeline_moduls.single_run_analyse.single_run_analysis import (
+    XaiMetaAnalysis,
+)
+from src.pipeline.pipeline_moduls.visualization.visualisation import Visualiser
+from src.pipeline.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
+from src.pipeline.pipeline_moduls.xai_methods.xai_factory import XAIFactory
+from src.pipeline.utils import with_cuda_cleanup
 
 
 class Orchestrator:
@@ -87,8 +91,7 @@ class Orchestrator:
 
         # Load model with seed from experiment config
         self._model: XAIModel = self._model_factory.create(
-            config.model.name, 
-            seed=config.experiment.seed
+            config.model.name, seed=config.experiment.seed
         )
 
         # Evaluator and Visualizer
@@ -262,10 +265,10 @@ class Orchestrator:
             total_processing_time += result.processing_time
 
         self._logger.info(f"Using batch evaluation for {len(results)} results...")
-        
+
         # Use optimized batch processing instead of individual processing
         individual_metrics = self._evaluator.evaluate_batch_metrics(results)
-        
+
         # Store metrics for later use
         self._individual_metrics.extend(individual_metrics)
 
@@ -634,17 +637,35 @@ class Orchestrator:
         # Configure MLflow from config
         mlflow.set_tracking_uri(self._config.mlflow.tracking_uri)
         mlflow.set_experiment(self._config.mlflow.experiment_name)
-        
+
         # Enable autologging if configured
         if self._config.mlflow.auto_log:
             mlflow.pytorch.autolog()
-        
+
         self._logger.info(f"Starting experiment: {self._config.experiment.name}")
         if mlflow.active_run() is None:
-            run_name = f"{self._config.experiment.name}_{self._config.model.name}_{self._config.xai.name}"
-            self._mlflow_run = mlflow.start_run(run_name=run_name)
+            # Use configured run_name or generate default
+            run_name = (
+                self._config.mlflow.run_name
+                or f"{self._config.experiment.name}_{self._config.model.name}_{self._config.xai.name}"
+            )
+
+            # Prepare run parameters
+            run_kwargs = {"run_name": run_name}
+
+            # Add tags if configured
+            if self._config.mlflow.tags:
+                run_kwargs["tags"] = self._config.mlflow.tags
+
+            self._mlflow_run = mlflow.start_run(**run_kwargs)
+            self._logger.info(
+                f"Started MLflow run: {self._mlflow_run.info.run_id} with name: {run_name}"
+            )
         else:
             self._mlflow_run = mlflow.active_run()
+            self._logger.info(
+                f"Using existing MLflow run: {self._mlflow_run.info.run_id}"
+            )
 
         # Log comprehensive configuration parameters
         self._log_comprehensive_config()
@@ -747,7 +768,9 @@ class Orchestrator:
                 use_defaults=use_defaults,
                 **config_kwargs,
             )
-            logger.info(f"Successfully created explainer: {explainer.__class__.__name__}")
+            logger.info(
+                f"Successfully created explainer: {explainer.__class__.__name__}"
+            )
             logger.info(f"Explainer name method: {explainer.get_name()}")
             return explainer
         except TypeError as e:
@@ -771,13 +794,13 @@ class Orchestrator:
         mlflow.log_param("model_name", self._config.model.name)
         mlflow.log_param("model_pretrained", self._config.model.pretrained)
         mlflow.log_param("model_transform", self._config.model.transform)
-        
+
         # Explainer configuration
         mlflow.log_param("explainer_name", self._config.xai.name)
         mlflow.log_param("explainer_use_defaults", self._config.xai.use_defaults)
         for key, value in self._config.xai.kwargs.items():
             mlflow.log_param(f"explainer_{key}", value)
-        
+
         # Data configuration
         mlflow.log_param("batch_size", self._config.data.batch_size)
         mlflow.log_param("max_batches", self._config.data.max_batches)
@@ -785,28 +808,37 @@ class Orchestrator:
         mlflow.log_param("shuffle", self._config.data.shuffle)
         mlflow.log_param("pin_memory", self._config.data.pin_memory)
         mlflow.log_param("resize", str(self._config.data.resize))
-        
+
         # Hardware configuration
         mlflow.log_param("use_cuda", self._config.hardware.use_cuda)
         mlflow.log_param("device", self._config.hardware.device)
-        
+
         # Metric configuration
         for metric_name, metric_config in self._config.metric.kwargs.items():
             for key, value in metric_config.items():
                 mlflow.log_param(f"metric_{metric_name}_{key}", value)
-        
+
         # Visualization configuration
         mlflow.log_param("visualization_save", self._config.visualization.save)
         mlflow.log_param("visualization_show", self._config.visualization.show)
-        mlflow.log_param("max_visualizations", self._config.visualization.max_visualizations)
-        
+        mlflow.log_param(
+            "max_visualizations", self._config.visualization.max_visualizations
+        )
+
         # Experiment configuration
         mlflow.log_param("top_k", self._config.experiment.top_k)
         mlflow.log_param("output_dir", self._config.experiment.output_dir)
         mlflow.log_param("seed", self._config.experiment.seed)
-        
+
         # Logging configuration
         mlflow.log_param("logging_level", self._config.logging.level)
+
+        # MLflow configuration parameters
+        mlflow.log_param("mlflow_tracking_uri", self._config.mlflow.tracking_uri)
+        mlflow.log_param("mlflow_experiment_name", self._config.mlflow.experiment_name)
+        mlflow.log_param("mlflow_auto_log", self._config.mlflow.auto_log)
+        if self._config.mlflow.run_name:
+            mlflow.log_param("mlflow_run_name", self._config.mlflow.run_name)
 
     def _log_model_conditionally(self) -> None:
         """
@@ -815,19 +847,26 @@ class Orchestrator:
         """
         try:
             from mlflow.tracking import MlflowClient
+
             client = MlflowClient()
-            
+
             # Check if model is already registered
             try:
-                model_versions = client.search_model_versions(f"name='{self._config.model.name}'")
+                model_versions = client.search_model_versions(
+                    f"name='{self._config.model.name}'"
+                )
                 if model_versions:
-                    self._logger.info(f"Model '{self._config.model.name}' already registered with {len(model_versions)} version(s)")
-                    self._logger.info("Skipping model logging to avoid duplicate versions")
+                    self._logger.info(
+                        f"Model '{self._config.model.name}' already registered with {len(model_versions)} version(s)"
+                    )
+                    self._logger.info(
+                        "Skipping model logging to avoid duplicate versions"
+                    )
                     return
             except Exception:
                 # Model doesn't exist yet, proceed with logging
                 pass
-            
+
             # Log model only if not already registered
             self._logger.info(f"Logging new model: {self._config.model.name}")
             mlflow.pytorch.log_model(
@@ -835,8 +874,10 @@ class Orchestrator:
                 name="model",
                 registered_model_name=self._config.model.name,
             )
-            self._logger.info(f"Model '{self._config.model.name}' successfully logged to MLflow")
-            
+            self._logger.info(
+                f"Model '{self._config.model.name}' successfully logged to MLflow"
+            )
+
         except Exception as e:
             self._logger.warning(f"Failed to log model conditionally: {e}")
             self._logger.info("Proceeding without model logging")

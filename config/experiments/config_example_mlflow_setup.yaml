@@ -1,9 +1,8 @@
 experiment:
-  name: resnet50_integrated_grad          # Name of the experiment run
-  output_dir: results/resnet50_integrated_grad  # Directory where results will be  saved
+  name: example_mlflow_setup          # Name of the experiment run
+  output_dir: results/example_mlflow_setup  # Directory where results will be saved
   top_k: 10
   seed: 42                     # Random seed for reproducible results
-
 
 hardware:
   use_cuda: true                    # Whether to use CUDA for acceleration
@@ -26,14 +25,13 @@ data:
   augmentation:
     horizontal_flip: false          # Apply random horizontal flips during training
     random_crop: false              # Apply random crops during training
- # max_samples: 200                  # Maximum number of samples to process
-  batch_size: 32                # Number of samples per batch
-  max_batches: 300           # Limit number of batches processed (null for no limit)
-  num_workers: 4                    # Number of workers for data loading
-  pin_memory: true           # Whether to use pinned memory (recommended with CUDA)
+  batch_size: 8                     # Number of samples per batch (small for demo)
+  max_batches: 5                    # Limit number of batches processed (small for demo)
+  num_workers: 2                    # Number of workers for data loading
+  pin_memory: true                  # Whether to use pinned memory (recommended with CUDA)
 
 xai:
-  name: integrated_gradients
+  name: grad_cam
   use_defaults: true
   kwargs:
     {}
@@ -48,15 +46,20 @@ metric:
 visualization:
   save: true                        # Save visualizations of explanations
   show: false                       # Show visualizations during run
-  max_visualizations: 50            # Limit number of visualizations saved (null for no limit)
+  max_visualizations: 10            # Limit number of visualizations saved
 
 logging:
-  level: INFO                   # Logging level (e.g., DEBUG, INFO, WARNING)
+  level: INFO                       # Logging level (e.g., DEBUG, INFO, WARNING)
 
+# MLflow Configuration - Vollständige Beispiel-Konfiguration
 mlflow:
-  tracking_uri: "sqlite:///mlflow.db"
-  experiment_name: "xai_evaluation"
-  run_name: null  # Custom run name (null for auto-generated)
-  auto_log: true
-  artifact_location: null  # Optional: custom artifact location
-  tags: null  # Optional: custom tags for the run
+  tracking_uri: "sqlite:///mlflow.db"  # MLflow tracking URI (kann auch http://server:port sein)
+  experiment_name: "xai_evaluation_demo"  # Name des Experiments in MLflow
+  run_name: "demo_run_resnet50_gradcam"   # Benutzerdefinierter Run-Name (optional)
+  auto_log: true                          # Aktiviert automatisches Logging von PyTorch
+  artifact_location: null                 # Optional: Benutzerdefinierter Artifact-Speicherort
+  tags:                                   # Optional: Tags für bessere Organisation
+    project: "xai-eval-pipeline"
+    environment: "development" 
+    author: "your-name"
+    description: "Demo run to test MLflow integration"

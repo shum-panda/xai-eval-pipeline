@@ -1,0 +1,121 @@
+@startuml component_architecture_updated
+!theme plain
+title Komponentenarchitektur der XAI Pipeline - Aktualisiert
+
+package "Configuration Management" {
+  [Hydra Framework]
+  [YAML Config Files]
+  [MasterConfig Dataclass]
+}
+
+package "Data Layer" {
+  [ImageNet Dataset]
+  [Annotation XMLs]
+  [Label Mappings]
+  [DataLoader]
+  [Transforms]
+}
+
+package "Model Layer" {
+  [XAI Model Interface]
+  [Model Factory]
+  [Model Registry]
+  [PyTorch Hub Models]
+  [Custom Models]
+}
+
+package "XAI Methods Layer" {
+  [XAI Factory]
+  [Explainer Registry]
+  [GradCAM]
+}
+
+package "Evaluation Layer" {
+  [XAI Evaluator]
+  [Metric Calculator]
+  [Pointing Game]
+  [IoU Calculator]
+  [Coverage Analyzer]
+  [Statistical Tests]
+}
+
+package "Control & Orchestration" {
+  [XAI Orchestrator]
+  [Pipeline Controller]
+}
+
+package "Result Management" {
+  [Result Manager]
+  [JSON Exporter]
+  [CSV Exporter]
+  [MLflow Logger]
+  [Artifact Storage]
+}
+
+package "Visualization" {
+  [Visualiser]
+  [Heatmap Generator]
+  [Metric Plotter]
+  [Comparison Charts]
+}
+
+' Interfaces (dotted lines)
+[XAI Model Interface] ..> [PyTorch Hub Models]
+[XAI Model Interface] ..> [Custom Models]
+[XAI Factory] ..> [GradCAM]
+[XAI Factory] ..> [Integrated Gradients]
+[XAI Factory] ..> [Guided Backprop]
+[XAI Factory] ..> [LIME]
+[XAI Factory] ..> [SHAP]
+
+' Dependencies (solid lines)
+[Hydra Framework] --> [YAML Config Files]
+[Hydra Framework] --> [MasterConfig Dataclass]
+[MasterConfig Dataclass] --> [XAI Orchestrator]
+
+[XAI Orchestrator] --> [Model Factory]
+[XAI Orchestrator] --> [XAI Factory]
+[XAI Orchestrator] --> [DataLoader]
+[XAI Orchestrator] --> [XAI Evaluator]
+[XAI Orchestrator] --> [Result Manager]
+[XAI Orchestrator] --> [Visualiser]
+
+[Model Factory] --> [Model Registry]
+[XAI Factory] --> [Explainer Registry]
+
+[DataLoader] --> [ImageNet Dataset]
+[DataLoader] --> [Annotation XMLs]
+[DataLoader] --> [Transforms]
+
+[XAI Evaluator] --> [Metric Calculator]
+[Metric Calculator] --> [Pointing Game]
+[Metric Calculator] --> [IoU Calculator]
+[Metric Calculator] --> [Coverage Analyzer]
+
+[Result Manager] --> [JSON Exporter]
+[Result Manager] --> [CSV Exporter]
+[Result Manager] --> [MLflow Logger]
+
+[Visualiser] --> [Heatmap Generator]
+[Visualiser] --> [Metric Plotter]
+
+' Notes
+note top of "Configuration Management"
+  Hydra-basierte Konfiguration
+  ermöglicht flexible Experimente
+  ohne Code-Änderungen
+end note
+
+note bottom of "XAI Methods Layer"
+  Registry Pattern ermöglicht
+  einfaches Hinzufügen neuer
+  XAI-Methoden zur Laufzeit
+end note
+
+note right of "Control & Orchestration"
+  Zentrale Steuerungseinheit
+  koordiniert alle Module
+  und managed den Workflow
+end note
+
+@enduml

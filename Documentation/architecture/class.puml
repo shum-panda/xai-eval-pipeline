@@ -1,0 +1,278 @@
+@startuml class_diagram_complete
+!theme plain
+title XAI Pipeline - Vollständiges Klassendiagramm
+
+' Configuration Classes
+package "Configuration" {
+  class MasterConfig {
+    + experiment: ExperimentConfig
+    + model: ModelConfig
+    + xai: XAIConfig
+    + data: DataConfig
+    + evaluation: EvaluationConfig
+    + visualization: VisualizationConfig
+    + mlflow: MLflowConfig
+  }
+
+  class ExperimentConfig {
+    + name: str
+    + output_dir: str
+    + seed: int
+    + device: str
+  }
+
+  class ModelConfig {
+    + name: str
+    + pretrained: bool
+    + num_classes: int
+  }
+
+  class XAIConfig {
+    + name: str
+    + kwargs: Dict[str, Any]
+    + target_layer: Optional[str]
+  }
+}
+
+' Control Classes
+package "Control" {
+  class XAIOrchestrator {
+    - _config: MasterConfig
+    - _model_factory: XAIModelFactory
+    - _xai_factory: XAIFactory
+    - _model: XAIModel
+    - _pytorch_model: nn.Module
+    - _device: torch.device
+    - _evaluator: XAIEvaluator
+    - _result_manager: ResultManager
+    - _visualiser: Visualiser
+    - _mlflow_run: Optional[Run]
+    --
+    + __init__(config: MasterConfig)
+    + run(): void
+    + prepare_experiment(): void
+    + setup_dataloader(): DataLoader
+    + create_explainer(name: str, **kwargs): BaseExplainer
+    + run_pipeline(dataloader, explainer): List[XAIExplanationResult]
+    + evaluate_results(results): EvaluationSummary
+    + save_results(results, summary): void
+    + visualize_results_if_needed(results, summary): void
+    + finalize_run(): void
+  }
+}
+
+' Data Classes
+package "Data" {
+  class ImageNetValidationDataset {
+    - image_dir: Path
+    - annot_dir: Path
+    - label_map: Dict[int, int]
+    - transform: Transform
+    - image_files: List[str]
+    --
+    + __len__(): int
+    + __getitem__(idx): Dict
+    - _load_image(path): Image
+    - _load_bbox(xml_path): List[Dict]
+    - _parse_xml(xml_path): List[Tuple]
+  }
+
+  class XAIInputBatch {
+    + images: torch.Tensor
+    + labels: torch.Tensor
+    + bboxes: List[List[Dict]]
+    + image_paths: List[str]
+    + image_names: List[str]
+  }
+
+  class XAIExplanationResult {
+    + image_name: str
+    + image_path: Path
+    + predicted_class: int
+    + true_label: int
+    + confidence: float
+    + prediction_correct: bool
+    + attribution: torch.Tensor
+    + explainer_result: ExplainerResult
+    + explainer_name: str
+    + has_bbox: bool
+    + bbox_info: Optional[Dict]
+    + model_name: str
+    + processing_time: float
+  }
+}
+
+' Model Classes
+package "Models" {
+  interface XAIModel {
+    + get_pytorch_model(): nn.Module
+    + get_conv_layers(): List[str]
+    + get_layer_by_name(name: str): nn.Module
+    + get_model_info(): Dict
+  }
+
+  class XAIModelFactory {
+    + {static} create(name: str, **kwargs): XAIModel
+    + {static} list_available(): List[str]
+    + {static} get_registry_info(): Dict[str, str]
+  }
+
+  class PytorchHubModel implements XAIModel {
+    - model: nn.Module
+    - model_name: str
+    - pretrained: bool
+    - repo: str
+    --
+    + __init__(model_name: str, **kwargs)
+    + get_pytorch_model(): nn.Module
+    + get_conv_layers(): List[str]
+    + get_layer_by_name(name: str): nn.Module
+    + get_model_info(): Dict
+  }
+
+  class ModelRegistry <<Singleton>> {
+    - {static} _instance: ModelRegistry
+    - _registry: Dict[str, Type[XAIModel]]
+    --
+    + {static} get_instance(): ModelRegistry
+    + register(name: str, model_class: Type): void
+    + get(name: str): Type[XAIModel]
+    + list_available(): List[str]
+  }
+}
+
+' XAI Classes
+package "XAI Methods" {
+  abstract class BaseExplainer {
+    # model: nn.Module
+    # device: torch.device
+    --
+    + __init__(model: nn.Module)
+    + {abstract} explain(batch: XAIInputBatch): ExplainerResult
+    + set_model(model: nn.Module): void
+  }
+
+  class GradCAMExplainer extends BaseExplainer {
+    - grad_cam: LayerGradCam
+    - target_layer: nn.Module
+    - relu_attributions: bool
+    --
+    + __init__(model, target_layer, **kwargs)
+    + explain(batch): ExplainerResult
+    - _select_target_layer(model, layer_name): nn.Module
+  }
+
+  class IntegratedGradientsExplainer extends BaseExplainer {
+    - ig: IntegratedGradients
+    - steps: int
+    - baseline: Optional[torch.Tensor]
+    --
+    + __init__(model, steps=50, **kwargs)
+    + explain(batch): ExplainerResult
+  }
+
+  class XAIFactory {
+    + {static} create(name: str, model: nn.Module, **kwargs): BaseExplainer
+    + {static} list_available_explainers(): List[str]
+  }
+
+  class ExplainerRegistry <<Singleton>> {
+    - {static} _instance: ExplainerRegistry
+    - _registry: Dict[str, Type[BaseExplainer]]
+    --
+    + {static} get_instance(): ExplainerRegistry
+    + register(name: str, explainer_class: Type): void
+    + get(name: str): Type[BaseExplainer]
+  }
+}
+
+' Evaluation Classes
+package "Evaluation" {
+  class XAIEvaluator {
+    + evaluate_single(result: XAIExplanationResult): XAIMetrics
+    + evaluate_batch(results: List[XAIExplanationResult]): List[XAIMetrics]
+    + compute_summary(results: List[XAIExplanationResult], metrics: List[XAIMetrics]): EvaluationSummary
+    - _compute_pointing_game(attribution, bbox): bool
+    - _compute_iou(attribution, bbox, threshold): float
+    - _compute_coverage(attribution, bbox, percentile): float
+  }
+
+  class XAIMetrics {
+    + pointing_game_hit: bool
+    + iou_score: float
+    + coverage_score: float
+    + precision: float
+    + recall: float
+    + bbox_area: float
+    + attribution_area: float
+  }
+
+  class EvaluationSummary {
+    + explainer_name: str
+    + model_name: str
+    + total_samples: int
+    + samples_with_bbox: int
+    + prediction_accuracy: float
+    + pointing_game_score: float
+    + average_iou: float
+    + average_coverage: float
+    + average_precision: float
+    + average_recall: float
+    + average_processing_time: float
+    + evaluation_timestamp: str
+  }
+}
+
+' Result Management Classes
+package "Results" {
+  class ResultManager {
+    - output_dir: Path
+    --
+    + save_json(data: Any, filename: str): Path
+    + save_csv(data: List[Dict], filename: str): Path
+    + save_artifacts(artifacts: Dict[str, Any]): Dict[str, Path]
+    + log_to_mlflow(metrics: Dict, artifacts: List[Path]): void
+  }
+}
+
+' Visualization Classes
+package "Visualization" {
+  class Visualiser {
+    - show: bool
+    - save_path: Path
+    --
+    + __init__(show: bool, save_path: Path)
+    + create_visualization(result: XAIExplanationResult, metrics: Optional[XAIMetrics]): Path
+    + plot_metrics(summary: EvaluationSummary): Path
+    + create_comparison_chart(summaries: List[EvaluationSummary]): Path
+    - _create_heatmap_overlay(image, attribution): np.ndarray
+    - _add_bbox_overlay(image, bbox): np.ndarray
+  }
+}
+
+' Relationships
+MasterConfig *-- ExperimentConfig
+MasterConfig *-- ModelConfig
+MasterConfig *-- XAIConfig
+
+XAIOrchestrator *-- MasterConfig
+XAIOrchestrator *-- XAIModelFactory
+XAIOrchestrator *-- XAIFactory
+XAIOrchestrator *-- XAIModel
+XAIOrchestrator *-- XAIEvaluator
+XAIOrchestrator *-- ResultManager
+XAIOrchestrator *-- Visualiser
+
+XAIModelFactory ..> ModelRegistry : uses
+XAIModelFactory ..> XAIModel : creates
+ModelRegistry "1" *-- "*" XAIModel : registers
+
+XAIFactory ..> ExplainerRegistry : uses
+XAIFactory ..> BaseExplainer : creates
+ExplainerRegistry "1" *-- "*" BaseExplainer : registers
+
+ImageNetValidationDataset ..> XAIInputBatch : produces
+XAIOrchestrator ..> XAIExplanationResult : produces
+XAIEvaluator ..> XAIMetrics : produces
+XAIEvaluator ..> EvaluationSummary : produces
+@enduml

@@ -1,0 +1,109 @@
+@startuml ClassDiagram_Model_Factory_Core_Architecture
+!theme plain
+title Model Factory Architecture (Konsistent zur XAI Factory)
+
+package "Registry Pattern" {
+    class ModelRegistry <<Singleton>> {
+        - {static} _instance : ModelRegistry
+        - _registry : dict<str, Type[XAIModel]>
+        - _lock : threading.Lock
+        - logger : Logger
+        --
+        + {static} get_instance() : ModelRegistry
+        + register(name: str, model_class: Type[XAIModel]) : void
+        + get(name: str) : Type[XAIModel]
+        + list_available() : List[str]
+        + is_registered(name: str) : bool
+        + unregister(name: str) : void
+        + get_registry_info() : Dict[str, str]
+        - _register_builtin_models() : void
+    }
+}
+
+package "Factory Pattern" {
+    class XAIModelFactory {
+        + {static} create(name: str, **kwargs) : XAIModel
+        + {static} list_available() : List[str]
+        + {static} get_registry_info() : Dict[str, str]
+    }
+}
+
+package "Model Hierarchy" {
+    abstract class XAIModel {
+        # model_name : str
+        # logger : Logger
+        --
+        + __init__(model_name: str) : void
+        + {abstract} get_conv_layers() : List[str]
+        + {abstract} get_layer_by_name(layer_name: str) : Any
+        + {abstract} get_model_info() : dict
+        + {abstract} get_pytorch_model() : Any
+    }
+
+    class PytorchHubModel {
+        - model : torch.nn.Module
+        - pretrained : bool
+        - repo : str
+        --
+        + __init__(model_name: str, **kwargs) : void
+        + get_conv_layers() : List[str]
+        + get_layer_by_name(layer_name: str) : torch.nn.Module
+        + get_model_info() : dict
+        + get_pytorch_model() : torch.nn.Module
+        - _load_from_hub(model_name: str, **kwargs) : torch.nn.Module
+        - _setup_for_xai() : void
+    }
+
+    class CustomModel {
+        - model : torch.nn.Module
+        - config : dict
+        --
+        + __init__(model_name: str, model_class: Type, model_instance: Any, **kwargs) : void
+        + get_conv_layers() : List[str]
+        + get_layer_by_name(layer_name: str) : torch.nn.Module
+        + get_model_info() : dict
+        + get_pytorch_model() : torch.nn.Module
+        + load_weights(weights_path: str) : void
+        - _setup_for_xai() : void
+    }
+}
+
+' Relationships - Identical structure to XAI Factory
+XAIModelFactory --> ModelRegistry : uses
+XAIModelFactory ..> XAIModel : creates
+
+ModelRegistry "1" *-- "*" XAIModel : registers classes
+XAIModel <|-- PytorchHubModel
+XAIModel <|-- CustomModel
+
+' Auto-registration function
+class "_register_builtin_models()" as RegFunc {
+    + Registers common PyTorch Hub models
+    + Called automatically on module import
+}
+
+RegFunc ..> ModelRegistry : populates
+
+note right of XAIModelFactory : "USAGE (identical to XAI Factory pattern):\n\n// PyTorch Hub Models (auto-registered)\nmodel = XAIModelFactory.create('resnet50')\nmodel = XAIModelFactory.create('vgg16', pretrained=False)\n\n// Custom Models\nregistry = ModelRegistry.get_instance()\nregistry.register('my_net', CustomModel)\nmodel = XAIModelFactory.create('my_net', \n    model_class=MyNetClass, num_classes=10)\n\n// With existing model instance\nmy_model = MyNet()\nmodel = XAIModelFactory.create('my_net', \n    model_instance=my_model)\n\n// List available models\navailable = XAIModelFactory.list_available()"
+
+note left of ModelRegistry : "AUTO-REGISTERED PYTORCH HUB MODELS:\n\n• resnet18, resnet34, resnet50, resnet101, resnet152\n• vgg11, vgg13, vgg16, vgg19\n• densenet121, densenet169, densenet201\n• mobilenet_v2, mobilenet_v3_large\n• efficientnet_b0, efficientnet_b1, efficientnet_b2\n• alexnet, googlenet, inception_v3\n• squeezenet1_0, squeezenet1_1\n\nAll mapped to PytorchHubModel class"
+
+note bottom of XAIModel : "INTERFACE METHODS (from your existing PytorchModel):\n\n• get_conv_layers() - For GradCAM layer selection\n• get_layer_by_name() - For specific layer access\n• get_model_info() - Model metadata\n• get_pytorch_model() - Raw nn.Module for XAI libraries\n\nConsistent with your existing XAI requirements"
+
+note top of ModelRegistry : "SINGLETON PATTERN:\n\nSame as ExplainerRegistry\n• Thread-safe initialization\n• Global model registration\n• Consistent API across modules"
+
+' Styling
+skinparam class {
+    BackgroundColor<<Singleton>> LightCyan
+    BackgroundColor<<Factory>> LightBlue
+    BackgroundColor<<Model>> LightGreen
+    BackgroundColor<<Abstract>> LightYellow
+}
+
+class ModelRegistry <<Singleton>>
+class XAIModelFactory <<Factory>>
+class PytorchHubModel <<Model>>
+class CustomModel <<Model>>
+abstract class XAIModel <<Abstract>>
+
+@enduml
