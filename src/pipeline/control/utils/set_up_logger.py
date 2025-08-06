@@ -1,6 +1,6 @@
 import logging
 
-from pipeline.control.utils.config_dataclasses.logging_config import LoggingConfig
+from src.pipeline.control.utils.config_dataclasses.logging_config import LoggingConfig
 
 
 def setup_logger(logging_config: LoggingConfig) -> None:

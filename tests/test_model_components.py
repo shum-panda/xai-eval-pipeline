@@ -7,7 +7,9 @@ import torch
 import torch.nn as nn
 
 from src.pipeline.pipeline_moduls.models.implementation.custom_model import CustomModel
-from src.pipeline.pipeline_moduls.models.implementation.pytorch_hub_model import PytorchHubModel
+from src.pipeline.pipeline_moduls.models.implementation.pytorch_hub_model import (
+    PytorchHubModel,
+)
 from src.pipeline.pipeline_moduls.models.model_registry import ModelRegistry
 from src.pipeline.pipeline_moduls.models.xai_model_factory import XAIModelFactory
 
@@ -147,7 +149,9 @@ class TestCustomModel(unittest.TestCase):
 
 class TestXAIModelFactory(unittest.TestCase):
 
-    @patch("src.pipeline.pipeline_moduls.models.xai_model_factory.ModelRegistry.get_model")
+    @patch(
+        "src.pipeline.pipeline_moduls.models.xai_model_factory.ModelRegistry.get_model"
+    )
     def test_create_pytorch_hub_model(self, mock_get_model):
         mock_get_model.return_value = PytorchHubModel
 
@@ -164,7 +168,9 @@ class TestXAIModelFactory(unittest.TestCase):
             self.assertIsInstance(model, PytorchHubModel)
             self.assertEqual(model.model_name, "resnet18")
 
-    @patch("src.pipeline.pipeline_moduls.models.xai_model_factory.ModelRegistry.get_model")
+    @patch(
+        "src.pipeline.pipeline_moduls.models.xai_model_factory.ModelRegistry.get_model"
+    )
     def test_create_custom_model(self, mock_get_model):
         mock_get_model.return_value = CustomModel
 
@@ -183,7 +189,9 @@ class TestXAIModelFactory(unittest.TestCase):
             self.assertIsInstance(model, CustomModel)
             self.assertEqual(model.model_name, "my_custom_model")
 
-    @patch("src.pipeline.pipeline_moduls.models.xai_model_factory.ModelRegistry.get_model")
+    @patch(
+        "src.pipeline.pipeline_moduls.models.xai_model_factory.ModelRegistry.get_model"
+    )
     def test_unsupported_model_type(self, mock_get_model):
         mock_get_model.side_effect = KeyError("Model type not registered")
 

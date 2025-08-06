@@ -7,7 +7,9 @@ from src.pipeline.pipeline_moduls.evaluation.metrics.iou_metric import IoUMetric
 from src.pipeline.pipeline_moduls.evaluation.metrics.pixel_precision_recall import (
     PixelPrecisionRecall,
 )
-from src.pipeline.pipeline_moduls.evaluation.metrics.point_game_metric import PointGameMetric
+from src.pipeline.pipeline_moduls.evaluation.metrics.point_game_metric import (
+    PointGameMetric,
+)
 
 
 class TestIoUMetric(unittest.TestCase):

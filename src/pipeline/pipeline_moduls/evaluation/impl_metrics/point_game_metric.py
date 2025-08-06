@@ -3,8 +3,8 @@ from typing import Tuple
 import torch
 from torch import Tensor
 
-from src.pipeline_moduls.evaluation.base.metric_base import MetricBase
-from src.pipeline_moduls.evaluation.base.metric_registry import MetricRegistry
+from src.pipeline.pipeline_moduls.evaluation.base.metric_base import MetricBase
+from src.pipeline.pipeline_moduls.evaluation.base.metric_registry import MetricRegistry
 
 
 @MetricRegistry.register("point_game")

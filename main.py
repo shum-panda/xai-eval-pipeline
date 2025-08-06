@@ -1,8 +1,8 @@
 import hydra
 from omegaconf import OmegaConf
 
-from pipeline.control.orchestrator import Orchestrator
-from pipeline.control.utils import MasterConfig
+from src.pipeline.control.orchestrator import Orchestrator
+from src.pipeline.control.utils import MasterConfig
 
 
 @hydra.main(

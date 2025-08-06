@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from pipeline.utils import with_cuda_cleanup
+from src.pipeline.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline.pipeline_moduls.models.base.xai_model import XAIModel
 from src.pipeline.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline.pipeline_moduls.xai_methods.base.base_xai_config import BaseXAIConfig

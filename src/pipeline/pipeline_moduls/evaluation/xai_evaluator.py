@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from pipeline.utils import with_cuda_cleanup
+from src.pipeline.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
 )

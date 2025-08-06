@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms  # type: ignore
 from tqdm import tqdm
 
-import src.pipeline_moduls.evaluation.metrics  # noqa: F401
+import src.pipeline.pipeline_moduls.evaluation.impl_metrics  # noqa: F401
 from src.pipeline.control.utils.config_dataclasses.master_config import MasterConfig
 from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
@@ -39,7 +39,7 @@ from src.pipeline.pipeline_moduls.single_run_analyse.single_run_analysis import 
 from src.pipeline.pipeline_moduls.visualization.visualisation import Visualiser
 from src.pipeline.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
 from src.pipeline.pipeline_moduls.xai_methods.xai_factory import XAIFactory
-from src.pipeline.utils import with_cuda_cleanup
+from src.pipeline.utils.with_cuda_cleanup import with_cuda_cleanup
 
 
 class Orchestrator:
@@ -57,7 +57,7 @@ class Orchestrator:
             config (MasterConfig): Configuration object loaded via Hydra.
         """
 
-        project_root = Path(__file__).resolve().parents[2]
+        project_root = Path(__file__).resolve().parents[3]
         self._pipeline_status: str = "initialized"
         self._current_step: str = "none"
         self._pipeline_error: Optional[Exception] = None

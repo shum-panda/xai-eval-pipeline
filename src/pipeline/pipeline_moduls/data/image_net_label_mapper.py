@@ -17,7 +17,7 @@ class ImageNetLabelMapper:
         imagenet_class_index_file: Optional[Path] = None,
     ):
         if mapping_file is None:
-            project_root = Path(__file__).resolve().parents[3]
+            project_root = Path(__file__).resolve().parents[4]
             mapping_file = project_root / "data" / "raw" / "final_mapping.txt"
 
         if imagenet_class_index_file is None:

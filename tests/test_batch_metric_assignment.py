@@ -6,7 +6,9 @@ import torch
 from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
 )
-from src.pipeline.pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
+from src.pipeline.pipeline_moduls.evaluation.dataclass.metricresults import (
+    MetricResults,
+)
 from src.pipeline.pipeline_moduls.evaluation.xai_evaluator import XAIEvaluator
 
 

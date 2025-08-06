@@ -10,7 +10,7 @@ from src.pipeline.pipeline_moduls.xai_methods.base.base_xai_config import BaseXA
 from src.pipeline.pipeline_moduls.xai_methods.impl.guided_backprop.guided_backprop_config import (
     GuidedBackpropConfig,
 )
-from src.pipeline.utils import with_cuda_cleanup
+from src.pipeline.utils.with_cuda_cleanup import with_cuda_cleanup
 
 
 class GuidedBackpropExplainer(BaseExplainer):

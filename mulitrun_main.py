@@ -4,18 +4,19 @@ import traceback
 import torch
 from hydra import initialize, compose
 
-from pipeline.control.orchestrator import Orchestrator
+from src.pipeline.control.orchestrator import Orchestrator
 
 
 def cleanup_singletons():
     """Force cleanup of singleton instances between runs"""
     # Clear model factory singleton state
-    from src.pipeline_moduls.models.model_registry import ModelRegistry
+    from src.pipeline.pipeline_moduls.models.model_registry import ModelRegistry
     if ModelRegistry._instance is not None:
         ModelRegistry._instance._current_model = None
     
     # Clear explainer registry singleton state  
-    from src.pipeline_moduls.xai_methods.explainer_registry import ExplainerRegistry
+    from src.pipeline.pipeline_moduls.xai_methods.explainer_registry import (
+        ExplainerRegistry)
     if ExplainerRegistry._instance is not None:
         # Don't clear the registry itself, just ensure fresh factory instances
         pass
@@ -84,5 +85,5 @@ if __name__ == "__main__":
         "config_resnet18_grad_cam",
         "config_resnet34_grad_cam",
         "config_resnet50_guided_backprop",
-        "config_resnet50_integrated_gradient",
+        "config_resnet50_integrated_gradients",
     ])
