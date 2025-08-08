@@ -3,6 +3,7 @@ import traceback
 
 import torch
 from hydra import initialize, compose
+from omegaconf import OmegaConf
 
 from src.pipeline.control.orchestrator import Orchestrator
 
@@ -43,6 +44,11 @@ def run_multiple_configs(config_names: list[str]) -> None:
                     cleanup_singletons()
                 
                 cfg = compose(config_name=config_name)
+                
+                # Disable struct mode to allow missing fields
+                
+                OmegaConf.set_struct(cfg, False)
+                
                 print(f"   XAI Method: {cfg.xai.name}")
                 print(f"   Model: {cfg.model.name}")
                 print(f"   Output Dir: {cfg.experiment.output_dir}")

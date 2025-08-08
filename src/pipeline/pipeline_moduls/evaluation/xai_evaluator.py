@@ -7,7 +7,6 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from src.pipeline.utils.with_cuda_cleanup import with_cuda_cleanup
 from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
 )
@@ -21,6 +20,7 @@ from src.pipeline.pipeline_moduls.evaluation.dataclass.metricresults import (
     MetricResults,
 )
 from src.pipeline.pipeline_moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
+from src.pipeline.utils.with_cuda_cleanup import with_cuda_cleanup
 
 
 class XAIEvaluator:

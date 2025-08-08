@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms  # type: ignore
 from tqdm import tqdm
 
-import src.pipeline.pipeline_moduls.evaluation.impl_metrics  # noqa: F401
+import src.pipeline.pipeline_moduls.evaluation.metrics  # noqa: F401
 from src.pipeline.control.utils.config_dataclasses.master_config import MasterConfig
 from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
@@ -34,7 +34,7 @@ from src.pipeline.pipeline_moduls.models.base.xai_model import XAIModel
 from src.pipeline.pipeline_moduls.models.xai_model_factory import XAIModelFactory
 from src.pipeline.pipeline_moduls.resultmanager.result_manager import ResultManager
 from src.pipeline.pipeline_moduls.single_run_analyse.single_run_analysis import (
-    XaiMetaAnalysis,
+    SingleRunAnalyse,
 )
 from src.pipeline.pipeline_moduls.visualization.visualisation import Visualiser
 from src.pipeline.pipeline_moduls.xai_methods.base.base_explainer import BaseExplainer
@@ -539,10 +539,10 @@ class Orchestrator:
 
     def xai_meta_analyse(self):
         """
-        Run meta-analysis and store results locally and in MLflow.
+        Run simplified single-run analysis and store histograms and basic CSV data.
         Results are written to:
-            - results/<experiment>/meta_analysis/plots/
-            - results/<experiment>/meta_analysis/threshold_iou_score.csv
+            - results/<experiment>/meta_analysis/plots/ (histograms)
+            - results/<experiment>/meta_analysis/data/ (CSV files)
         """
         output_dir = Path(self._config.experiment.output_dir)
         csv_path = output_dir / "results_with_metrics.csv"
@@ -552,40 +552,69 @@ class Orchestrator:
             return
 
         df = pd.read_csv(csv_path)
-        analysis = XaiMetaAnalysis(df)
+        analysis = SingleRunAnalyse(df)
 
         meta_dir = output_dir / "meta_analysis"
-        plot_dir = meta_dir / "plots"
+        plot_dir = meta_dir / "plots" 
+        data_dir = meta_dir / "data"
         plot_dir.mkdir(parents=True, exist_ok=True)
+        data_dir.mkdir(parents=True, exist_ok=True)
 
-        # Korrelationen berechnen & loggen
+        self._logger.info("Starting single-run analysis...")
+
+        # 1. IoU histograms by correctness
+        self._logger.info("Creating IoU histograms...")
+        try:
+            iou_plots = analysis.plot_iou_histograms_by_correctness(data_dir)
+            for plot_name, plot_path in iou_plots.items():
+                mlflow.log_artifact(str(plot_path), artifact_path="meta_analysis/plots")
+            self._logger.info(f"Created {len(iou_plots)} IoU histogram plots")
+        except Exception as e:
+            self._logger.warning(f"IoU histograms failed: {e}")
+
+        # 2. Other metric histograms
+        self._logger.info("Creating prediction correctness histograms...")
+        try:
+            other_plots = analysis.plot_prediction_correctness_histograms(data_dir)
+            for plot_name, plot_path in other_plots.items():
+                mlflow.log_artifact(str(plot_path), artifact_path="meta_analysis/plots")
+            self._logger.info(f"Created {len(other_plots)} prediction correctness histogram plots")
+        except Exception as e:
+            self._logger.warning(f"Prediction correctness histograms failed: {e}")
+
+        # 3. Pixel Precision histograms
+        self._logger.info("Creating pixel precision histograms...")
+        try:
+            pixel_precision_plots = analysis.plot_pixel_precision_histograms_by_correctness(data_dir)
+            for plot_name, plot_path in pixel_precision_plots.items():
+                mlflow.log_artifact(str(plot_path), artifact_path="meta_analysis/plots")
+            self._logger.info(f"Created {len(pixel_precision_plots)} pixel precision histogram plots")
+        except Exception as e:
+            self._logger.warning(f"Pixel precision histograms failed: {e}")
+
+        # 4. Pixel Recall histograms
+        self._logger.info("Creating pixel recall histograms...")
+        try:
+            pixel_recall_plots = analysis.plot_pixel_recall_histograms_by_correctness(data_dir)
+            for plot_name, plot_path in pixel_recall_plots.items():
+                mlflow.log_artifact(str(plot_path), artifact_path="meta_analysis/plots")
+            self._logger.info(f"Created {len(pixel_recall_plots)} pixel recall histogram plots")
+        except Exception as e:
+            self._logger.warning(f"Pixel recall histograms failed: {e}")
+
+        # 5. Basic correlations (for simple_analyzer to use)
+        self._logger.info("Computing correlations...")
         corrs = analysis.correlation_with_correctness()
-        mlflow.log_metrics({f"corr_{k}": v for k, v in corrs.items()})
+        corr_df = pd.DataFrame(list(corrs.items()), columns=['metric', 'correlation_with_correctness'])
+        corr_csv_path = data_dir / "correlations.csv"
+        corr_df.to_csv(corr_csv_path, index=False)
+        mlflow.log_artifact(str(corr_csv_path), artifact_path="meta_analysis/data")
 
-        # Boxplots generieren und speichern
-        plots = analysis.plot_metric_vs_correctness()
-        for metric_name, fig in plots.items():
-            filename = f"{metric_name}_vs_correctness.png"
-            save_path = plot_dir / filename
-            fig.savefig(save_path)
-            plt.close(fig)
-            mlflow.log_artifact(str(save_path), artifact_path="meta_analysis/plots")
+        # Log all CSV data files from histograms
+        for data_file in data_dir.glob("*_histogram_data.csv"):
+            mlflow.log_artifact(str(data_file), artifact_path="meta_analysis/data")
 
-        # Threshold-Analyse
-        grouped, threshold_fig = analysis.threshold_analysis("iou")
-        threshold_img_path = plot_dir / "threshold_iou_score.png"
-        threshold_fig.savefig(threshold_img_path)
-        plt.close(threshold_fig)
-        mlflow.log_artifact(
-            str(threshold_img_path), artifact_path="meta_analysis/plots"
-        )
-
-        # Gruppierte Daten als CSV speichern & loggen
-        threshold_csv_path = meta_dir / "threshold_iou_score.csv"
-        grouped.to_csv(threshold_csv_path)
-        mlflow.log_artifact(str(threshold_csv_path), artifact_path="meta_analysis")
-
-        self._logger.info(f"Meta-Analyse gespeichert in {meta_dir.resolve()}")
+        self._logger.info(f"Single-run analysis completed - Results in: {meta_dir}")
 
     def visualize_results_if_needed(
         self, results: List[XAIExplanationResult], summary: EvaluationSummary
@@ -706,7 +735,7 @@ class Orchestrator:
             `ImageNetSample` and `explain_collate_fn`.
         """
         if project_root is None:
-            project_root = Path(__file__).resolve().parents[2]
+            project_root = Path(__file__).resolve().parents[3]
 
         image_dir = project_root / "data" / "extracted" / "validation_images"
         annot_dir = project_root / "data" / "extracted" / "bounding_boxes"
