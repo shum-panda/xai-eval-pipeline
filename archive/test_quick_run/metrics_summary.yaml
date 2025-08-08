@@ -1,0 +1,14 @@
+average_processing_time: 0.03490474820137024
+correct_predictions: 25
+evaluation_timestamp: '2025-08-06T13:00:55.354438'
+explainer_name: grad_cam
+metric_averages:
+  average_iou: 0.34001158515570806
+  average_pixelprecisionrecall_precision: 0.4938671339477204
+  average_pixelprecisionrecall_recall: 0.5953900708659088
+  average_point_game: 0.675
+model_name: resnet18
+prediction_accuracy: 0.625
+samples_with_bbox: 40
+total_processing_time: 1.3961899280548096
+total_samples: 40

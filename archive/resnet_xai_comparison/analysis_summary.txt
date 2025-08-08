@@ -1,0 +1,26 @@
+=== ANALYSIS SUMMARY: RESNET_XAI_METHODS ===
+Generated on: 2025-08-05 12:35:18
+
+[CHART] DATASET OVERVIEW:
+Total samples: 28,800
+Unique models: 1
+Unique explainers: 3
+Models: ['resnet50']
+Explainers: ['grad_cam', 'guided_backprop', 'integrated_gradients']
+
+[TARGET] ACCURACY OVERVIEW:
+  resnet50 + grad_cam: 0.755
+  resnet50 + guided_backprop: 0.755
+  resnet50 + integrated_gradients: 0.755
+
+[MEDAL] POINT GAME F1 SCORES:
+  resnet50 + grad_cam: F1=0.676, Precision=0.796, Recall=0.588
+  resnet50 + integrated_gradients: F1=0.652, Precision=0.804, Recall=0.548
+  resnet50 + guided_backprop: F1=0.679, Precision=0.798, Recall=0.591
+
+[TRENDING_UP] METRIC STATISTICS:
+  prediction_confidence: mean=0.787, std=0.253, min=0.056, max=1.000
+  point_game: mean=0.551, std=0.497, min=0.000, max=1.000
+  iou: mean=0.085, std=0.159, min=0.000, max=0.861
+  pixelprecisionrecall_precision: mean=0.416, std=0.386, min=0.000, max=1.000
+  pixelprecisionrecall_recall: mean=0.134, std=0.248, min=0.000, max=1.000

@@ -1,0 +1,32 @@
+XAI Meta Analysis Summary - 2025-08-04 18:22:48
+
+DATASETS ANALYZED:
+
+DATASET: RESNET_XAI_COMPARISON:
+   Samples: 28,800
+   Models: resnet50
+   Explainers: grad_cam, integrated_gradients, guided_backprop
+   Plots created: 6
+   Average F1 Score: 0.668
+
+DATASET: MODELS_GRADCAM_COMPARISON2:
+   Samples: 38,400
+   Models: resnet18, resnet34, resnet50, vgg16
+   Explainers: grad_cam
+   Plots created: 5
+   Average F1 Score: 0.666
+
+DATASET: VGG16_XAI_COMPARISON:
+   Samples: 9,760
+   Models: vgg16
+   Explainers: grad_cam, score_cam
+   Plots created: 6
+   Average F1 Score: 0.607
+
+OVERALL SUMMARY:
+   Total samples analyzed: 76,960
+   Unique models: 4 (resnet18, resnet34, resnet50, vgg16)
+   Unique explainers: 4 (grad_cam, guided_backprop, integrated_gradients, score_cam)
+   Datasets processed: 3
+
+Results saved to: C:\Users\rahman\PycharmProjects\xai-eval-pipeline\results\comprehensive_xai_meta_analysis

@@ -1,0 +1,3 @@
+model_name,explainer_name,accuracy
+vgg16,grad_cam,0.675
+vgg16,score_cam,0.66875

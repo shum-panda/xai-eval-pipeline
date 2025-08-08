@@ -1,0 +1,2 @@
+model_name,explainer_name,metric,correct_samples,incorrect_samples,correct_mean,correct_std,correct_median,incorrect_mean,incorrect_std,incorrect_median
+resnet18,grad_cam,point_game,25,15,0.8,0.408248290463863,1.0,0.4666666666666667,0.5163977794943222,0.0

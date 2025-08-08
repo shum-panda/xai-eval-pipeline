@@ -1,0 +1,2 @@
+model_name,explainer_name,correct_samples,incorrect_samples,correct_iou_mean,correct_iou_std,correct_iou_median,incorrect_iou_mean,incorrect_iou_std,incorrect_iou_median
+resnet18,grad_cam,25,15,0.42889520184429886,0.1778882959188551,0.4402481887956387,0.1918722240080565,0.1378331958972118,0.1881446039340776

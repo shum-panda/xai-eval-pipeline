@@ -1,0 +1,3 @@
+model_name,explainer_name,f1_score,precision,recall,true_positives,true_negatives,false_positives,false_negatives,total_samples,threshold_used
+vgg16,grad_cam,0.56133172138008,0.7689171974522293,0.44200351493848855,3018,1865,907,3810,9600,0.5
+vgg16,score_cam,0.6524064171122995,0.7625,0.5700934579439252,61,34,19,46,160,0.5

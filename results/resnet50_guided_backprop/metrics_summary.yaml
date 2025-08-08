@@ -1,0 +1,14 @@
+average_processing_time: 0.018607076729337375
+correct_predictions: 7245
+evaluation_timestamp: '2025-08-06T13:20:13.655480'
+explainer_name: guided_backprop
+metric_averages:
+  average_iou: 0.0003912445157932231
+  average_pixelprecisionrecall_precision: 0.2632874644688242
+  average_pixelprecisionrecall_recall: 0.00039224847278495565
+  average_point_game: 0.5662764947801329
+model_name: resnet50
+prediction_accuracy: 0.7546875
+samples_with_bbox: 9600
+total_processing_time: 178.6279366016388
+total_samples: 9600

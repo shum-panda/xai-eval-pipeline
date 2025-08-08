@@ -1,0 +1,2 @@
+model_name,explainer_name,f1_score,precision,recall,true_positives,true_negatives,false_positives,false_negatives,total_samples,threshold_used
+resnet18,grad_cam,0.7692307692307693,0.7407407407407407,0.8,20,8,7,5,40,0.5

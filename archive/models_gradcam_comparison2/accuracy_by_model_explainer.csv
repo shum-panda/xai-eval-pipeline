@@ -1,0 +1,5 @@
+model_name,explainer_name,accuracy
+resnet18,grad_cam,0.7244791666666667
+resnet34,grad_cam,0.7244791666666667
+resnet50,grad_cam,0.7546875
+vgg16,grad_cam,0.71125

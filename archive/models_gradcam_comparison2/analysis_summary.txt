@@ -1,0 +1,22 @@
+=== ANALYSIS SUMMARY: MODELS_GRADCAM ===
+Generated on: 2025-08-04 02:54:51
+
+[CHART] DATASET OVERVIEW:
+Total samples: 38,400
+Unique models: 4
+Unique explainers: 1
+Models: ['resnet18', 'resnet34', 'resnet50', 'vgg16']
+Explainers: ['grad_cam']
+
+[TARGET] ACCURACY OVERVIEW:
+  resnet18 + grad_cam: 0.724
+  resnet34 + grad_cam: 0.724
+  resnet50 + grad_cam: 0.755
+  vgg16 + grad_cam: 0.711
+
+[TRENDING_UP] METRIC STATISTICS:
+  prediction_confidence: mean=0.758, std=0.264, min=0.037, max=1.000
+  point_game: mean=0.557, std=0.497, min=0.000, max=1.000
+  iou: mean=0.193, std=0.206, min=0.000, max=0.896
+  pixelprecisionrecall_precision: mean=0.371, std=0.368, min=0.000, max=1.000
+  pixelprecisionrecall_recall: mean=0.306, std=0.315, min=0.000, max=1.000

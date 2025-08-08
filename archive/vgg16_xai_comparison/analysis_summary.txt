@@ -1,0 +1,24 @@
+=== ANALYSIS SUMMARY: VGG16_XAI_METHODS ===
+Generated on: 2025-08-05 12:38:10
+
+[CHART] DATASET OVERVIEW:
+Total samples: 320
+Unique models: 1
+Unique explainers: 2
+Models: ['vgg16']
+Explainers: ['grad_cam', 'score_cam']
+
+[TARGET] ACCURACY OVERVIEW:
+  vgg16 + grad_cam: 0.675
+  vgg16 + score_cam: 0.669
+
+[MEDAL] POINT GAME F1 SCORES:
+  vgg16 + grad_cam: F1=0.592, Precision=0.746, Recall=0.491
+  vgg16 + score_cam: F1=0.652, Precision=0.762, Recall=0.570
+
+[TRENDING_UP] METRIC STATISTICS:
+  prediction_confidence: mean=0.748, std=0.263, min=0.089, max=1.000
+  iou: mean=0.109, std=0.159, min=0.000, max=0.744
+  point_game: mean=0.472, std=0.500, min=0.000, max=1.000
+  pixelprecisionrecall_precision: mean=0.247, std=0.342, min=0.000, max=1.000
+  pixelprecisionrecall_recall: mean=0.162, std=0.231, min=0.000, max=1.000

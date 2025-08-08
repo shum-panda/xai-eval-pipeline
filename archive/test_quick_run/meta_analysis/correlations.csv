@@ -1,0 +1,4 @@
+metric,correlation_with_correctness
+iou,0.5825234410859907
+point_game,0.344540929414468
+prediction_confidence,0.6795870516720831

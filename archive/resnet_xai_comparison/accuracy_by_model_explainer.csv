@@ -1,0 +1,4 @@
+model_name,explainer_name,accuracy
+resnet50,grad_cam,0.7546875
+resnet50,guided_backprop,0.7546875
+resnet50,integrated_gradients,0.7546875
