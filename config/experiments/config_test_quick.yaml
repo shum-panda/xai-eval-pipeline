@@ -1,0 +1,68 @@
+experiment:
+  name: test_quick_run                    # Name of the experiment run
+  output_dir: results/test_quick_run      # Directory where results will be saved
+  top_k: 5
+  seed: 42                               # Random seed for reproducible results
+
+hardware:
+  use_cuda: true                         # Whether to use CUDA for acceleration
+  device: cuda:0                         # Device to use (e.g., cuda:0, cpu)
+
+model:
+  name: resnet18                         # Smaller model for faster testing
+  pretrained: true                       # Load pretrained weights
+  weights_path: null                     # Path to custom weights file (null to skip)
+  transform: true
+
+data:
+  dataset_name: imagenet_val             # Name of the dataset (used for logging only)
+  dataset_path: data/extracted/validation_images  # Path to images
+  annotation_path: data/extracted/bounding_boxes  # Path to bounding box annotations
+  label_file: data/ILSVRC2012_validation_ground_truth.txt  # Path to ground truth labels
+  shuffle: false                         # Shuffle data order during loading
+  resize: [224, 224]                     # Resize images to this size (width, height)
+  normalize: true                        # Apply normalization to images
+  augmentation:
+    horizontal_flip: false               # Apply random horizontal flips during training
+    random_crop: false                   # Apply random crops during training
+  batch_size: 8                          # Small batch size for quick testing
+  max_batches: 5                         # Only process 5 batches for quick test
+  num_workers: 2                         # Fewer workers for testing
+  pin_memory: true                       # Whether to use pinned memory (recommended with CUDA)
+
+xai:
+  name: grad_cam                         # Fast XAI method for testing
+  use_defaults: true
+  kwargs:
+    {}
+
+metric:
+  kwargs:
+    {
+      "iou": { "threshold": 0.3 },
+      "pixel_precision_recall": { "threshold": 0.3 }
+    }
+
+visualization:
+  save: true                             # Save visualizations of explanations
+  show: false                            # Show visualizations during run
+  max_visualizations: 5                  # Only save a few visualizations for testing
+
+logging:
+  level: DEBUG                           # More verbose logging for testing
+
+mlflow:
+  tracking_uri: "sqlite:///mlflow.db"
+  experiment_name: "xai_evaluation_test"
+  run_name: "QuickTest_ResNet18_GradCAM_Run"  # Custom run name
+  auto_log: true
+  artifact_location: null                # Optional: custom artifact location
+  tags:
+    model_family: "resnet"
+    xai_method: "grad_cam"
+    dataset: "imagenet_val"
+    purpose: "quick_test"
+    batch_size: "8"
+    framework: "pytorch"
+    max_batches: "5"
+    test_run: "true"

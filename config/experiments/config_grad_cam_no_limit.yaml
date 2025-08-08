@@ -56,4 +56,13 @@ logging:
 mlflow:
   tracking_uri: "sqlite:///mlflow.db"
   experiment_name: "xai_evaluation"
+  run_name: "ResNet50_GradCAM_NoLimit_Run"  # Custom run name (null for auto-generated)
   auto_log: true
+  artifact_location: null  # Optional: custom artifact location
+  tags:  # Custom tags for better MLflow organization
+    model_family: "resnet"
+    xai_method: "grad_cam"
+    dataset: "imagenet_val"
+    purpose: "no_limit_test"
+    batch_size: "32"
+    framework: "pytorch"

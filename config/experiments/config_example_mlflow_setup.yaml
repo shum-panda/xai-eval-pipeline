@@ -55,10 +55,16 @@ logging:
 mlflow:
   tracking_uri: "sqlite:///mlflow.db"  # MLflow tracking URI (kann auch http://server:port sein)
   experiment_name: "xai_evaluation_demo"  # Name des Experiments in MLflow
-  run_name: "demo_run_resnet50_gradcam"   # Benutzerdefinierter Run-Name (optional)
+  run_name: "ResNet50_GradCAM_Demo_Run"   # Benutzerdefinierter Run-Name (optional)
   auto_log: true                          # Aktiviert automatisches Logging von PyTorch
   artifact_location: null                 # Optional: Benutzerdefinierter Artifact-Speicherort
-  tags:                                   # Optional: Tags für bessere Organisation
+  tags:                                   # Custom tags for better MLflow organization
+    model_family: "resnet"
+    xai_method: "grad_cam"
+    dataset: "imagenet_val"
+    purpose: "demo"
+    batch_size: "8"
+    framework: "pytorch"
     project: "xai-eval-pipeline"
     environment: "development" 
     author: "your-name"

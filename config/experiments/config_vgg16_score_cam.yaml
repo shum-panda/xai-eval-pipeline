@@ -56,4 +56,13 @@ logging:
 mlflow:
   tracking_uri: "sqlite:///mlflow.db"
   experiment_name: "xai_evaluation"
+  run_name: "VGG16_ScoreCAM_Run"  # Custom run name (null for auto-generated)
   auto_log: true
+  artifact_location: null  # Optional: custom artifact location
+  tags:  # Custom tags for better MLflow organization
+    model_family: "vgg"
+    xai_method: "score_cam"
+    dataset: "imagenet_val"
+    purpose: "baseline"
+    batch_size: "16"
+    framework: "pytorch"

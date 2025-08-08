@@ -56,7 +56,13 @@ logging:
 mlflow:
   tracking_uri: "sqlite:///mlflow.db"
   experiment_name: "xai_evaluation"
-  run_name: null  # Custom run name (null for auto-generated)
+  run_name: "ResNet50_IntegratedGradients_Run"  # Custom run name (null for auto-generated)
   auto_log: true
   artifact_location: null  # Optional: custom artifact location
-  tags: null  # Optional: custom tags for the run
+  tags:  # Custom tags for better MLflow organization
+    model_family: "resnet"
+    xai_method: "integrated_gradients"
+    dataset: "imagenet_val"
+    purpose: "baseline"
+    batch_size: "32"
+    framework: "pytorch"
