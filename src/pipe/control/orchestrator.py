@@ -179,9 +179,9 @@ class Orchestrator:
             self._logger.info(f"Starting step: {self._current_step}")
             self.save_results(summary)
 
-            self._current_step = "meta analysis"
+            self._current_step = "single run analysis"
             self._logger.info(f"Starting step: {self._current_step}")
-            self.xai_meta_analyse()
+            self.xai_single_run_analyse()
 
             self._current_step = "visualization"
             self._logger.info(f"Starting step: {self._current_step}")
@@ -537,12 +537,12 @@ class Orchestrator:
             prediction_correct=prediction_correct,
         )
 
-    def xai_meta_analyse(self):
+    def xai_single_run_analyse(self):
         """
         Run simplified single-run analysis and store histograms and basic CSV data.
         Results are written to:
-            - results/<experiment>/meta_analysis/plots/ (histograms)
-            - results/<experiment>/meta_analysis/data/ (CSV files)
+            - results/<experiment>/single_run_analysis/plots/ (histograms)
+            - results/<experiment>/single_run_analysis/data/ (CSV files)
         """
         output_dir = Path(self._config.experiment.output_dir)
         csv_path = output_dir / "results_with_metrics.csv"
@@ -554,7 +554,7 @@ class Orchestrator:
         df = pd.read_csv(csv_path)
         analysis = SingleRunAnalyse(df)
 
-        meta_dir = output_dir / "meta_analysis"
+        meta_dir = output_dir / "single_run_analysis"
         plot_dir = meta_dir / "plots"
         data_dir = meta_dir / "data"
         plot_dir.mkdir(parents=True, exist_ok=True)
@@ -567,7 +567,7 @@ class Orchestrator:
         try:
             iou_plots = analysis.plot_iou_histograms_by_correctness(data_dir)
             for plot_name, plot_path in iou_plots.items():
-                mlflow.log_artifact(str(plot_path), artifact_path="meta_analysis/plots")
+                mlflow.log_artifact(str(plot_path), artifact_path="single_run_analysis/plots")
             self._logger.info(f"Created {len(iou_plots)} IoU histogram plots")
         except Exception as e:
             self._logger.warning(f"IoU histograms failed: {e}")
@@ -577,7 +577,7 @@ class Orchestrator:
         try:
             other_plots = analysis.plot_prediction_correctness_histograms(data_dir)
             for plot_name, plot_path in other_plots.items():
-                mlflow.log_artifact(str(plot_path), artifact_path="meta_analysis/plots")
+                mlflow.log_artifact(str(plot_path), artifact_path="single_run_analysis/plots")
             self._logger.info(
                 f"Created {len(other_plots)} prediction correctness histogram plots"
             )
@@ -591,7 +591,8 @@ class Orchestrator:
                 analysis.plot_pixel_precision_histograms_by_correctness(data_dir)
             )
             for plot_name, plot_path in pixel_precision_plots.items():
-                mlflow.log_artifact(str(plot_path), artifact_path="meta_analysis/plots")
+                mlflow.log_artifact(str(plot_path),
+                                    artifact_path="single_run_analsis/plots")
             self._logger.info(
                 f"Created {len(pixel_precision_plots)} pixel precision histogram plots"
             )
@@ -605,7 +606,8 @@ class Orchestrator:
                 data_dir
             )
             for plot_name, plot_path in pixel_recall_plots.items():
-                mlflow.log_artifact(str(plot_path), artifact_path="meta_analysis/plots")
+                mlflow.log_artifact(str(plot_path),
+                                    artifact_path="single_run_analysis/plots")
             self._logger.info(
                 f"Created {len(pixel_recall_plots)} pixel recall histogram plots"
             )
@@ -620,11 +622,11 @@ class Orchestrator:
         )
         corr_csv_path = data_dir / "correlations.csv"
         corr_df.to_csv(corr_csv_path, index=False)
-        mlflow.log_artifact(str(corr_csv_path), artifact_path="meta_analysis/data")
+        mlflow.log_artifact(str(corr_csv_path), artifact_path="single_run_analysis/data")
 
         # Log all CSV data files from histograms
         for data_file in data_dir.glob("*_histogram_data.csv"):
-            mlflow.log_artifact(str(data_file), artifact_path="meta_analysis/data")
+            mlflow.log_artifact(str(data_file), artifact_path="single_run_analysis/data")
 
         self._logger.info(f"Single-run analysis completed - Results in: {meta_dir}")
 
