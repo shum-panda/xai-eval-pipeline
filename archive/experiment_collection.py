@@ -203,7 +203,8 @@ class ExperimentCollection:
         is_method_comparison = unique_explainers > unique_models
 
         if is_method_comparison:
-            # Für Methodenvergleich: x-Achse = explainer_name, hue = model_name (falls mehrere)
+            # Für Methodenvergleich: x-Achse = explainer_name,
+            # hue = model_name (falls mehrere)
             x_var = "explainer_name"
             hue_var = "model_name" if unique_models > 1 else None
         else:

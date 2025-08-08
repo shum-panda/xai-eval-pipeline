@@ -1,4 +1,5 @@
 import logging
+import textwrap
 import warnings
 from pathlib import Path
 from typing import Dict
@@ -56,13 +57,10 @@ class AdvancedPlotter:
         # 3. Korrelations-Analysen
         plot_paths.update(self._create_correlation_plots())
 
-        # 4. Performance-Analysen
-        plot_paths.update(self._create_performance_plots())
-
-        # 5. Verteilungs-Analysen
+        # 4. Verteilungs-Analysen
         plot_paths.update(self._create_distribution_plots())
 
-        # 6. Erweiterte Analysen
+        # 5. Erweiterte Analysen
         plot_paths.update(self._create_advanced_plots())
 
         logger.info(f"Created {len(plot_paths)} plots in {self.save_dir}")
@@ -101,15 +99,6 @@ class AdvancedPlotter:
 
         return plots
 
-    def _create_performance_plots(self) -> Dict[str, Path]:
-        """Erstellt Performance-Analysen."""
-        plots = {}
-
-        # 1. Performance Comparison Dashboard (nur dieser ist implementiert)
-        plots["performance_dashboard"] = self._plot_performance_dashboard()
-
-        return plots
-
     def _create_distribution_plots(self) -> Dict[str, Path]:
         """Erstellt Verteilungs-Analysen."""
         plots = {}
@@ -139,6 +128,12 @@ class AdvancedPlotter:
                 self._plot_pixel_precision_distribution_histograms()
             )
 
+        # 4. Point Game Confusion Matrix Comparison
+        if "point_game" in self.available_metrics:
+            plots["point_game_confusion_comparison"] = (
+                self.plot_point_game_confusion_matrix_comparison()
+            )
+
         return plots
 
     def _plot_dataset_overview(self) -> Path:
@@ -155,11 +150,18 @@ class AdvancedPlotter:
         )
         pivot_counts = combo_counts.pivot(
             index="model_name", columns="explainer_name", values="count"
+        ).fillna(0).astype(int)
+
+        sns.heatmap(
+            pivot_counts, annot=True, fmt="d", cmap="Blues", ax=ax,
+            annot_kws={"fontsize": 16}, cbar_kws={"shrink": 0.8}
         )
-        # Sicherstellen dass alle Werte Integer ohne NaN sind
-        pivot_counts = pivot_counts.fillna(0).astype(int)
-        sns.heatmap(pivot_counts, annot=True, fmt="d", cmap="Blues", ax=ax)
-        ax.set_title("Sample Counts per Model/Explainer")
+        ax.set_title("Sample Counts per Model/Explainer", fontsize=16)
+        ax.tick_params(axis="both", labelsize=16)
+        ax.set_xlabel("Explainer", fontsize=16)
+        ax.set_ylabel("Model", fontsize=16)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=16)
+        ax.set_yticklabels(ax.get_yticklabels(), fontsize=16)
 
         # 2. Accuracy Distribution
         ax = axes[0, 1]
@@ -168,94 +170,117 @@ class AdvancedPlotter:
                 "prediction_correct"
             ].mean()
             accuracy_by_combo.plot(kind="bar", ax=ax, rot=45)
-            ax.set_title("Accuracy by Model/Explainer")
-            ax.set_ylabel("Accuracy")
+            ax.set_title("Accuracy by Model/Explainer", fontsize=16)
+            ax.set_ylabel("Accuracy", fontsize=16)
+            ax.set_xlabel("", fontsize=16)
+            ax.tick_params(axis="both", labelsize=16)
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right",
+                               fontsize=16)
         else:
             ax.text(
-                0.5,
-                0.5,
-                "No accuracy data",
-                ha="center",
-                va="center",
-                transform=ax.transAxes,
+                0.5, 0.5, "No accuracy data",
+                ha="center", va="center", transform=ax.transAxes, fontsize=16
             )
-            ax.set_title("Accuracy Data Not Available")
+            ax.set_title("Accuracy by Model/Explainer", fontsize=16)
+            ax.set_ylabel("Accuracy", fontsize=16)
+            ax.tick_params(axis="both", labelsize=16)
 
         # 3. Processing Time Distribution
         ax = axes[0, 2]
         if "processing_time" in self.df.columns:
-            self.df.boxplot(column="processing_time", by=["explainer_name"], ax=ax)
-            ax.set_title("Processing Time by Explainer")
-            ax.set_ylabel("Processing Time (s)")
+            # Farbschema definieren, z.B. mit Seaborn-Palette
+            palette = sns.color_palette("Set2",
+                                        n_colors=self.df["explainer_name"].nunique())
+            explainer_names = sorted(self.df["explainer_name"].unique())
+
+            # Boxplot mit seaborn (einfacher farbig)
+            sns.boxplot(
+                data=self.df,
+                x="explainer_name",
+                y="processing_time",
+                ax=ax,
+                palette=palette
+            )
+            ax.set_title("Processing Time by Explainer", fontsize=16)
+            ax.set_ylabel("Processing Time (s)", fontsize=16)
+            ax.set_xlabel("Explainer", fontsize=16)
+            ax.tick_params(axis="both", labelsize=16)
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right",
+                               fontsize=16)
         else:
             ax.text(
-                0.5,
-                0.5,
-                "No timing data",
-                ha="center",
-                va="center",
-                transform=ax.transAxes,
+                0.5, 0.5, "No timing data",
+                ha="center", va="center", transform=ax.transAxes, fontsize=16
             )
-            ax.set_title("Processing Time Not Available")
+            ax.set_title("Processing Time Not Available", fontsize=16)
 
         # 4. Metric Availability
         ax = axes[1, 0]
-        metric_availability = pd.DataFrame(
-            {
-                "Metric": self.available_metrics,
-                "Available": [self.df[m].notna().sum() for m in self.available_metrics],
-                "Missing": [self.df[m].isna().sum() for m in self.available_metrics],
-            }
-        )
+        metric_availability = pd.DataFrame({
+            "Metric": self.available_metrics,
+            "Available": [self.df[m].notna().sum() for m in self.available_metrics],
+            "Missing": [self.df[m].isna().sum() for m in self.available_metrics],
+        })
         metric_availability.set_index("Metric")[["Available", "Missing"]].plot(
             kind="bar", stacked=True, ax=ax
         )
-        ax.set_title("Metric Data Availability")
-        ax.set_ylabel("Number of Samples")
+        ax.set_title("Metric Data Availability", fontsize=16)
+        ax.set_ylabel("Number of Samples", fontsize=16)
+        ax.set_xlabel("Metric", fontsize=16)
+        ax.tick_params(axis="both", labelsize=16)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=16)
 
         # 5. Confidence Distribution
         ax = axes[1, 1]
         if "prediction_confidence" in self.df.columns:
             for explainer in self.df["explainer_name"].unique():
                 subset = self.df[self.df["explainer_name"] == explainer]
-                ax.hist(
-                    subset["prediction_confidence"], alpha=0.6, label=explainer, bins=20
-                )
-            ax.set_title("Prediction Confidence Distribution")
-            ax.set_xlabel("Confidence")
-            ax.legend()
+                ax.hist(subset["prediction_confidence"], alpha=0.6, label=explainer,
+                        bins=20)
+            ax.set_title("Prediction Confidence Distribution", fontsize=16)
+            ax.set_xlabel("Confidence", fontsize=16)
+            ax.set_ylabel("Count", fontsize=16)
+            ax.legend(fontsize=16)
+            ax.tick_params(axis="both", labelsize=16)
         else:
             ax.text(
-                0.5,
-                0.5,
-                "No confidence data",
-                ha="center",
-                va="center",
-                transform=ax.transAxes,
+                0.5, 0.5, "No confidence data",
+                ha="center", va="center", transform=ax.transAxes, fontsize=16
             )
-            ax.set_title("Confidence Data Not Available")
+            ax.set_title("Confidence Data Not Available", fontsize=16)
 
         # 6. Summary Statistics
-        ax = axes[1, 2]
-        ax.axis("off")
         summary_text = f"""
         Dataset Summary:
-        
+
         Total Samples: {len(self.df):,}
         Models: {self.df['model_name'].nunique()}
         Explainers: {self.df['explainer_name'].nunique()}
         Available Metrics: {len(self.available_metrics)}
-        
+
         Models: {', '.join(self.df['model_name'].unique())}
-        
+
         Explainers: {', '.join(self.df['explainer_name'].unique())}
         """
+
+        # Absatzzeilen einzeln umbrechen
+        wrapped_lines = []
+        for line in summary_text.strip().split("\n"):
+            if line.strip() == "":
+                wrapped_lines.append("")  # Leerzeile bleibt erhalten
+            else:
+                wrapped_lines.extend(textwrap.wrap(line.strip(), width=50))
+
+        # Wieder zusammensetzen
+        wrapped_text = "\n".join(wrapped_lines)
+
+        # Text anzeigen
+        ax = axes[1, 2]
+        ax.axis("off")
         ax.text(
-            0.1,
-            0.9,
-            summary_text,
+            0.01, 0.99, wrapped_text,
             transform=ax.transAxes,
-            fontsize=10,
+            fontsize=16,
             verticalalignment="top",
             fontfamily="monospace",
         )
@@ -295,7 +320,7 @@ class AdvancedPlotter:
                 cbar_kws={"label": "Accuracy"},
             )
             ax.set_title(
-                "Model-Explainer Accuracy Heatmap", fontsize=14, fontweight="bold"
+                "Model-Explainer Accuracy Heatmap", fontsize=16, fontweight="bold"
             )
             ax.set_xlabel("Explainer Method")
             ax.set_ylabel("Model")
@@ -349,11 +374,28 @@ class AdvancedPlotter:
             values = []
             for metric in self.available_metrics:
                 if metric in subset.columns:
-                    mean_val = subset[metric].mean()
-                    # Normalisiere auf 0-1 Bereich
-                    max_val = self.df[metric].max() if self.df[metric].max() > 0 else 1
-                    normalized_val = mean_val / max_val
-                    values.append(normalized_val)
+                    if metric == "point_game":
+                        # Calculate F1 score for point game if prediction_correct exists
+                        if "prediction_correct" in subset.columns:
+                            from sklearn.metrics import f1_score
+                            y_true = subset["prediction_correct"].fillna(False).astype(int)
+                            y_pred = (subset["point_game"] >= 0.5).astype(int)
+                            if len(np.unique(y_true)) > 1 and len(np.unique(y_pred)) > 1:
+                                f1 = f1_score(y_true, y_pred)
+                                values.append(f1)
+                            else:
+                                values.append(0)
+                        else:
+                            mean_val = subset[metric].mean()
+                            max_val = self.df[metric].max() if self.df[metric].max() > 0 else 1
+                            normalized_val = mean_val / max_val
+                            values.append(normalized_val)
+                    else:
+                        mean_val = subset[metric].mean()
+                        # Normalisiere auf 0-1 Bereich
+                        max_val = self.df[metric].max() if self.df[metric].max() > 0 else 1
+                        normalized_val = mean_val / max_val
+                        values.append(normalized_val)
                 else:
                     values.append(0)
 
@@ -375,6 +417,8 @@ class AdvancedPlotter:
                 return "pixel\nprecision"
             elif metric == "pixelprecisionrecall_recall":
                 return "pixel\nrecall"
+            elif metric == "point_game":
+                return "point game F1 Score"
             else:
                 return metric.replace("_", "\n")
 
@@ -432,7 +476,8 @@ class AdvancedPlotter:
                     kind="bar", ax=ax, width=0.7, figsize=(14, 8)
                 )
                 ax.set_title(
-                    "Average Metric Performance by Model-Explainer (Excluding Point Game)",
+                    "Average Metric Performance by Model-Explainer (Excluding Point "
+                    "Game)",
                     fontsize=14,
                     fontweight="bold",
                 )
@@ -848,10 +893,8 @@ class AdvancedPlotter:
             ]
 
             # Split data by prediction correctness
-            correct_data = combo_data[combo_data["prediction_correct"] == True]["iou"]
-            incorrect_data = combo_data[combo_data["prediction_correct"] == False][
-                "iou"
-            ]
+            correct_data = combo_data[combo_data["prediction_correct"]]["iou"]
+            incorrect_data = combo_data[~combo_data["prediction_correct"]]["iou"]
 
             ax = axes[idx]
 
@@ -892,7 +935,8 @@ class AdvancedPlotter:
             # Create title with model, method and statistics
             title_lines = [
                 f"{model} + {explainer}",
-                f"IoU: Correct μ={correct_mean:.3f}±{correct_std:.3f}, Incorrect μ={incorrect_mean:.3f}±{incorrect_std:.3f}",
+                f"IoU: Correct μ={correct_mean:.3f}±{correct_std:.3f}, Incorrect μ"
+                f"={incorrect_mean:.3f}±{incorrect_std:.3f}",
             ]
             ax.set_title("\n".join(title_lines), fontsize=12, fontweight="bold")
 
@@ -941,7 +985,8 @@ class AdvancedPlotter:
             axes = axes.flatten()
 
         fig.suptitle(
-            "Pixel Precision Distribution per Model-Method: Correctly vs Incorrectly Classified",
+            "Pixel Precision Distribution per Model-Method: Correctly vs"
+            "Incorrectly Classified",
             fontsize=16,
             fontweight="bold",
         )
@@ -963,10 +1008,10 @@ class AdvancedPlotter:
             ]
 
             # Split data by prediction correctness
-            correct_data = combo_data[combo_data["prediction_correct"] == True][
+            correct_data = combo_data[combo_data["prediction_correct"]][
                 "pixelprecisionrecall_precision"
             ]
-            incorrect_data = combo_data[combo_data["prediction_correct"] == False][
+            incorrect_data = combo_data[~combo_data["prediction_correct"]][
                 "pixelprecisionrecall_precision"
             ]
 
@@ -1009,7 +1054,8 @@ class AdvancedPlotter:
             # Create title with model, method and statistics
             title_lines = [
                 f"{model} + {explainer}",
-                f"Pixel Precision: Correct μ={correct_mean:.3f}±{correct_std:.3f}, Incorrect μ={incorrect_mean:.3f}±{incorrect_std:.3f}",
+                f"Pixel Precision: Correct μ={correct_mean:.3f}±{correct_std:.3f}, "
+                f"Incorrect μ={incorrect_mean:.3f}±{incorrect_std:.3f}",
             ]
             ax.set_title("\n".join(title_lines), fontsize=12, fontweight="bold")
 
@@ -1028,6 +1074,198 @@ class AdvancedPlotter:
         plt.tight_layout()
         save_path = self.save_dir / "pixel_precision_distribution_histograms.png"
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.close()
+
+        return save_path
+
+    def plot_point_game_confusion_matrix_comparison(self) -> Path:
+        """
+        Erstellt Vergleichsplots für Point Game Confusion Matrices
+        aller Modell-Methoden-Kombinationen.
+
+        Returns:
+            Path: Pfad zum gespeicherten Vergleichsplot
+        """
+        if "point_game" not in self.available_metrics or "prediction_correct" not in self.df.columns:
+            # Create empty plot with message
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.text(0.5, 0.5, "Point Game data or prediction correctness not available",
+                   ha="center", va="center", transform=ax.transAxes, fontsize=14)
+            ax.set_title("Point Game Confusion Matrix Comparison - Data Not Available")
+            save_path = self.save_dir / "point_game_confusion_matrix_comparison.png"
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+            plt.close()
+            return save_path
+
+        # Get unique combinations of model and explainer
+        model_explainer_combinations = (
+            self.df.groupby(["model_name", "explainer_name"]).size().reset_index()
+        )
+        n_combinations = len(model_explainer_combinations)
+
+        if n_combinations == 0:
+            # Create empty plot
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.text(0.5, 0.5, "No model-explainer combinations found",
+                   ha="center", va="center", transform=ax.transAxes, fontsize=14)
+            ax.set_title("Point Game Confusion Matrix Comparison - No Data")
+            save_path = self.save_dir / "point_game_confusion_matrix_comparison.png"
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+            plt.close()
+            return save_path
+
+        # Calculate grid layout
+        n_cols = min(3, n_combinations)
+        n_rows = (n_combinations + n_cols - 1) // n_cols
+
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows))
+
+        # Handle single subplot case
+        if n_combinations == 1:
+            axes = [axes]
+        elif n_rows == 1:
+            axes = [axes] if n_cols == 1 else axes
+        else:
+            axes = axes.flatten()
+
+        fig.suptitle(
+            "Point Game Confusion Matrix Comparison: All Model-Method Combinations",
+            fontsize=16,
+            fontweight="bold",
+            y=0.98
+        )
+
+        # Store confusion matrix data
+        comparison_data = []
+        threshold = 0.5
+
+        for idx, (_, row) in enumerate(model_explainer_combinations.iterrows()):
+            if idx >= len(axes):
+                break
+
+            model = row["model_name"]
+            explainer = row["explainer_name"]
+
+            # Filter data for this specific model-explainer combination
+            combo_data = self.df[
+                (self.df["model_name"] == model)
+                & (self.df["explainer_name"] == explainer)
+            ]
+
+            if len(combo_data) == 0:
+                continue
+
+            ax = axes[idx]
+
+            # Convert point game to binary (hit=1, miss=0)
+            y_true = combo_data["prediction_correct"].astype(int)
+            y_pred_point_game = (combo_data["point_game"] >= threshold).astype(int)
+
+            # Create confusion matrix
+            from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+            conf_matrix = confusion_matrix(y_true, y_pred_point_game)
+
+            # Create heatmap using seaborn for consistency
+            sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', ax=ax,
+                       xticklabels=['Miss', 'Hit'],
+                       yticklabels=['Incorrect', 'Correct'],
+                       cbar_kws={'label': 'Count'})
+
+            ax.set_ylabel('Prediction Correctness')
+            ax.set_xlabel('Point Game Result')
+            ax.set_title(f'{model} + {explainer}', fontweight='bold', fontsize=12)
+
+            # Calculate metrics
+            tn, fp, fn, tp = conf_matrix.ravel()
+            accuracy = (tp + tn) / (tp + tn + fp + fn) if (tp + tn + fp + fn) > 0 else 0
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+            # Add metrics text
+            metrics_text = f'Acc: {accuracy:.3f}\nPrec: {precision:.3f}\nRec: {recall:.3f}\nF1: {f1:.3f}'
+            ax.text(0.02, 0.98, metrics_text, transform=ax.transAxes, fontsize=9,
+                   verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+
+            # Store comparison data
+            comparison_data.append({
+                'model_name': model,
+                'explainer_name': explainer,
+                'accuracy': accuracy,
+                'precision': precision,
+                'recall': recall,
+                'f1_score': f1,
+                'true_negatives': int(tn),
+                'false_positives': int(fp),
+                'false_negatives': int(fn),
+                'true_positives': int(tp),
+                'total_samples': len(combo_data)
+            })
+
+        # Hide unused subplots
+        for idx in range(n_combinations, len(axes)):
+            axes[idx].set_visible(False)
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        save_path = self.save_dir / "point_game_confusion_matrix_comparison.png"
+        plt.savefig(save_path, dpi=300, bbox_inches="tight", facecolor='white')
+        plt.close()
+
+        # Save comparison data as CSV
+        if comparison_data:
+            comparison_df = pd.DataFrame(comparison_data)
+            comparison_csv_path = self.save_dir / "point_game_confusion_matrix_comparison_data.csv"
+            comparison_df.to_csv(comparison_csv_path, index=False)
+
+            # Create summary heatmap for F1 scores
+            if len(comparison_data) > 1:
+                self._create_f1_heatmap_comparison(comparison_df)
+
+        return save_path
+
+    def _create_f1_heatmap_comparison(self, comparison_df: pd.DataFrame) -> Path:
+        """
+        Erstellt eine Heatmap der F1-Scores für Point Game über alle Kombinationen.
+
+        Args:
+            comparison_df: DataFrame mit Confusion Matrix Vergleichsdaten
+
+        Returns:
+            Path zum gespeicherten Heatmap-Plot
+        """
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Create pivot table for heatmap
+        pivot_data = comparison_df.pivot(
+            index="model_name", 
+            columns="explainer_name", 
+            values="f1_score"
+        )
+
+        # Create heatmap
+        sns.heatmap(
+            pivot_data,
+            annot=True,
+            fmt=".3f",
+            cmap="RdYlGn",
+            ax=ax,
+            cbar_kws={"label": "F1 Score"},
+            center=0.5,
+            vmin=0,
+            vmax=1
+        )
+
+        ax.set_title(
+            "Point Game Performance Comparison: F1 Scores by Model and Method",
+            fontsize=14,
+            fontweight="bold"
+        )
+        ax.set_xlabel("XAI Method")
+        ax.set_ylabel("Model")
+
+        plt.tight_layout()
+        save_path = self.save_dir / "point_game_f1_score_heatmap_comparison.png"
+        plt.savefig(save_path, dpi=300, bbox_inches="tight", facecolor='white')
         plt.close()
 
         return save_path

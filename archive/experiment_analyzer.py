@@ -100,7 +100,8 @@ class ExperimentAnalyzer:
         Extrahiert Modell und Explainer aus Config-Namen.
 
         Args:
-            config_name: Config-Name wie "config_resnet50_grad_cam" oder "config_vgg16_score_cam"
+            config_name: Config-Name wie "config_resnet50_grad_cam" oder
+            "config_vgg16_score_cam"
 
         Returns:
             Tuple (model_name, explainer_name)
@@ -365,7 +366,8 @@ class ExperimentAnalyzer:
             if len(explainer_data) > min_samples:
                 sampled_data = explainer_data.sample(n=min_samples, random_state=42)
                 self.logger.info(
-                    f"Reduced {explainer_name} from {len(explainer_data)} to {len(sampled_data)} samples"
+                    f"Reduced {explainer_name} from {len(explainer_data)} to "
+                    f"{ len(sampled_data)} samples"
                 )
             else:
                 sampled_data = explainer_data
