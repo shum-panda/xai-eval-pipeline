@@ -9,16 +9,16 @@ import numpy as np
 import torch
 from PIL import Image
 
-from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
+from src.pipe.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
 )
-from src.pipeline.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
+from src.pipe.moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
 )
-from src.pipeline.pipeline_moduls.evaluation.dataclass.metricresults import (
+from src.pipe.moduls.evaluation.dataclass.metricresults import (
     MetricResults,
 )
-from src.pipeline.pipeline_moduls.visualization.visualisation import Visualiser
+from src.pipe.moduls.visualization.visualisation import Visualiser
 
 
 class TestVisualiser(unittest.TestCase):
@@ -224,7 +224,7 @@ class TestVisualiser(unittest.TestCase):
         mock_text.assert_called_once()
 
         # Check that text contains expected information
-        #call_args = mock_text.call_args[1]
+        # call_args = mock_text.call_args[1]
         text_content = mock_text.call_args[0][2]  # Third positional argument
 
         self.assertIn("test_image.jpg", text_content)

@@ -10,15 +10,15 @@ from PIL import Image
 from sympy import false
 from torch.utils.data import DataLoader
 
-from src.pipeline.pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
-from src.pipeline.pipeline_moduls.data.dataclass.xai_input_batch import XAIInputBatch
-from src.pipeline.pipeline_moduls.data.image_net_val_dataset import (
+from src.pipe.moduls.data.dataclass.image_net_sample import ImageNetSample
+from src.pipe.moduls.data.dataclass.xai_input_batch import XAIInputBatch
+from src.pipe.moduls.data.image_net_val_dataset import (
     ImageNetValDataset,
     create_dataloader,
 )
-from src.pipeline.pipeline_moduls.data.utils.bbox_to_mask import parse_bbox
-from src.pipeline.pipeline_moduls.data.utils.collate_fn import explain_collate_fn
-from src.pipeline.pipeline_moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
+from src.pipe.moduls.data.utils.bbox_to_mask import parse_bbox
+from src.pipe.moduls.data.utils.collate_fn import explain_collate_fn
+from src.pipe.moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
 
 
 class TestImageNetValDataset(unittest.TestCase):
@@ -450,7 +450,7 @@ class TestDataProcessingIntegration(unittest.TestCase):
             pin_memory=True,
             shuffle=false,
             transform=None,
-            custom_collate_fn=None
+            custom_collate_fn=None,
         )
 
         # Test one batch

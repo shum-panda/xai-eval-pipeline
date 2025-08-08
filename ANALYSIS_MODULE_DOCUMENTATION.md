@@ -427,7 +427,9 @@ analyzer._run_analysis(
 #### Statistical Analysis Integration
 
 ```python
-from src.pipeline.pipeline_moduls.single_run_analyse.single_run_analysis import SingleRunAnalyse
+from src.pipe.moduls.single_run_analyse.single_run_analysis import
+
+SingleRunAnalyse
 import pandas as pd
 
 # Load experiment data
@@ -500,19 +502,21 @@ with mlflow.start_run(run_name="comparative_analysis"):
 
 ```python
 import mlflow
-from src.pipeline.pipeline_moduls.single_run_analyse.single_run_analysis import SingleRunAnalyse
+from src.pipe.moduls.single_run_analyse.single_run_analysis import
+
+SingleRunAnalyse
 
 with mlflow.start_run(run_name="statistical_analysis"):
     analysis = SingleRunAnalyse(df, output_dir)
-    
+
     # Log statistical results
     stats_df = analysis.calculate_statistical_tests_for_all_metrics()
-    
+
     for _, row in stats_df.iterrows():
         mlflow.log_metric(f"{row['metric']}_p_value", row['mann_whitney_u_p_value'])
         mlflow.log_metric(f"{row['metric']}_cohens_d", row['cohens_d'])
         mlflow.log_param(f"{row['metric']}_effect_size", row['cohens_d_interpretation'])
-    
+
     # Log artifacts
     for plot_path in analysis.generate_all_plots():
         mlflow.log_artifact(str(plot_path))

@@ -19,16 +19,61 @@ sns.set_palette("husl")
 
 class AdvancedPlotter:
     """
-    Erweiterte Plotting-Klasse für tiefgreifende XAI-Datenanalyse.
-    Erstellt verschiedene aussagekräftige Visualisierungen.
+    Advanced plotting engine for comprehensive XAI data analysis and visualization.
+
+    This class provides a comprehensive suite of publication-quality plotting
+    capabilities for analyzing XAI experiment results. It generates statistical
+    visualizations, performance comparisons, and distribution analyses with
+    professional styling and automatic layout optimization.
+
+    Features:
+        - Multi-panel dashboard overviews
+        - Radar charts for multi-metric comparisons
+        - Statistical correlation analysis
+        - Distribution analysis with violin and box plots
+        - Point Game confusion matrix analysis
+        - Automatic metric detection and validation
+        - High-resolution output for publication quality
+
+    Supported Metrics:
+        - IoU (Intersection over Union)
+        - Point Game metric
+        - Pixel-level precision and recall
+        - Prediction confidence
+        - Processing time and accuracy metrics
+
+    Attributes:
+        df (pd.DataFrame): Experiment data with metrics and metadata
+        save_dir (Path): Directory for saving generated plots
+        metrics (List[str]): Available metric column names
+        available_metrics (List[str]): Metrics present in the dataset
+
+    Example:
+        >>> plotter = AdvancedPlotter(experiment_df, Path('plots/'))
+        >>> plot_paths = plotter.create_comprehensive_analysis()
+        >>> print(f"Generated {len(plot_paths)} visualization files")
     """
 
     def __init__(self, df: pd.DataFrame, save_dir: Path):
+        """
+        Initialize the advanced plotter with experiment data and output directory.
+
+        Args:
+            df: DataFrame containing experiment results with metrics and metadata.
+               Expected columns include model_name, explainer_name, prediction_correct,
+               and various metric columns (iou, point_game, pixel metrics, etc.)
+            save_dir: Directory path where generated plots will be saved.
+                     Created automatically if it doesn't exist.
+
+        Note:
+            The DataFrame is copied to prevent modifications to the original data.
+            Available metrics are automatically detected from the column names.
+        """
         self.df = df.copy()
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
-        # Standard-Metriken (ohne prediction_confidence, da es separat behandelt wird)
+        # Standard metrics (prediction_confidence handled separately)
         self.metrics = [
             "iou",
             "point_game",
@@ -36,11 +81,39 @@ class AdvancedPlotter:
             "pixelprecisionrecall_recall",
         ]
 
-        # Verfügbare Metriken filtern
+        # Filter to only available metrics in the dataset
         self.available_metrics = [m for m in self.metrics if m in self.df.columns]
 
     def create_comprehensive_analysis(self) -> Dict[str, Path]:
-        """Erstellt alle verfügbaren Plots und gibt Pfade zurück."""
+        """
+        Generate comprehensive analysis with all available plot types.
+
+        Creates a complete suite of visualizations including overview dashboards,
+        metric comparisons, correlation analyses, distribution plots, and advanced
+        statistical visualizations. All plots are saved with publication-quality
+        settings and consistent styling.
+
+        Returns:
+            Dictionary mapping plot type names to their file paths:
+            {
+                'dataset_overview': Path('dashboard.png'),
+                'radar_chart': Path('radar.png'),
+                'correlation_heatmap': Path('correlations.png'),
+                'metric_distributions': Path('distributions.png'),
+                ...
+            }
+
+        Generated plot categories:
+            1. Overview plots: Dataset summaries and sample distributions
+            2. Metric comparisons: Multi-dimensional performance analysis
+            3. Correlation analyses: Statistical relationship exploration
+            4. Distribution plots: Metric distribution comparisons
+            5. Advanced analyses: Specialized XAI-specific visualizations
+
+        Note:
+            All plots are generated with 300 DPI for publication quality.
+            File names are automatically generated based on plot types.
+        """
         plot_paths = {}
 
         # Use logger instead of print
@@ -67,7 +140,21 @@ class AdvancedPlotter:
         return plot_paths
 
     def _create_overview_plots(self) -> Dict[str, Path]:
-        """Erstellt Überblicks-Plots."""
+        """
+        Create overview and summary visualization plots.
+
+        Generates high-level summary visualizations that provide quick insights
+        into the dataset characteristics, sample distributions, and overall
+        experiment performance across different models and methods.
+
+        Returns:
+            Dictionary of plot names and their file paths
+
+        Generated plots:
+            - dataset_overview: Multi-panel dashboard with key statistics
+            - accuracy_heatmap: Model-method accuracy comparison matrix
+            - sample_distribution: Sample count distribution analysis
+        """
         plots = {}
 
         # 1. Dataset Overview Dashboard
@@ -82,7 +169,20 @@ class AdvancedPlotter:
         return plots
 
     def _create_metric_comparison_plots(self) -> Dict[str, Path]:
-        """Erstellt Metriken-Vergleichsplots."""
+        """
+        Create multi-metric comparison visualizations.
+
+        Generates plots that compare performance across different metrics
+        simultaneously, enabling comprehensive method evaluation and
+        identification of strengths and weaknesses across metrics.
+
+        Returns:
+            Dictionary of plot names and their file paths
+
+        Generated plots:
+            - radar_chart: Multi-dimensional performance radar visualization
+              with normalized metrics and F1-score integration
+        """
         plots = {}
 
         # 1. Multi-Metric Radar Chart (nur dieser ist implementiert)
@@ -91,7 +191,20 @@ class AdvancedPlotter:
         return plots
 
     def _create_correlation_plots(self) -> Dict[str, Path]:
-        """Erstellt Korrelations-Analysen."""
+        """
+        Create correlation analysis visualizations.
+
+        Generates statistical correlation matrices and relationship analyses
+        between different metrics, helping identify interdependencies and
+        potential redundancies in the evaluation framework.
+
+        Returns:
+            Dictionary of plot names and their file paths
+
+        Generated plots:
+            - correlation_heatmap: Statistical correlation matrix with
+              significance testing and color-coded relationships
+        """
         plots = {}
 
         # 1. Correlation Matrix Heatmap (nur dieser ist implementiert)
@@ -100,7 +213,20 @@ class AdvancedPlotter:
         return plots
 
     def _create_distribution_plots(self) -> Dict[str, Path]:
-        """Erstellt Verteilungs-Analysen."""
+        """
+        Create distribution analysis visualizations.
+
+        Generates detailed distribution plots comparing metric distributions
+        across different models, methods, and prediction correctness categories.
+        Uses violin and box plots for comprehensive distribution analysis.
+
+        Returns:
+            Dictionary of plot names and their file paths
+
+        Generated plots:
+            - metric_distributions: Multi-panel distribution analysis with
+              violin plots, box plots, and statistical annotations
+        """
         plots = {}
 
         # 1. Metric Distributions (nur dieser ist implementiert)
@@ -109,7 +235,21 @@ class AdvancedPlotter:
         return plots
 
     def _create_advanced_plots(self) -> Dict[str, Path]:
-        """Erstellt erweiterte Analysen."""
+        """
+        Create advanced and specialized analysis visualizations.
+
+        Generates sophisticated analyses specific to XAI evaluation,
+        including confusion matrices for Point Game analysis and other
+        specialized visualizations that provide deep insights into
+        explanation quality and method performance.
+
+        Returns:
+            Dictionary of plot names and their file paths
+
+        Generated plots:
+            - point_game_confusion_matrix: Detailed confusion matrix analysis
+              for Point Game metric performance evaluation
+        """
         plots = {}
 
         # 1. Point Game Confusion Matrix
@@ -148,13 +288,22 @@ class AdvancedPlotter:
             .size()
             .reset_index(name="count")
         )
-        pivot_counts = combo_counts.pivot(
-            index="model_name", columns="explainer_name", values="count"
-        ).fillna(0).astype(int)
+        pivot_counts = (
+            combo_counts.pivot(
+                index="model_name", columns="explainer_name", values="count"
+            )
+            .fillna(0)
+            .astype(int)
+        )
 
         sns.heatmap(
-            pivot_counts, annot=True, fmt="d", cmap="Blues", ax=ax,
-            annot_kws={"fontsize": 16}, cbar_kws={"shrink": 0.8}
+            pivot_counts,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            ax=ax,
+            annot_kws={"fontsize": 16},
+            cbar_kws={"shrink": 0.8},
         )
         ax.set_title("Sample Counts per Model/Explainer", fontsize=16)
         ax.tick_params(axis="both", labelsize=16)
@@ -174,12 +323,18 @@ class AdvancedPlotter:
             ax.set_ylabel("Accuracy", fontsize=16)
             ax.set_xlabel("", fontsize=16)
             ax.tick_params(axis="both", labelsize=16)
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right",
-                               fontsize=16)
+            ax.set_xticklabels(
+                ax.get_xticklabels(), rotation=45, ha="right", fontsize=16
+            )
         else:
             ax.text(
-                0.5, 0.5, "No accuracy data",
-                ha="center", va="center", transform=ax.transAxes, fontsize=16
+                0.5,
+                0.5,
+                "No accuracy data",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=16,
             )
             ax.set_title("Accuracy by Model/Explainer", fontsize=16)
             ax.set_ylabel("Accuracy", fontsize=16)
@@ -189,9 +344,10 @@ class AdvancedPlotter:
         ax = axes[0, 2]
         if "processing_time" in self.df.columns:
             # Farbschema definieren, z.B. mit Seaborn-Palette
-            palette = sns.color_palette("Set2",
-                                        n_colors=self.df["explainer_name"].nunique())
-            explainer_names = sorted(self.df["explainer_name"].unique())
+            palette = sns.color_palette(
+                "Set2", n_colors=self.df["explainer_name"].nunique()
+            )
+            sorted(self.df["explainer_name"].unique())
 
             # Boxplot mit seaborn (einfacher farbig)
             sns.boxplot(
@@ -199,28 +355,36 @@ class AdvancedPlotter:
                 x="explainer_name",
                 y="processing_time",
                 ax=ax,
-                palette=palette
+                palette=palette,
             )
             ax.set_title("Processing Time by Explainer", fontsize=16)
             ax.set_ylabel("Processing Time (s)", fontsize=16)
             ax.set_xlabel("Explainer", fontsize=16)
             ax.tick_params(axis="both", labelsize=16)
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right",
-                               fontsize=16)
+            ax.set_xticklabels(
+                ax.get_xticklabels(), rotation=45, ha="right", fontsize=16
+            )
         else:
             ax.text(
-                0.5, 0.5, "No timing data",
-                ha="center", va="center", transform=ax.transAxes, fontsize=16
+                0.5,
+                0.5,
+                "No timing data",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=16,
             )
             ax.set_title("Processing Time Not Available", fontsize=16)
 
         # 4. Metric Availability
         ax = axes[1, 0]
-        metric_availability = pd.DataFrame({
-            "Metric": self.available_metrics,
-            "Available": [self.df[m].notna().sum() for m in self.available_metrics],
-            "Missing": [self.df[m].isna().sum() for m in self.available_metrics],
-        })
+        metric_availability = pd.DataFrame(
+            {
+                "Metric": self.available_metrics,
+                "Available": [self.df[m].notna().sum() for m in self.available_metrics],
+                "Missing": [self.df[m].isna().sum() for m in self.available_metrics],
+            }
+        )
         metric_availability.set_index("Metric")[["Available", "Missing"]].plot(
             kind="bar", stacked=True, ax=ax
         )
@@ -235,8 +399,9 @@ class AdvancedPlotter:
         if "prediction_confidence" in self.df.columns:
             for explainer in self.df["explainer_name"].unique():
                 subset = self.df[self.df["explainer_name"] == explainer]
-                ax.hist(subset["prediction_confidence"], alpha=0.6, label=explainer,
-                        bins=20)
+                ax.hist(
+                    subset["prediction_confidence"], alpha=0.6, label=explainer, bins=20
+                )
             ax.set_title("Prediction Confidence Distribution", fontsize=16)
             ax.set_xlabel("Confidence", fontsize=16)
             ax.set_ylabel("Count", fontsize=16)
@@ -244,8 +409,13 @@ class AdvancedPlotter:
             ax.tick_params(axis="both", labelsize=16)
         else:
             ax.text(
-                0.5, 0.5, "No confidence data",
-                ha="center", va="center", transform=ax.transAxes, fontsize=16
+                0.5,
+                0.5,
+                "No confidence data",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=16,
             )
             ax.set_title("Confidence Data Not Available", fontsize=16)
 
@@ -278,7 +448,9 @@ class AdvancedPlotter:
         ax = axes[1, 2]
         ax.axis("off")
         ax.text(
-            0.01, 0.99, wrapped_text,
+            0.01,
+            0.99,
+            wrapped_text,
             transform=ax.transAxes,
             fontsize=16,
             verticalalignment="top",
@@ -378,22 +550,34 @@ class AdvancedPlotter:
                         # Calculate F1 score for point game if prediction_correct exists
                         if "prediction_correct" in subset.columns:
                             from sklearn.metrics import f1_score
-                            y_true = subset["prediction_correct"].fillna(False).astype(int)
+
+                            y_true = (
+                                subset["prediction_correct"].fillna(False).astype(int)
+                            )
                             y_pred = (subset["point_game"] >= 0.5).astype(int)
-                            if len(np.unique(y_true)) > 1 and len(np.unique(y_pred)) > 1:
+                            if (
+                                len(np.unique(y_true)) > 1
+                                and len(np.unique(y_pred)) > 1
+                            ):
                                 f1 = f1_score(y_true, y_pred)
                                 values.append(f1)
                             else:
                                 values.append(0)
                         else:
                             mean_val = subset[metric].mean()
-                            max_val = self.df[metric].max() if self.df[metric].max() > 0 else 1
+                            max_val = (
+                                self.df[metric].max()
+                                if self.df[metric].max() > 0
+                                else 1
+                            )
                             normalized_val = mean_val / max_val
                             values.append(normalized_val)
                     else:
                         mean_val = subset[metric].mean()
                         # Normalisiere auf 0-1 Bereich
-                        max_val = self.df[metric].max() if self.df[metric].max() > 0 else 1
+                        max_val = (
+                            self.df[metric].max() if self.df[metric].max() > 0 else 1
+                        )
                         normalized_val = mean_val / max_val
                         values.append(normalized_val)
                 else:
@@ -1086,11 +1270,21 @@ class AdvancedPlotter:
         Returns:
             Path: Pfad zum gespeicherten Vergleichsplot
         """
-        if "point_game" not in self.available_metrics or "prediction_correct" not in self.df.columns:
+        if (
+            "point_game" not in self.available_metrics
+            or "prediction_correct" not in self.df.columns
+        ):
             # Create empty plot with message
             fig, ax = plt.subplots(figsize=(8, 6))
-            ax.text(0.5, 0.5, "Point Game data or prediction correctness not available",
-                   ha="center", va="center", transform=ax.transAxes, fontsize=14)
+            ax.text(
+                0.5,
+                0.5,
+                "Point Game data or prediction correctness not available",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=14,
+            )
             ax.set_title("Point Game Confusion Matrix Comparison - Data Not Available")
             save_path = self.save_dir / "point_game_confusion_matrix_comparison.png"
             plt.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -1106,8 +1300,15 @@ class AdvancedPlotter:
         if n_combinations == 0:
             # Create empty plot
             fig, ax = plt.subplots(figsize=(8, 6))
-            ax.text(0.5, 0.5, "No model-explainer combinations found",
-                   ha="center", va="center", transform=ax.transAxes, fontsize=14)
+            ax.text(
+                0.5,
+                0.5,
+                "No model-explainer combinations found",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=14,
+            )
             ax.set_title("Point Game Confusion Matrix Comparison - No Data")
             save_path = self.save_dir / "point_game_confusion_matrix_comparison.png"
             plt.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -1132,7 +1333,7 @@ class AdvancedPlotter:
             "Point Game Confusion Matrix Comparison: All Model-Method Combinations",
             fontsize=16,
             fontweight="bold",
-            y=0.98
+            y=0.98,
         )
 
         # Store confusion matrix data
@@ -1162,45 +1363,70 @@ class AdvancedPlotter:
             y_pred_point_game = (combo_data["point_game"] >= threshold).astype(int)
 
             # Create confusion matrix
-            from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+            from sklearn.metrics import (
+                confusion_matrix,
+            )
+
             conf_matrix = confusion_matrix(y_true, y_pred_point_game)
 
             # Create heatmap using seaborn for consistency
-            sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', ax=ax,
-                       xticklabels=['Miss', 'Hit'],
-                       yticklabels=['Incorrect', 'Correct'],
-                       cbar_kws={'label': 'Count'})
+            sns.heatmap(
+                conf_matrix,
+                annot=True,
+                fmt="d",
+                cmap="Blues",
+                ax=ax,
+                xticklabels=["Miss", "Hit"],
+                yticklabels=["Incorrect", "Correct"],
+                cbar_kws={"label": "Count"},
+            )
 
-            ax.set_ylabel('Prediction Correctness')
-            ax.set_xlabel('Point Game Result')
-            ax.set_title(f'{model} + {explainer}', fontweight='bold', fontsize=12)
+            ax.set_ylabel("Prediction Correctness")
+            ax.set_xlabel("Point Game Result")
+            ax.set_title(f"{model} + {explainer}", fontweight="bold", fontsize=12)
 
             # Calculate metrics
             tn, fp, fn, tp = conf_matrix.ravel()
             accuracy = (tp + tn) / (tp + tn + fp + fn) if (tp + tn + fp + fn) > 0 else 0
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0
             recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+            f1 = (
+                2 * (precision * recall) / (precision + recall)
+                if (precision + recall) > 0
+                else 0
+            )
 
             # Add metrics text
-            metrics_text = f'Acc: {accuracy:.3f}\nPrec: {precision:.3f}\nRec: {recall:.3f}\nF1: {f1:.3f}'
-            ax.text(0.02, 0.98, metrics_text, transform=ax.transAxes, fontsize=9,
-                   verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+            metrics_text = (
+                f"Acc: {accuracy:.3f}\nPrec: {precision:.3f}\nRec:"
+                f" {recall:.3f}\nF1: {f1:.3f}"
+            )
+            ax.text(
+                0.02,
+                0.98,
+                metrics_text,
+                transform=ax.transAxes,
+                fontsize=9,
+                verticalalignment="top",
+                bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+            )
 
             # Store comparison data
-            comparison_data.append({
-                'model_name': model,
-                'explainer_name': explainer,
-                'accuracy': accuracy,
-                'precision': precision,
-                'recall': recall,
-                'f1_score': f1,
-                'true_negatives': int(tn),
-                'false_positives': int(fp),
-                'false_negatives': int(fn),
-                'true_positives': int(tp),
-                'total_samples': len(combo_data)
-            })
+            comparison_data.append(
+                {
+                    "model_name": model,
+                    "explainer_name": explainer,
+                    "accuracy": accuracy,
+                    "precision": precision,
+                    "recall": recall,
+                    "f1_score": f1,
+                    "true_negatives": int(tn),
+                    "false_positives": int(fp),
+                    "false_negatives": int(fn),
+                    "true_positives": int(tp),
+                    "total_samples": len(combo_data),
+                }
+            )
 
         # Hide unused subplots
         for idx in range(n_combinations, len(axes)):
@@ -1208,13 +1434,15 @@ class AdvancedPlotter:
 
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         save_path = self.save_dir / "point_game_confusion_matrix_comparison.png"
-        plt.savefig(save_path, dpi=300, bbox_inches="tight", facecolor='white')
+        plt.savefig(save_path, dpi=300, bbox_inches="tight", facecolor="white")
         plt.close()
 
         # Save comparison data as CSV
         if comparison_data:
             comparison_df = pd.DataFrame(comparison_data)
-            comparison_csv_path = self.save_dir / "point_game_confusion_matrix_comparison_data.csv"
+            comparison_csv_path = (
+                self.save_dir / "point_game_confusion_matrix_comparison_data.csv"
+            )
             comparison_df.to_csv(comparison_csv_path, index=False)
 
             # Create summary heatmap for F1 scores
@@ -1237,9 +1465,7 @@ class AdvancedPlotter:
 
         # Create pivot table for heatmap
         pivot_data = comparison_df.pivot(
-            index="model_name", 
-            columns="explainer_name", 
-            values="f1_score"
+            index="model_name", columns="explainer_name", values="f1_score"
         )
 
         # Create heatmap
@@ -1252,20 +1478,20 @@ class AdvancedPlotter:
             cbar_kws={"label": "F1 Score"},
             center=0.5,
             vmin=0,
-            vmax=1
+            vmax=1,
         )
 
         ax.set_title(
             "Point Game Performance Comparison: F1 Scores by Model and Method",
             fontsize=14,
-            fontweight="bold"
+            fontweight="bold",
         )
         ax.set_xlabel("XAI Method")
         ax.set_ylabel("Model")
 
         plt.tight_layout()
         save_path = self.save_dir / "point_game_f1_score_heatmap_comparison.png"
-        plt.savefig(save_path, dpi=300, bbox_inches="tight", facecolor='white')
+        plt.savefig(save_path, dpi=300, bbox_inches="tight", facecolor="white")
         plt.close()
 
         return save_path

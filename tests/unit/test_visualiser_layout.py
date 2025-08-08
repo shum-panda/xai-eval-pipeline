@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from src.pipeline.pipeline_moduls.visualization.visualisation import Visualiser
+from src.pipe.moduls.visualization.visualisation import Visualiser
 
 
 def test_visualiser_layout():

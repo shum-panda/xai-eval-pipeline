@@ -8,18 +8,18 @@ import pandas as pd
 import torch
 import yaml
 
-from src.pipeline.control.orchestrator import Orchestrator
-from src.pipeline.control.utils import MasterConfig
-from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
+from src.pipe.control.orchestrator import Orchestrator
+from src.pipe.control.utils import MasterConfig
+from src.pipe.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
 )
-from src.pipeline.pipeline_moduls.evaluation.dataclass.evaluation_summary import (
+from src.pipe.moduls.evaluation.dataclass.evaluation_summary import (
     EvaluationSummary,
 )
-from src.pipeline.pipeline_moduls.evaluation.dataclass.metricresults import (
+from src.pipe.moduls.evaluation.dataclass.metricresults import (
     MetricResults,
 )
-from src.pipeline.pipeline_moduls.resultmanager.result_manager import ResultManager
+from src.pipe.moduls.resultmanager.result_manager import ResultManager
 
 
 class TestResultManager(unittest.TestCase):

@@ -4,16 +4,16 @@ from unittest.mock import Mock, patch
 import torch
 import torch.nn as nn
 
-from src.pipeline.pipeline_moduls.xai_methods.impl.grad_cam.grand_cam_explainer import (
+from src.pipe.moduls.xai_methods.impl.grad_cam.grand_cam_explainer import (
     GradCamExplainer,
 )
-from src.pipeline.pipeline_moduls.xai_methods.impl.guided_backprop.guided_backprop_expl import (
+from src.pipe.moduls.xai_methods.impl.guided_backprop.guided_backprop_expl import (
     GuidedBackpropExplainer,
 )
-from src.pipeline.pipeline_moduls.xai_methods.impl.integrated_gradients.integrated_gradients_explainer import (
+from src.pipe.moduls.xai_methods.impl.ig.integrated_gradients_explainer import (
     IntegratedGradientsExplainer,
 )
-from src.pipeline.pipeline_moduls.xai_methods.impl.score_cam.score_cam_explainer import (
+from src.pipe.moduls.xai_methods.impl.score_cam.score_cam_explainer import (
     ScoreCamExplainer,
 )
 

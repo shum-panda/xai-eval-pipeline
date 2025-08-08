@@ -3,9 +3,9 @@ from typing import List
 from dataclasses import dataclass
 import time
 
-from src.pipeline.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
-from src.pipeline.pipeline_moduls.evaluation.dataclass.evaluation_summary import EvaluationSummary
-from src.pipeline.pipeline_moduls.evaluation.dataclass.metricresults import MetricResults
+from src.pipe.control.utils.dataclasses.xai_explanation_result import XAIExplanationResult
+from src.pipe.moduls.evaluation.dataclass.evaluation_summary import EvaluationSummary
+from src.pipe.moduls.evaluation.dataclass.metricresults import MetricResults
 
 
 @dataclass

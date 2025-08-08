@@ -5,18 +5,18 @@ import torch
 from hydra import initialize, compose
 from omegaconf import OmegaConf
 
-from src.pipeline.control.orchestrator import Orchestrator
+from src.pipe.control.orchestrator import Orchestrator
 
 
 def cleanup_singletons():
     """Force cleanup of singleton instances between runs"""
     # Clear model factory singleton state
-    from src.pipeline.pipeline_moduls.models.model_registry import ModelRegistry
+    from src.pipe.moduls.models.model_registry import ModelRegistry
     if ModelRegistry._instance is not None:
         ModelRegistry._instance._current_model = None
     
     # Clear explainer registry singleton state  
-    from src.pipeline.pipeline_moduls.xai_methods.explainer_registry import (
+    from src.pipe.moduls.xai_methods.explainer_registry import (
         ExplainerRegistry)
     if ExplainerRegistry._instance is not None:
         # Don't clear the registry itself, just ensure fresh factory instances

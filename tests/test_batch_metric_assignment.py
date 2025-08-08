@@ -3,13 +3,13 @@ from pathlib import Path
 import pytest
 import torch
 
-from src.pipeline.control.utils.dataclasses.xai_explanation_result import (
+from src.pipe.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
 )
-from src.pipeline.pipeline_moduls.evaluation.dataclass.metricresults import (
+from src.pipe.moduls.evaluation.dataclass.metricresults import (
     MetricResults,
 )
-from src.pipeline.pipeline_moduls.evaluation.xai_evaluator import XAIEvaluator
+from src.pipe.moduls.evaluation.xai_evaluator import XAIEvaluator
 
 
 class TestBatchMetricAssignment:

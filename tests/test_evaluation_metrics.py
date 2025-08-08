@@ -2,12 +2,12 @@ import unittest
 
 import torch
 
-from src.pipeline.pipeline_moduls.evaluation.base.metric_registry import MetricRegistry
-from src.pipeline.pipeline_moduls.evaluation.metrics.iou_metric import IoUMetric
-from src.pipeline.pipeline_moduls.evaluation.metrics.pixel_precision_recall import (
+from src.pipe.moduls.evaluation.base.metric_registry import MetricRegistry
+from src.pipe.moduls.evaluation.metrics.iou_metric import IoUMetric
+from src.pipe.moduls.evaluation.metrics.pixel_precision_recall import (
     PixelPrecisionRecall,
 )
-from src.pipeline.pipeline_moduls.evaluation.metrics.point_game_metric import (
+from src.pipe.moduls.evaluation.metrics.point_game_metric import (
     PointGameMetric,
 )
 

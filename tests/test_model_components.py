@@ -6,12 +6,12 @@ from unittest.mock import patch
 import torch
 import torch.nn as nn
 
-from src.pipeline.pipeline_moduls.models.implementation.custom_model import CustomModel
-from src.pipeline.pipeline_moduls.models.implementation.pytorch_hub_model import (
+from src.pipe.moduls.models.implementation.custom_model import CustomModel
+from src.pipe.moduls.models.implementation.pytorch_hub_model import (
     PytorchHubModel,
 )
-from src.pipeline.pipeline_moduls.models.model_registry import ModelRegistry
-from src.pipeline.pipeline_moduls.models.xai_model_factory import XAIModelFactory
+from src.pipe.moduls.models.model_registry import ModelRegistry
+from src.pipe.moduls.models.xai_model_factory import XAIModelFactory
 
 
 class MockPyTorchModel(nn.Module):

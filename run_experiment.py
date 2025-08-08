@@ -1,8 +1,8 @@
 import mlflow
 import hydra
 
-from src.pipeline.control.orchestrator import Orchestrator
-from src.pipeline.control.utils.config_dataclasses.master_config import MasterConfig
+from src.pipe.control.orchestrator import Orchestrator
+from src.pipe.control.utils.config_dataclasses.master_config import MasterConfig
 
 
 

@@ -14,7 +14,7 @@ import sys
 import pandas as pd
 import mlflow
 
-from src.pipeline.pipeline_moduls.single_run_analyse.single_run_analysis import SingleRunAnalyse
+from src.pipe.moduls.single_run_analyse.single_run_analysis import SingleRunAnalyse
 
 
 def setup_logging():
