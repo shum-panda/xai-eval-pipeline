@@ -164,7 +164,7 @@ class TestPixelPrecisionRecallMetric(unittest.TestCase):
 
     def setUp(self):
         self.threshold = 0.5
-        self.metric = PixelPrecisionRecallMetric(threshold=self.threshold)
+        self.metric = PixelPrecisionRecall(threshold=self.threshold)
 
     def test_initialization(self):
         self.assertEqual(self.metric.threshold, 0.5)
@@ -263,7 +263,7 @@ class TestMetricIntegration(unittest.TestCase):
         self.assertIn(pg_score, [0.0, 1.0])
 
         # Test Pixel Precision Recall
-        ppr_metric = PixelPrecisionRecallMetric(threshold=0.5)
+        ppr_metric = PixelPrecisionRecall(threshold=0.5)
         precision, recall = ppr_metric.calculate(heatmap, ground_truth)
         self.assertIsInstance(precision, float)
         self.assertIsInstance(recall, float)

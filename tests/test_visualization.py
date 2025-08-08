@@ -224,7 +224,7 @@ class TestVisualiser(unittest.TestCase):
         mock_text.assert_called_once()
 
         # Check that text contains expected information
-        call_args = mock_text.call_args[1]
+        #call_args = mock_text.call_args[1]
         text_content = mock_text.call_args[0][2]  # Third positional argument
 
         self.assertIn("test_image.jpg", text_content)

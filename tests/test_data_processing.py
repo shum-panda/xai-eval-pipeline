@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from PIL import Image
+from sympy import false
 from torch.utils.data import DataLoader
 
 from src.pipeline.pipeline_moduls.data.dataclass.image_net_sample import ImageNetSample
@@ -437,13 +438,6 @@ class TestDataProcessingIntegration(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
 
     def test_full_data_pipeline(self):
-        # Create dataset
-        dataset = ImageNetValDataset(
-            image_dir=self.image_dir,
-            annot_dir=self.annot_dir,
-            label_file=self.label_file,
-            target_size=(128, 128),
-        )
 
         # Create dataloader
         dataloader = create_dataloader(
@@ -452,7 +446,11 @@ class TestDataProcessingIntegration(unittest.TestCase):
             label_file=self.label_file,
             batch_size=2,
             num_workers=0,
-            target_size=(128, 128),
+            target_size=[128, 128],
+            pin_memory=True,
+            shuffle=false,
+            transform=None,
+            custom_collate_fn=None
         )
 
         # Test one batch
