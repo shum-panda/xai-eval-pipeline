@@ -485,6 +485,7 @@ class Orchestrator:
                 model_name=self._config.model.name,
                 processing_time=processing_time / images.size(0),
                 timestamp=f"{start_time}",
+                device_used=str(current_device),
             )
             results.append(result)
 
@@ -510,14 +511,18 @@ class Orchestrator:
             XAIExplanationResult: A copy of the result with transformed labels,
             class names, and a correctness flag.
         """
-        label_lookup = self.label_mapper.class_id_to_label
         class_to_val_tensor = self.label_mapper.class_to_val_tensor
         orig_class: int = result.predicted_class
         mapped_class: int = int(class_to_val_tensor[orig_class])
 
         true_label_val_idx = result.true_label
-        true_label_name = label_lookup.get(
-            true_label_val_idx, f"Class {true_label_val_idx}"
+
+        # Map PyTorch class indices to ImageNet labels using the mapper
+        predicted_class_name = self.label_mapper.class_to_label(orig_class)
+        true_label_name = (
+            self.label_mapper.val_to_label(true_label_val_idx)
+            if true_label_val_idx is not None
+            else "Unknown"
         )
 
         prediction_correct = (
@@ -530,9 +535,7 @@ class Orchestrator:
             result,
             predicted_class=mapped_class,
             predicted_class_before_transform=orig_class,
-            predicted_class_name=label_lookup.get(
-                mapped_class, f"Class {mapped_class}"
-            ),
+            predicted_class_name=predicted_class_name,
             true_label_name=true_label_name,
             prediction_correct=prediction_correct,
         )
@@ -567,7 +570,9 @@ class Orchestrator:
         try:
             iou_plots = analysis.plot_iou_histograms_by_correctness(data_dir)
             for plot_name, plot_path in iou_plots.items():
-                mlflow.log_artifact(str(plot_path), artifact_path="single_run_analysis/plots")
+                mlflow.log_artifact(
+                    str(plot_path), artifact_path="single_run_analysis/plots"
+                )
             self._logger.info(f"Created {len(iou_plots)} IoU histogram plots")
         except Exception as e:
             self._logger.warning(f"IoU histograms failed: {e}")
@@ -577,7 +582,9 @@ class Orchestrator:
         try:
             other_plots = analysis.plot_prediction_correctness_histograms(data_dir)
             for plot_name, plot_path in other_plots.items():
-                mlflow.log_artifact(str(plot_path), artifact_path="single_run_analysis/plots")
+                mlflow.log_artifact(
+                    str(plot_path), artifact_path="single_run_analysis/plots"
+                )
             self._logger.info(
                 f"Created {len(other_plots)} prediction correctness histogram plots"
             )
@@ -591,8 +598,9 @@ class Orchestrator:
                 analysis.plot_pixel_precision_histograms_by_correctness(data_dir)
             )
             for plot_name, plot_path in pixel_precision_plots.items():
-                mlflow.log_artifact(str(plot_path),
-                                    artifact_path="single_run_analsis/plots")
+                mlflow.log_artifact(
+                    str(plot_path), artifact_path="single_run_analsis/plots"
+                )
             self._logger.info(
                 f"Created {len(pixel_precision_plots)} pixel precision histogram plots"
             )
@@ -606,15 +614,29 @@ class Orchestrator:
                 data_dir
             )
             for plot_name, plot_path in pixel_recall_plots.items():
-                mlflow.log_artifact(str(plot_path),
-                                    artifact_path="single_run_analysis/plots")
+                mlflow.log_artifact(
+                    str(plot_path), artifact_path="single_run_analysis/plots"
+                )
             self._logger.info(
                 f"Created {len(pixel_recall_plots)} pixel recall histogram plots"
             )
         except Exception as e:
             self._logger.warning(f"Pixel recall histograms failed: {e}")
 
-        # 5. Basic correlations (for simple_analyzer to use)
+        # 5. Statistical tests (Mann-Whitney U, Cohen's d, etc.)
+        self._logger.info("Computing statistical tests...")
+        try:
+            stats_results = analysis.calculate_statistical_tests_for_all_metrics()
+            stats_csv_path = data_dir / "statistical_tests.csv"
+            stats_results.to_csv(stats_csv_path, index=False)
+            mlflow.log_artifact(
+                str(stats_csv_path), artifact_path="single_run_analysis/data"
+            )
+            self._logger.info(f"Statistical tests completed - Results in: {stats_csv_path}")
+        except Exception as e:
+            self._logger.warning(f"Statistical tests failed: {e}")
+
+        # 6. Basic correlations (for simple_analyzer to use)
         self._logger.info("Computing correlations...")
         corrs = analysis.correlation_with_correctness()
         corr_df = pd.DataFrame(
@@ -622,11 +644,15 @@ class Orchestrator:
         )
         corr_csv_path = data_dir / "correlations.csv"
         corr_df.to_csv(corr_csv_path, index=False)
-        mlflow.log_artifact(str(corr_csv_path), artifact_path="single_run_analysis/data")
+        mlflow.log_artifact(
+            str(corr_csv_path), artifact_path="single_run_analysis/data"
+        )
 
         # Log all CSV data files from histograms
         for data_file in data_dir.glob("*_histogram_data.csv"):
-            mlflow.log_artifact(str(data_file), artifact_path="single_run_analysis/data")
+            mlflow.log_artifact(
+                str(data_file), artifact_path="single_run_analysis/data"
+            )
 
         self._logger.info(f"Single-run analysis completed - Results in: {meta_dir}")
 

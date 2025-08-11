@@ -218,7 +218,8 @@ class TestBatchMetricIntegration:
         print(f"Processed {len(results)} images:")
         print(f"  - {samples_with_bbox} with bounding boxes (got metrics)")
         print(
-            f"  - {len(results) - samples_with_bbox} without bounding boxes (no metrics)"
+            f"  - {len(results) - samples_with_bbox} without bounding boxes "
+            f"(no metrics)"
         )
         print(f"  - Accuracy: {summary.prediction_accuracy:.3f}")
         print(f"  - Avg processing time: {summary.average_processing_time:.3f}s")
@@ -266,7 +267,8 @@ class TestBatchMetricIntegration:
         perfect_point_game = perfect_metrics.values["point_game"]
 
         print(
-            f"Perfect alignment - IOU: {perfect_iou:.3f}, Point Game: {perfect_point_game}"
+            f"Perfect alignment - IOU: {perfect_iou:.3f}, Point Game: "
+            f"{perfect_point_game}"
         )
 
         # Check no alignment metrics

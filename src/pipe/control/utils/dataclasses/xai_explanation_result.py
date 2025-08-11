@@ -51,6 +51,7 @@ class XAIExplanationResult:
     )
     processing_time: float = 0.0  # Runtime in seconds
     timestamp: Optional[str] = None  # ISO timestamp for logging or provenance
+    device_used: Optional[str] = None  # Actual device used for computation (e.g., "cuda:0", "cpu")
 
     def to_dict(self) -> Dict[str, Any]:
         """

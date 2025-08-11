@@ -6,6 +6,7 @@ import mlflow
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.stats import stats
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 
@@ -253,14 +254,12 @@ class SingleRunAnalyse:
 
     def calculate_statistical_tests_for_all_metrics(self) -> pd.DataFrame:
         """
-        Berechnet statistische Tests (Mann-Whitney U, Cohen's d, KS-Test) für alle
-        Metriken zwischen richtig und falsch klassifizierten Samples.
+        Berechnet Mann-Whitney U Test für alle Metriken zwischen richtig 
+        und falsch klassifizierten Samples.
 
         Returns:
-            DataFrame mit statistischen Test-Ergebnissen für jede Metrik
+            DataFrame mit Mann-Whitney U Test-Ergebnissen für jede Metrik
         """
-        from scipy import stats
-
         # Define available metrics (check for different column naming patterns)
         metrics_map = {
             "iou": ["iou"],
@@ -301,33 +300,6 @@ class SingleRunAnalyse:
                     correct_data, incorrect_data, alternative="two-sided"
                 )
 
-                # Effect size (Cohen's d)
-                pooled_std = np.sqrt(
-                    (
-                        (len(correct_data) - 1) * correct_data.std() ** 2
-                        + (len(incorrect_data) - 1) * incorrect_data.std() ** 2
-                    )
-                    / (len(correct_data) + len(incorrect_data) - 2)
-                )
-                cohens_d = (
-                    (correct_data.mean() - incorrect_data.mean()) / pooled_std
-                    if pooled_std > 0
-                    else 0
-                )
-
-                # Kolmogorov-Smirnov test for distribution differences
-                ks_statistic, ks_p_value = stats.ks_2samp(correct_data, incorrect_data)
-
-                # Welch's t-test (unequal variances)
-                welch_statistic, welch_p_value = stats.ttest_ind(
-                    correct_data, incorrect_data, equal_var=False
-                )
-
-                # Levene test for equal variances
-                levene_statistic, levene_p_value = stats.levene(
-                    correct_data, incorrect_data
-                )
-
                 result = {
                     "metric": metric,
                     "actual_column": actual_col,
@@ -341,17 +313,6 @@ class SingleRunAnalyse:
                     "mann_whitney_u_statistic": mw_statistic,
                     "mann_whitney_u_p_value": mw_p_value,
                     "mann_whitney_u_significant": mw_p_value < 0.05,
-                    "cohens_d": cohens_d,
-                    "cohens_d_interpretation": self._interpret_cohens_d(cohens_d),
-                    "ks_statistic": ks_statistic,
-                    "ks_p_value": ks_p_value,
-                    "ks_significant": ks_p_value < 0.05,
-                    "welch_t_statistic": welch_statistic,
-                    "welch_t_p_value": welch_p_value,
-                    "welch_t_significant": welch_p_value < 0.05,
-                    "levene_statistic": levene_statistic,
-                    "levene_p_value": levene_p_value,
-                    "equal_variances": levene_p_value > 0.05,
                 }
             else:
                 result = {
@@ -375,17 +336,6 @@ class SingleRunAnalyse:
                     "mann_whitney_u_statistic": np.nan,
                     "mann_whitney_u_p_value": np.nan,
                     "mann_whitney_u_significant": False,
-                    "cohens_d": np.nan,
-                    "cohens_d_interpretation": "insufficient_data",
-                    "ks_statistic": np.nan,
-                    "ks_p_value": np.nan,
-                    "ks_significant": False,
-                    "welch_t_statistic": np.nan,
-                    "welch_t_p_value": np.nan,
-                    "welch_t_significant": False,
-                    "levene_statistic": np.nan,
-                    "levene_p_value": np.nan,
-                    "equal_variances": np.nan,
                 }
 
             results.append(result)

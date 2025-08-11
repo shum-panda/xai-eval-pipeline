@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.metrics import f1_score, precision_score, recall_score
+from sympy import false
 
 from src.analyse.advanced_plotting import AdvancedPlotter
 
@@ -901,7 +902,8 @@ class SimpleAnalyzer:
                     # Split by prediction correctness - use actual column name
                     actual_col = metric_name_map.get(metric, metric)
                     correct_data = df[df["prediction_correct"]][actual_col].dropna()
-                    incorrect_data = df[not df["prediction_correct"]][
+                    df["prediction_correct"] = df["prediction_correct"].astype(bool)
+                    incorrect_data = df[df["prediction_correct"] == false][
                         actual_col
                     ].dropna()
 

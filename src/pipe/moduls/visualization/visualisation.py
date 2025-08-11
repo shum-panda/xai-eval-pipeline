@@ -7,6 +7,7 @@ import numpy as np
 import seaborn as sns
 import torch
 from PIL import Image
+from torchvision import transforms
 
 from src.pipe.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
@@ -18,6 +19,7 @@ from src.pipe.moduls.evaluation.dataclass.metricresults import (
     MetricResults,
 )
 from src.pipe.moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
+from src.pipe.moduls.data.image_net_label_mapper import ImageNetLabelMapper
 
 
 class Visualiser:
@@ -65,8 +67,23 @@ class Visualiser:
         )
 
         try:
-            img_pil: Image.Image = Image.open(result.image_path)
-            original_image = img_pil.resize((224, 224))
+            # Use the processed image from pipeline to match bounding box coordinates exactly
+            if result.image is not None:
+                # Convert pipeline tensor back to PIL Image
+                # First denormalize the tensor (reverse ImageNet normalization)
+                image_tensor = result.image.clone()
+                if image_tensor.dim() == 3:  # [C, H, W]
+                    # Denormalize ImageNet normalization
+                    mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+                    std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+                    image_tensor = image_tensor * std + mean
+                    image_tensor = torch.clamp(image_tensor, 0, 1)
+
+                original_image = transforms.ToPILImage()(image_tensor)
+            else:
+                # Fallback: load and resize original image
+                img_pil: Image.Image = Image.open(result.image_path)
+                original_image = img_pil.resize((224, 224))
 
             fig = plt.figure(figsize=(12, 10))
             gs = fig.add_gridspec(
@@ -127,6 +144,28 @@ class Visualiser:
                         colors=["lime"],
                         linewidths=2,
                     )
+
+                    # Also draw individual bounding box rectangles
+                    if result.bbox.numel() > 0:
+                        bbox_np = result.bbox.cpu().numpy()
+                        if bbox_np.ndim == 1:
+                            bbox_np = bbox_np.reshape(1, -1)
+
+                        for i, box in enumerate(bbox_np):
+                            x1, y1, x2, y2 = box
+                            # Create rectangle patch for each bounding box
+                            from matplotlib.patches import Rectangle
+
+                            rect = Rectangle(
+                                (x1, y1),
+                                x2 - x1,
+                                y2 - y1,
+                                linewidth=2,
+                                edgecolor="red",
+                                facecolor="none",
+                                alpha=0.7,
+                            )
+                            ax_overlay.add_patch(rect)
 
             ax_overlay.text(
                 0.5,
