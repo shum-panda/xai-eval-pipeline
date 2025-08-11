@@ -1,6 +1,6 @@
-@startuml main_pipeline_sequence
+@startuml single_pipeline_run
 !theme plain
-title XAI Pipeline - Hauptablauf (vereinfacht)
+title XAI Pipeline - Einzelner Pipeline Run
 
 participant User
 participant Orchestrator
@@ -12,8 +12,6 @@ participant ResultManager
 participant SingleRunAnalyse
 participant Visualiser
 participant MLflow
-
-== Einzelner Pipeline Run ==
 
 User -> Orchestrator: run()
 
@@ -62,59 +60,25 @@ SingleRunAnalyse --> Orchestrator: Meta analysis plots & data
 Orchestrator -> MLflow: log_artifacts(plots, analysis_csv)
 
 Orchestrator -> Visualiser: visualize_results_if_needed(results, summary)
+Visualiser -> Visualiser: create_visualization(result, metrics)
 note right of Visualiser
-Generate heatmaps & plots
+Generate 2x2 grid visualizations:
+- Metrics display
+- Original image
+- Attribution heatmap  
+- Overlay with bounding boxes
 end note
-Orchestrator -> MLflow: log_artifacts(visualizations)
+Visualiser --> Orchestrator: visualization_paths
+note right of Visualiser
+Save locally:
+results/<experiment>/visualizations/
+end note
+Orchestrator -> MLflow: log_artifacts(visualization_paths)
 
 Orchestrator -> MLflow: end_run()
 Orchestrator -> Orchestrator: finalize_run()
 
 Orchestrator --> User: Pipeline completed
-
-== Nach mehreren Runs ==
-
-note over User
-User hat mehrere Runs mit 
-verschiedenen Konfigurationen
-durchgeführt
-end note
-
-User -> User: collect_run_configs()
-note right
-User sammelt Run-IDs und
-Config-Namen der zu 
-analysierenden Experimente
-end note
-
-User -> SingleRunAnalyse: cross_experiment_analysis(run_configs)
-note right of SingleRunAnalyse
-Übergreifende Analyse:
-- Vergleich verschiedener Modelle
-- Vergleich verschiedener XAI-Methoden
-- Performance vs. Erklärbarkeit
-- Konfiguration-Impact-Analyse
-end note
-
-SingleRunAnalyse -> MLflow: fetch_run_data(run_ids)
-MLflow --> SingleRunAnalyse: metrics, artifacts, configs
-
-SingleRunAnalyse -> SingleRunAnalyse: generate_comparison_reports()
-note right
-- Model Performance Comparison
-- XAI Method Effectiveness
-- Configuration Impact Analysis
-- Best Practice Recommendations
-end note
-
-SingleRunAnalyse --> User: Comprehensive Analysis Report
-note right
-Dashboard mit:
-- Vergleichsplots
-- Ranking-Tabellen  
-- Empfehlungen
-- Exportierbare Berichte
-end note
 
 @enduml
 

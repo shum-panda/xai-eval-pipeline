@@ -1,42 +1,49 @@
 @startuml
-title Daten- und Kontrollfluss in der XAI-Pipeline
+title XAI Pipeline - Architektur Overview
 
 !theme plain
 skinparam linetype ortho
 
-' Module
-[OrchModule] <<Orchestrator>>
 
-[DataModule] as D
-[ModelModule] as M
-[XAIModule] as X
-[EvalModule] as E
-[VisModule] as V
 
-' Positionierung erzwingen
-' Orchestrator ganz oben
-top to bottom direction
+' Main Pipeline Components
+package "Core Pipeline" {
+    [Orchestrator] <<Control>>
+    [ResultManager] as R
+    [DataModule] as D
+    [ModelModule] as M
+    [XAIModule] as X
+    [EvalModule] as E
+    [VisModule] as V
+    [SingleRunAnalyse] <<Statistical Analysis>>
+}
+package "Multi-Run Analysis" {
+    [MultiRunAnalyzer] <<Comparative Analysis & Visualization>>
+}
+package "Storage" {
+    [Filesystem] <<results/>>
+}
 
-' Waagerechte Pipeline als Reihe erzwingen
-D -[#white]-> M
-M -[#white]-> X
-X -[#white]-> E
-E -[#white]-> V
+R -[#red,thickness=2]-> Filesystem : Store Results & Metrics
 
-' Datenfluss (grün)
-D -[#green]-> M : Bilder & Labels
-M -[#green]-> X : Modell & Aktivierungen
-X -[#green]-> E : Heatmaps
-E -[#green]-> V : Metriken & Masken
+' Core Pipeline Flow (green)
+D -[#green]-> M : Images & Labels
+M -[#green]-> X : Model & Activations
+X -[#green]-> E : Heatmaps & Attributions
+E -[#green]-> R : Evaluation Results
+R -[#green]-> V : Metrics & Data
 
-' Kontrollfluss (orange) vom Orchestrator nach unten
-OrchModule -[#orange,dashed,thickness=2]-> D : Konfiguration
-OrchModule -[#orange,dashed,thickness=2]-> M : Modellauswahl
-OrchModule -[#orange,dashed,thickness=2]-> X : Methodenauswahl
+' Control Flow (orange) from Orchestrator
+Orchestrator -[#orange,dashed,thickness=2]-> D : Configuration
+Orchestrator -[#orange,dashed,thickness=2]-> M : Model Selection
+Orchestrator -[#orange,dashed,thickness=2]-> X : Method Selection
+Orchestrator -[#orange,dashed,thickness=2]-> E : Evaluation Setup
+Orchestrator -[#orange,dashed,thickness=2]-> SingleRunAnalyse : Trigger Analysis
 
-' Layout Hint: Orchestrator ganz oben, Pipeline unten
-OrchModule -[#white]-> D
-OrchModule -[#white]-> M
-OrchModule -[#white]-> X
+' Single Run Analysis Flow (blue)
+R -[#blue]-> SingleRunAnalyse : CSV Data
+' Storage Flow (red)
 
+' Multi-Run Analysis Flow (purple) - Reading from Filesystem
+MultiRunAnalyzer -[#purple,thickness=2]-> Filesystem : Read Experiment Data
 @enduml

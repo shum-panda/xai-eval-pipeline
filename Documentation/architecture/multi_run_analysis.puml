@@ -1,0 +1,100 @@
+@startuml multi_run_analysis
+!theme plain
+title XAI Pipeline - Multi-Run Comparative Analysis
+
+participant User
+participant SimpleAnalyzer
+participant MLflow
+participant AdvancedPlotter
+participant "Analysis Results" as Results
+
+note over User
+User hat mehrere Runs mit 
+verschiedenen Konfigurationen
+durchgeführt
+end note
+
+User -> User: collect_run_configs()
+note right
+User sammelt Run-IDs und
+Config-Namen der zu 
+analysierenden Experimente
+end note
+
+User -> SimpleAnalyzer: run_all_analyses()
+activate SimpleAnalyzer
+
+SimpleAnalyzer -> SimpleAnalyzer: diagnose_available_data()
+note right
+Discover and validate
+experiment data availability
+end note
+
+SimpleAnalyzer -> SimpleAnalyzer: analyze_resnet_methods()
+note right
+Compare XAI methods on ResNet:
+- GradCAM vs Guided Backprop
+- vs Integrated Gradients
+end note
+
+SimpleAnalyzer -> AdvancedPlotter: create_comprehensive_analysis()
+activate AdvancedPlotter
+AdvancedPlotter -> AdvancedPlotter: generate_radar_charts()
+AdvancedPlotter -> AdvancedPlotter: create_correlation_heatmaps()
+AdvancedPlotter -> AdvancedPlotter: plot_metric_distributions()
+AdvancedPlotter --> SimpleAnalyzer: visualization_paths
+deactivate AdvancedPlotter
+
+SimpleAnalyzer -> SimpleAnalyzer: analyze_vgg_methods()
+note right
+Compare XAI methods on VGG:
+- GradCAM vs ScoreCAM
+end note
+
+SimpleAnalyzer -> SimpleAnalyzer: analyze_model_comparison()
+note right
+Compare models with same XAI method:
+- ResNet18/34/50 vs VGG16 with GradCAM
+end note
+
+SimpleAnalyzer -> SimpleAnalyzer: create_f1_score_heatmap()
+note right
+Generate F1-score performance matrix
+using Point Game as predictor
+end note
+
+SimpleAnalyzer -> SimpleAnalyzer: create_histogram_comparison()
+note right
+Statistical histogram analysis
+with Mann-Whitney U tests
+end note
+
+SimpleAnalyzer -> Results: save_combined_datasets()
+note right of Results
+- Combined CSV files
+- F1-score analysis results
+- Statistical test results
+end note
+
+SimpleAnalyzer -> Results: save_all_plots()
+note right of Results
+- Radar charts
+- Correlation heatmaps
+- Distribution plots
+- F1-score heatmaps
+- Statistical histograms
+end note
+
+SimpleAnalyzer --> User: Comprehensive Analysis Report
+deactivate SimpleAnalyzer
+
+note right
+Dashboard mit:
+- Multi-method comparisons
+- Statistical significance tests
+- Performance rankings
+- Best practice recommendations
+- Publication-quality plots
+end note
+
+@enduml
