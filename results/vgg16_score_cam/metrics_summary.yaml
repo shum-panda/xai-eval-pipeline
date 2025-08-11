@@ -1,0 +1,14 @@
+average_processing_time: 2.9506082102656364
+correct_predictions: 107
+evaluation_timestamp: '2025-08-04T22:10:20.219167'
+explainer_name: score_cam
+metric_averages:
+  average_iou: 0.21817274554257712
+  average_pixelprecisionrecall_precision: 0.49461563316546175
+  average_pixelprecisionrecall_recall: 0.3245004609634044
+  average_point_game: 0.5
+model_name: vgg16
+prediction_accuracy: 0.66875
+samples_with_bbox: 160
+total_processing_time: 472.09731364250183
+total_samples: 160

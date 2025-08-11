@@ -1,0 +1,14 @@
+average_processing_time: 0.019887850830952326
+correct_predictions: 6828
+evaluation_timestamp: '2025-08-09T21:48:27.980292'
+explainer_name: grad_cam
+metric_averages:
+  average_iou: 0.0001498527174148885
+  average_pixelprecisionrecall_precision: 0.005725871869183836
+  average_pixelprecisionrecall_recall: 0.00015086435876181373
+  average_point_game: 0.4475392670157068
+model_name: vgg16
+prediction_accuracy: 0.71125
+samples_with_bbox: 9600
+total_processing_time: 190.92336797714233
+total_samples: 9600
