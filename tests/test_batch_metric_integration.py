@@ -125,7 +125,8 @@ class TestBatchMetricIntegration:
             ),
         ]
 
-        # Expected pattern: [has_metrics, has_metrics, None, has_metrics, has_metrics, None, has_metrics]
+        # Expected pattern: [has_metrics, has_metrics, None, has_metrics, has_metrics,
+        # None, has_metrics]
         expected_pattern = [True, True, False, True, True, False, True]
 
         # Run batch evaluation
@@ -139,7 +140,8 @@ class TestBatchMetricIntegration:
             zip(results, batch_metrics, expected_pattern)
         ):
             print(
-                f"Image {i}: {result.image_name} - has_bbox: {result.has_bbox} - metrics: {metrics is not None}"
+                f"Image {i}: {result.image_name} - has_bbox: {result.has_bbox} -"
+                f"metrics: {metrics is not None}"
             )
 
             if should_have_metrics:

@@ -254,7 +254,7 @@ class SingleRunAnalyse:
 
     def calculate_statistical_tests_for_all_metrics(self) -> pd.DataFrame:
         """
-        Berechnet Mann-Whitney U Test für alle Metriken zwischen richtig 
+        Berechnet Mann-Whitney U Test für alle Metriken zwischen richtig
         und falsch klassifizierten Samples.
 
         Returns:

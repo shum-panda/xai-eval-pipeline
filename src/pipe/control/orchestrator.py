@@ -632,7 +632,9 @@ class Orchestrator:
             mlflow.log_artifact(
                 str(stats_csv_path), artifact_path="single_run_analysis/data"
             )
-            self._logger.info(f"Statistical tests completed - Results in: {stats_csv_path}")
+            self._logger.info(
+                f"Statistical tests completed - Results in: {stats_csv_path}"
+            )
         except Exception as e:
             self._logger.warning(f"Statistical tests failed: {e}")
 
@@ -729,7 +731,8 @@ class Orchestrator:
 
             self._mlflow_run = mlflow.start_run(**run_kwargs)
             self._logger.info(
-                f"Started MLflow run: {self._mlflow_run.info.run_id} with name: {run_name}"
+                f"Started MLflow run: {self._mlflow_run.info.run_id} with name:"
+                f"{run_name}"
             )
         else:
             self._mlflow_run = mlflow.active_run()
@@ -912,7 +915,8 @@ class Orchestrator:
 
     def _log_model_conditionally(self) -> None:
         """
-        Logs the model to MLflow only if it's not already registered or if explicitly requested.
+        Logs the model to MLflow only if it's not already registered or if explicitly
+        requested.
         Prevents creating unnecessary model versions for the same model.
         """
         try:

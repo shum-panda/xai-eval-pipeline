@@ -4,10 +4,18 @@ experiment:
   top_k: 10
   seed: 42                     # Random seed for reproducible results
 
+xai:
+  name: grad_cam
+  use_defaults: true
+  kwargs:
+    {}
 
-hardware:
-  use_cuda: true                    # Whether to use CUDA for acceleration
-  device: cuda:0                    # Device to use (e.g., cuda:0, cpu)
+metric:
+  kwargs:
+    {
+      "iou": { "threshold": 0.3 },
+      "pixel_precision_recall": { "threshold": 0.3 }
+    }
 
 model:
   name: vgg16                 # Model architecture (e.g., resnet50, vgg16)
@@ -32,18 +40,10 @@ data:
   num_workers: 4                    # Number of workers for data loading
   pin_memory: true           # Whether to use pinned memory (recommended with CUDA)
 
-xai:
-  name: grad_cam
-  use_defaults: true
-  kwargs:
-    {}
 
-metric:
-  kwargs:
-    {
-      "iou": { "threshold": 0.3 },
-      "pixel_precision_recall": { "threshold": 0.3 }
-    }
+hardware:
+  use_cuda: true                    # Whether to use CUDA for acceleration
+  device: cuda:0                    # Device to use (e.g., cuda:0, cpu)
 
 visualization:
   save: true                        # Save visualizations of explanations

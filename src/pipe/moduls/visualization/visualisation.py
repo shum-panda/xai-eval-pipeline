@@ -19,7 +19,6 @@ from src.pipe.moduls.evaluation.dataclass.metricresults import (
     MetricResults,
 )
 from src.pipe.moduls.utils.bbox_to_mask_tensor import bbox_to_mask_tensor
-from src.pipe.moduls.data.image_net_label_mapper import ImageNetLabelMapper
 
 
 class Visualiser:
@@ -67,7 +66,8 @@ class Visualiser:
         )
 
         try:
-            # Use the processed image from pipeline to match bounding box coordinates exactly
+            # Use the processed image from pipeline to match bounding box coordinates
+            # exactly
             if result.image is not None:
                 # Convert pipeline tensor back to PIL Image
                 # First denormalize the tensor (reverse ImageNet normalization)
@@ -145,7 +145,6 @@ class Visualiser:
                         linewidths=2,
                     )
 
-                    # Also draw individual bounding box rectangles
                     if result.bbox.numel() > 0:
                         bbox_np = result.bbox.cpu().numpy()
                         if bbox_np.ndim == 1:
@@ -211,7 +210,7 @@ class Visualiser:
 
         attribution_np = attribution.detach().cpu().numpy()
 
-        # Optional: Absolutwert (besonders für IG sinnvoll)
+        # Optional: Absolutwert (
         attribution_np = np.abs(attribution_np)
 
         # Normalisieren
@@ -270,10 +269,10 @@ class Visualiser:
         """
         if hasattr(metrics, "values") and isinstance(metrics.values, dict):
             values = metrics.values
-            iou_score = values.get("IoU", 0.0)
+            iou_score = values.get("iou", 0.0)
             point_game_score = values.get("point_game", 0.0)
 
-            pixel_metrics = values.get("PixelPrecisionRecall", {})
+            pixel_metrics = values.get("pixel_precision_recall", {})
             if isinstance(pixel_metrics, dict):
                 pixel_precision = pixel_metrics.get("precision", 0.0)
                 pixel_recall = pixel_metrics.get("recall", 0.0)
