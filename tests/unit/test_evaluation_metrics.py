@@ -54,8 +54,8 @@ class TestIoUMetric(unittest.TestCase):
 
         score = self.metric.calculate(heatmap, ground_truth)
 
-        # Intersection: 25 pixels, Union: 75 pixels
-        expected_iou = 25 / 75
+        # Intersection: 25 pixels, Union: 50 pixels (heatmap lies inside the GT)
+        expected_iou = 25 / 50
         self.assertAlmostEqual(score, expected_iou, places=5)
 
     def test_threshold_binarization(self):
@@ -69,12 +69,13 @@ class TestIoUMetric(unittest.TestCase):
         expected_iou = 2 / 3
         self.assertAlmostEqual(score, expected_iou, places=5)
 
-    def test_3d_input_handling(self):
-        # Test with 3D heatmap (averaged across channels)
-        heatmap = torch.ones(3, 10, 10)
-        ground_truth = torch.ones(1, 10, 10)
+    def test_3d_heatmap_is_rejected(self):
+        # Explainers must aggregate channels; metrics only accept 2D heatmaps
+        with self.assertRaises(ValueError):
+            self.metric.calculate(torch.ones(3, 10, 10), torch.ones(1, 10, 10))
 
-        score = self.metric.calculate(heatmap, ground_truth)
+    def test_3d_ground_truth_is_accepted(self):
+        score = self.metric.calculate(torch.ones(10, 10), torch.ones(1, 10, 10))
         self.assertEqual(score, 1.0)
 
     def test_empty_masks(self):
@@ -149,15 +150,17 @@ class TestPointGameMetric(unittest.TestCase):
         result = self.metric._point_in_mask((5, 5), mask)
         self.assertFalse(result)
 
-    def test_3d_input_handling(self):
-        heatmap = torch.zeros(3, 4, 5)
-        heatmap[:, 2, 3] = 1.0  # Max across all channels at (3, 2)
+    def test_3d_heatmap_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self.metric.calculate(torch.zeros(3, 4, 5), torch.zeros(1, 4, 5))
 
+    def test_3d_ground_truth_is_accepted(self):
+        heatmap = torch.zeros(4, 5)
+        heatmap[2, 3] = 1.0
         ground_truth = torch.zeros(1, 4, 5)
         ground_truth[0, 2, 3] = 1.0
 
-        score = self.metric.calculate(heatmap, ground_truth)
-        self.assertEqual(score, 1.0)
+        self.assertEqual(self.metric.calculate(heatmap, ground_truth), 1.0)
 
 
 class TestPixelPrecisionRecallMetric(unittest.TestCase):
@@ -168,13 +171,14 @@ class TestPixelPrecisionRecallMetric(unittest.TestCase):
 
     def test_initialization(self):
         self.assertEqual(self.metric.threshold, 0.5)
-        self.assertEqual(self.metric.get_name(), "pixel_precision_recall")
+        self.assertEqual(self.metric.get_name(), "PixelPrecisionRecall")
 
     def test_perfect_precision_and_recall(self):
         heatmap = torch.ones(3, 3)
         ground_truth = torch.ones(3, 3)
 
-        precision, recall = self.metric.calculate(heatmap, ground_truth)
+        result = self.metric.calculate(heatmap, ground_truth)
+        precision, recall = result["precision"], result["recall"]
         self.assertEqual(precision, 1.0)
         self.assertEqual(recall, 1.0)
 
@@ -182,7 +186,8 @@ class TestPixelPrecisionRecallMetric(unittest.TestCase):
         heatmap = torch.zeros(3, 3)
         ground_truth = torch.ones(3, 3)
 
-        precision, recall = self.metric.calculate(heatmap, ground_truth)
+        result = self.metric.calculate(heatmap, ground_truth)
+        precision, recall = result["precision"], result["recall"]
         self.assertEqual(precision, 0.0)
         self.assertEqual(recall, 0.0)
 
@@ -193,7 +198,8 @@ class TestPixelPrecisionRecallMetric(unittest.TestCase):
         # Ground truth has 6 positive pixels
         ground_truth = torch.tensor([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]])
 
-        precision, recall = self.metric.calculate(heatmap, ground_truth)
+        result = self.metric.calculate(heatmap, ground_truth)
+        precision, recall = result["precision"], result["recall"]
 
         # True positives: 4, False positives: 0, False negatives: 2
         # Precision = 4/4 = 1.0, Recall = 4/6 = 0.667
@@ -204,7 +210,8 @@ class TestPixelPrecisionRecallMetric(unittest.TestCase):
         heatmap = torch.ones(3, 3)
         ground_truth = torch.zeros(3, 3)
 
-        precision, recall = self.metric.calculate(heatmap, ground_truth)
+        result = self.metric.calculate(heatmap, ground_truth)
+        precision, recall = result["precision"], result["recall"]
         self.assertEqual(precision, 0.0)
         self.assertEqual(recall, 0.0)  # No positives to recall
 
@@ -212,7 +219,8 @@ class TestPixelPrecisionRecallMetric(unittest.TestCase):
         heatmap = torch.zeros(3, 3)
         ground_truth = torch.ones(3, 3)
 
-        precision, recall = self.metric.calculate(heatmap, ground_truth)
+        result = self.metric.calculate(heatmap, ground_truth)
+        precision, recall = result["precision"], result["recall"]
         self.assertEqual(precision, 0.0)  # No predictions made
         self.assertEqual(recall, 0.0)
 
@@ -220,23 +228,23 @@ class TestPixelPrecisionRecallMetric(unittest.TestCase):
 class TestMetricRegistry(unittest.TestCase):
 
     def test_iou_metric_registration(self):
-        metric_class = MetricRegistry.get_metric("iou")
+        metric_class = MetricRegistry.get_metric_cls("iou")
         self.assertEqual(metric_class, IoUMetric)
 
     def test_point_game_metric_registration(self):
-        metric_class = MetricRegistry.get_metric("point_game")
+        metric_class = MetricRegistry.get_metric_cls("point_game")
         self.assertEqual(metric_class, PointGameMetric)
 
     def test_pixel_precision_recall_registration(self):
-        metric_class = MetricRegistry.get_metric("pixel_precision_recall")
+        metric_class = MetricRegistry.get_metric_cls("pixel_precision_recall")
         self.assertEqual(metric_class, PixelPrecisionRecall)
 
     def test_invalid_metric_name(self):
-        with self.assertRaises(KeyError):
-            MetricRegistry.get_metric("nonexistent_metric")
+        with self.assertRaises(ValueError):
+            MetricRegistry.get_metric_cls("nonexistent_metric")
 
     def test_list_available_metrics(self):
-        available = MetricRegistry.list_available()
+        available = MetricRegistry.list_metrics()
         self.assertIn("iou", available)
         self.assertIn("point_game", available)
         self.assertIn("pixel_precision_recall", available)
@@ -264,7 +272,8 @@ class TestMetricIntegration(unittest.TestCase):
 
         # Test Pixel Precision Recall
         ppr_metric = PixelPrecisionRecall(threshold=0.5)
-        precision, recall = ppr_metric.calculate(heatmap, ground_truth)
+        result = ppr_metric.calculate(heatmap, ground_truth)
+        precision, recall = result["precision"], result["recall"]
         self.assertIsInstance(precision, float)
         self.assertIsInstance(recall, float)
         self.assertGreaterEqual(precision, 0.0)

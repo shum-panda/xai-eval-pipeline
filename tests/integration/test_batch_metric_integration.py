@@ -35,7 +35,7 @@ class TestBatchMetricIntegration:
         image = torch.randn(3, 224, 224)
 
         # Create attribution with some structure (hot spot in center)
-        attribution = torch.randn(3, 224, 224)
+        attribution = torch.rand(224, 224)  # explainers return 2D heatmaps
         if has_bbox:
             # Add a hot spot in the attribution where the bbox should be
             if bbox_coords:
@@ -48,7 +48,7 @@ class TestBatchMetricIntegration:
             x2, y2 = min(224, int(x2)), min(224, int(y2))
 
             # Add signal in the bbox region
-            attribution[:, y1:y2, x1:x2] += 2.0
+            attribution[y1:y2, x1:x2] += 2.0
 
         # Create bbox tensor
         if has_bbox and bbox_coords:
@@ -87,7 +87,7 @@ class TestBatchMetricIntegration:
         return XAIEvaluator(
             metric_names=["iou", "point_game", "pixel_precision_recall"],
             metric_kwargs={
-                "iou": {},
+                "iou": {"threshold": 0.5},
                 "point_game": {},
                 "pixel_precision_recall": {"threshold": 0.5},
             },
@@ -151,7 +151,7 @@ class TestBatchMetricIntegration:
                 assert isinstance(metrics, MetricResults)
 
                 # Verify all expected metrics are present
-                expected_metrics = ["iou", "point_game", "pixel_precision_recall"]
+                expected_metrics = ["iou", "point_game", "pixelprecisionrecall"]
                 for metric_name in expected_metrics:
                     assert (
                         metric_name in metrics.values
@@ -241,11 +241,11 @@ class TestBatchMetricIntegration:
             "perfect", has_bbox=True, bbox_coords=[80, 80, 144, 144]
         )
         # Make attribution perfectly aligned with bbox
-        perfect_result.attribution[:, 80:144, 80:144] = 1.0
-        perfect_result.attribution[:, :80, :] = 0.0
-        perfect_result.attribution[:, 144:, :] = 0.0
-        perfect_result.attribution[:, :, :80] = 0.0
-        perfect_result.attribution[:, :, 144:] = 0.0
+        perfect_result.attribution[80:144, 80:144] = 1.0
+        perfect_result.attribution[:80, :] = 0.0
+        perfect_result.attribution[144:, :] = 0.0
+        perfect_result.attribution[:, :80] = 0.0
+        perfect_result.attribution[:, 144:] = 0.0
         results.append(perfect_result)
 
         # No alignment case
@@ -253,8 +253,8 @@ class TestBatchMetricIntegration:
             "no_align", has_bbox=True, bbox_coords=[80, 80, 144, 144]
         )
         # Make attribution completely misaligned
-        no_align_result.attribution[:, 80:144, 80:144] = 0.0
-        no_align_result.attribution[:, :80, :80] = 1.0  # Put signal in opposite corner
+        no_align_result.attribution[80:144, 80:144] = 0.0
+        no_align_result.attribution[:80, :80] = 1.0  # Put signal in opposite corner
         results.append(no_align_result)
 
         # No bbox case

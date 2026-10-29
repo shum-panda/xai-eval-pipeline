@@ -29,7 +29,7 @@ class TestBatchMetricAssignment:
 
         # Create dummy image and attribution
         image = torch.randn(3, *image_size)
-        attribution = torch.randn(3, *image_size)
+        attribution = torch.rand(*image_size)  # explainers return 2D heatmaps
 
         # Create bbox or empty tensor based on has_bbox
         if has_bbox:
@@ -65,7 +65,7 @@ class TestBatchMetricAssignment:
         """Create XAI evaluator with basic metrics."""
         return XAIEvaluator(
             metric_names=["iou", "point_game"],
-            metric_kwargs={"iou": {}, "point_game": {}},
+            metric_kwargs={"iou": {"threshold": 0.5}, "point_game": {}},
         )
 
     def test_batch_assignment_with_mixed_bbox_presence(self, xai_evaluator):

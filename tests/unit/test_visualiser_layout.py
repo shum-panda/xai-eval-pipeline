@@ -1,51 +1,59 @@
+import shutil
+import tempfile
+import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
-import numpy as np
-import torch
-from PIL import Image
+import matplotlib
 
-from src.pipe.moduls.visualization.visualisation import Visualiser
+matplotlib.use("Agg")  # no display needed
+
+import torch  # noqa: E402
+
+from src.pipe.control.utils.dataclasses.xai_explanation_result import (  # noqa: E402
+    XAIExplanationResult,
+)
+from src.pipe.moduls.visualization.visualisation import Visualiser  # noqa: E402
 
 
-def test_visualiser_layout():
-    # Dummy-Bild (RGB, 224x224)
-    dummy_image_array = (np.random.rand(224, 224, 3) * 255).astype(np.uint8)
-    dummy_image = Image.fromarray(dummy_image_array)
-    dummy_image_path = Path("dummy_image.jpg")
-    dummy_image.save(dummy_image_path)  # Temporär speichern
+class TestVisualiserLayout(unittest.TestCase):
 
-    # Dummy Attribution Map (shape: 1x14x14, wie in echten Beispielen)
-    dummy_attribution = torch.rand(1, 14, 14)
+    def setUp(self) -> None:
+        self.temp_dir = Path(tempfile.mkdtemp())
 
-    # Dummy bbox-Maske (optional)
-    dummy_bbox = [60, 100, 160, 180]  # xmin, ymin, xmax, ymax
+    def tearDown(self) -> None:
+        shutil.rmtree(self.temp_dir)
 
-    # Fake XAIExplanationResult (SimpleNamespace als Ersatz)
-    dummy_result = SimpleNamespace(
-        image_path=dummy_image_path,
-        image_name="DummyImage.jpg",
-        model_name="DummyModel",
-        explainer_name="DummyExplainer",
-        predicted_class=123,
-        predicted_class_name="test",
-        true_label=456,
-        true_label_name="test2",
-        prediction_correct=False,
-        attribution=dummy_attribution,
-        has_bbox=True,
-        bbox=dummy_bbox,
-    )
+    def make_result(self, with_bbox: bool) -> XAIExplanationResult:
+        torch.manual_seed(0)
+        return XAIExplanationResult(
+            image=torch.randn(3, 224, 224),
+            image_name="ILSVRC2012_val_00000001.JPEG",
+            image_path=self.temp_dir / "unused.JPEG",
+            has_bbox=with_bbox,
+            predicted_class=65,
+            attribution=torch.rand(224, 224),
+            bbox=torch.tensor([[60.0, 100.0, 160.0, 180.0]]) if with_bbox else None,
+            predicted_class_name="sea snake",
+            true_label=65,
+            true_label_name="sea snake",
+            prediction_correct=True,
+            explainer_name="grad_cam",
+            model_name="resnet50",
+        )
 
-    # Visualiser aufrufen
-    save_path = Path("results/test")
-    save_path.mkdir(parents=True, exist_ok=True)
-    vis = Visualiser(show=True, save_path=save_path)
-    vis.create_visualization(result=dummy_result)
+    def test_visualization_is_saved_with_bbox(self) -> None:
+        visualiser = Visualiser(show=False, save_path=self.temp_dir)
+        path = visualiser.create_visualization(result=self.make_result(True))
 
-    # Optional: Dummy-Datei löschen
-    dummy_image_path.unlink(missing_ok=True)
+        self.assertIsNotNone(path)
+        self.assertTrue(Path(str(path)).is_file())
+
+    def test_visualization_without_bbox(self) -> None:
+        visualiser = Visualiser(show=False, save_path=self.temp_dir)
+        path = visualiser.create_visualization(result=self.make_result(False))
+
+        self.assertTrue(Path(str(path)).is_file())
 
 
 if __name__ == "__main__":
-    test_visualiser_layout()
+    unittest.main()

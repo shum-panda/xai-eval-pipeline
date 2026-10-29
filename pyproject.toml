@@ -2,7 +2,7 @@
 name = "xai_eval_pipeline"
 version = "0.1.0"
 package-mode = false
-description = "Projektbeschreibung hier"
+description = "Modular, config-driven pipeline to evaluate and compare XAI methods across models"
 authors = ["Shium Rahman <shium.m.r@gmail.com>"]
 license = "MIT"
 
@@ -94,7 +94,9 @@ testpaths = [
   "tests"
 ]
 python_files = "test_*.py"
-python_paths = ["src"]
+# Outdated tests for old APIs; their topics are covered by tests/unit and tests/integration
+norecursedirs = ["archive", ".*", "__pycache__"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 88
