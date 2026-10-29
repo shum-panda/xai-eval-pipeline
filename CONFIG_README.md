@@ -203,8 +203,10 @@ metric:
   kwargs:
     iou: 
       threshold: 0.3                    # IoU-Schwellenwert
+      normalization: minmax             # Skalierung der Heatmap vor dem Schwellenwert
     pixel_precision_recall:
       threshold: 0.3                    # Pixel-basierte Metriken-Schwellenwert
+      normalization: minmax
 ```
 
 **Verfügbare Metriken:**
@@ -214,6 +216,12 @@ metric:
 
 **Parameter:**
 - `threshold` (float): Schwellenwert für binäre Klassifikation (0.0-1.0)
+- `normalization` (str, optional): Wie die Heatmap vor dem Schwellenwert skaliert wird.
+  XAI-Methoden liefern Werte auf unterschiedlichen Skalen. Ohne Normierung misst ein
+  fester Schwellenwert die Größe der Werte statt der Lokalisierung.
+  - `minmax`: auf [0, 1] skalieren (empfohlen)
+  - `max`: durch das betragsmäßige Maximum teilen
+  - `none`: Rohwerte (Standard, Verhalten vor Einführung der Option)
 
 ### 7. 🎨 Visualization-Sektion
 

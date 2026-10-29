@@ -45,11 +45,11 @@ class GuidedBackpropExplainer(BaseExplainer):
 
         attributions = self.guided_backprop.attribute(images, target=target_classes)
 
-        # Optional: Average over channels to get 2D heatmaps
+        # Absolute value first, then max over channels to get 2D heatmaps.
+        # Otherwise strongly negative attributions would get lost.
+        attributions = torch.abs(attributions)
         if attributions.dim() == 4 and attributions.shape[1] == 3:
             attributions = attributions.max(dim=1)[0]  # [0] to get values, not indices
-
-        attributions = torch.abs(attributions)
         return attributions.detach().cpu()
 
     def _check_input(self, **kwargs: Any) -> BaseXAIConfig:

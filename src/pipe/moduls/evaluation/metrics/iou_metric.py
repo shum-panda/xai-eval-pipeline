@@ -2,6 +2,10 @@ from typing import Any
 
 from torch import Tensor
 
+from src.pipe.moduls.evaluation.base.heatmap_normalization import (
+    get_normalization,
+    normalize_heatmap,
+)
 from src.pipe.moduls.evaluation.base.metric_base import MetricBase
 from src.pipe.moduls.evaluation.base.metric_registry import MetricRegistry
 
@@ -19,10 +23,12 @@ class IoUMetric(MetricBase):
         Initialize the metric with threshold for binarization.
 
         Args:
-            **kwargs: Must include 'threshold' of type float.
+            **kwargs: Must include 'threshold' of type float. Optional
+                'normalization' ("none", "minmax" or "max", default "none")
+                scales the heatmap before thresholding.
 
         Raises:
-            ValueError: If 'threshold' is missing.
+            ValueError: If 'threshold' is missing or 'normalization' is unknown.
             TypeError: If 'threshold' is not a float.
         """
         if "threshold" not in kwargs:
@@ -36,6 +42,7 @@ class IoUMetric(MetricBase):
 
         super().__init__(**kwargs)
         self.threshold: float = threshold
+        self.normalization: str = get_normalization(kwargs)
 
     def calculate(self, heatmap: Tensor, ground_truth: Tensor) -> float:
         """
@@ -59,6 +66,7 @@ class IoUMetric(MetricBase):
         if ground_truth.ndim == 3:
             ground_truth = ground_truth[0]
 
+        heatmap = normalize_heatmap(heatmap, self.normalization)
         heatmap_bin = (heatmap >= self.threshold).float()
         ground_truth_bin = (ground_truth > 0.5).float()  # tolerate soft masks
 

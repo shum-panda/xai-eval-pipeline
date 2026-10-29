@@ -49,17 +49,11 @@ class IntegratedGradientsExplainer(BaseExplainer):
                 return_convergence_delta=False,
             )
 
-            if self.multiply_by_inputs:
-                attributions = attributions * images
-
-            # Ensure consistent dimensionality with other methods
-            if attributions.dim() == 4 and attributions.shape[1] == 3:
-                # Use same aggregation method as Guided Backprop for consistency
-                attributions = attributions.max(dim=1)[
-                    0
-                ]  # [0] to get values, not indices
-
+            # Ensure consistent dimensionality with other methods: take the absolute
+            # value first, then the max over channels (same as Guided Backprop)
             attributions = torch.abs(attributions)
+            if attributions.dim() == 4 and attributions.shape[1] == 3:
+                attributions = attributions.max(dim=1)[0]
 
             self._logger.debug(
                 f"Computed Integrated Gradients with shape: {attributions.shape}"
@@ -90,7 +84,11 @@ class IntegratedGradientsExplainer(BaseExplainer):
         self.internal_batch_size = config.internal_batch_size
         self.multiply_by_inputs = config.multiply_by_inputs
 
-        self.integrated_gradients = IntegratedGradients(self._model.pytorch_model)
+        # Captum already multiplies by (input - baseline) when multiply_by_inputs
+        # is set. An extra "* images" would multiply twice.
+        self.integrated_gradients = IntegratedGradients(
+            self._model.pytorch_model, multiply_by_inputs=self.multiply_by_inputs
+        )
 
         self._logger.info(
             f"IntegratedGradients setup complete with n_steps: {self.n_steps}, "

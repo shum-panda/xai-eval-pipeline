@@ -2,6 +2,10 @@ from typing import Any, Dict
 
 from torch import Tensor
 
+from src.pipe.moduls.evaluation.base.heatmap_normalization import (
+    get_normalization,
+    normalize_heatmap,
+)
 from src.pipe.moduls.evaluation.base.metric_base import MetricBase
 from src.pipe.moduls.evaluation.base.metric_registry import MetricRegistry
 
@@ -21,10 +25,12 @@ class PixelPrecisionRecall(MetricBase):
         Initialize the metric with a threshold for binarization.
 
         Args:
-            **kwargs: Must contain the key 'threshold' of type float.
+            **kwargs: Must contain the key 'threshold' of type float. Optional
+                'normalization' ("none", "minmax" or "max", default "none")
+                scales the heatmap before thresholding.
 
         Raises:
-            ValueError: If 'threshold' is missing.
+            ValueError: If 'threshold' is missing or 'normalization' is unknown.
             TypeError: If 'threshold' is not a float.
         """
         super().__init__(**kwargs)
@@ -37,6 +43,7 @@ class PixelPrecisionRecall(MetricBase):
             raise TypeError("'threshold' must be of type float.")
 
         self.threshold: float = threshold
+        self.normalization: str = get_normalization(kwargs)
 
     def calculate(self, heatmap: Tensor, ground_truth: Tensor) -> Dict[str, float]:
         """
@@ -60,6 +67,7 @@ class PixelPrecisionRecall(MetricBase):
         if ground_truth.ndim == 3:
             ground_truth = ground_truth[0]
 
+        heatmap = normalize_heatmap(heatmap, self.normalization)
         pred_bin = (heatmap >= self.threshold).float()
         gt_bin = (ground_truth >= 0.5).float()  # Tolerates soft masks
 

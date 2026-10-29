@@ -36,11 +36,13 @@ xai:
   kwargs:
     {}
 
+# normalization: how heatmaps are scaled before thresholding: "minmax" (to [0, 1]),
+# "max" (divide by max absolute value) or "none" (raw values, behaviour before the fix).
 metric:
   kwargs:
     {
-      "iou": { "threshold": 0.3 },
-      "pixel_precision_recall": { "threshold": 0.3 }
+      "iou": { "threshold": 0.3, "normalization": "minmax" },
+      "pixel_precision_recall": { "threshold": 0.3, "normalization": "minmax" }
     }
 
 visualization:

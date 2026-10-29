@@ -169,7 +169,8 @@ class ImageNetValDataset(Dataset):
 
         # Skaliere Bounding Boxes falls nötig
         if self.target_size and boxes.numel() > 0:
-            orig_h, orig_w = orig_size
+            # PIL liefert (W, H), resize_boxes erwartet (H, W)
+            orig_w, orig_h = orig_size
             new_h, new_w = self.target_size
             boxes = resize_boxes(boxes, [orig_h, orig_w], [new_h, new_w])
 
