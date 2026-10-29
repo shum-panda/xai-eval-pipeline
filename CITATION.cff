@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "XAI Evaluation Pipeline"
+abstract: >-
+  A modular, config-driven pipeline to evaluate and compare explainable AI (XAI)
+  methods across models. Experiments are defined entirely in YAML (Hydra) and
+  tracked with MLflow.
+type: software
+authors:
+  - given-names: Shium
+    family-names: Rahman
+repository-code: "https://github.com/shum-panda/xai-eval-pipeline"
+license: MIT
+version: 0.1.0
+keywords:
+  - explainable AI
+  - XAI evaluation
+  - reproducibility
+  - research software

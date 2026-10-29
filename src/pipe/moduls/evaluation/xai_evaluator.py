@@ -7,6 +7,8 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
+# Registers the built-in metrics, so the evaluator works without other imports
+import src.pipe.moduls.evaluation.metrics  # noqa: F401
 from src.pipe.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
 )
@@ -300,7 +302,7 @@ class XAIEvaluator:
         explainer_name = results[0].explainer_name if results else "unknown"
         model_name = results[0].model_name if results else "unknown"
         logger.debug(f"Explainer: {explainer_name}, Model: {model_name}")
-        logger.debug(f"{len(metrics_list)} samples contain metric values")
+        logger.debug(f"{len(valid_metrics)} samples contain metric values")
 
         metric_averages: Dict[str, float] = {}
         if valid_metrics:
@@ -327,7 +329,7 @@ class XAIEvaluator:
             explainer_name=explainer_name,
             model_name=model_name,
             total_samples=len(results),
-            samples_with_bbox=len(metrics_list),
+            samples_with_bbox=len(valid_metrics),
             prediction_accuracy=prediction_accuracy,
             correct_predictions=correct_predictions,
             average_processing_time=average_processing_time,

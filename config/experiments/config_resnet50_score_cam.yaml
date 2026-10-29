@@ -1,3 +1,8 @@
+# Schema: src/pipe/control/utils/config_dataclasses (unknown keys and wrong types fail)
+defaults:
+  - base_config
+  - _self_
+
 experiment:
   name: resnet50_score_cam          # Name of the experiment run
   output_dir: results/resnet50_score_cam # Directory where results will be  saved
@@ -19,7 +24,7 @@ data:
   dataset_name: imagenet_val        # Name of the dataset (used for logging only)
   dataset_path: data/extracted/validation_images  # Path to images
   annotation_path: data/extracted/bounding_boxes # Path to bounding box annotations
-  label_file: data/ILSVRC2012_validation_ground_truth.txt  # Path to ground truth labels
+  label_file: data/raw/ILSVRC2012_validation_ground_truth.txt  # Path to ground truth labels
   shuffle: false                    # Shuffle data order during loading
   resize: [224, 224]                # Resize images to this size (width, height)
   normalize: true                   # Apply normalization to images

@@ -27,12 +27,16 @@ class PytorchHubModel(XAIModel):
                 - repo (str): The PyTorch Hub repository reference (default:
                 'pytorch/vision:v0.10.0').
                 - seed (int): Random seed for deterministic behavior (default: 42).
+                - device (torch.device): Device for the model (default: CUDA if
+                available, otherwise CPU).
         """
         super().__init__(model_name)
 
         self.pretrained: bool = kwargs.get("pretrained", True)
         self.repo: str = kwargs.get("repo", "pytorch/vision:v0.10.0")
         self.seed: int = kwargs.get("seed", 42)
+        if kwargs.get("device") is not None:
+            self._device = torch.device(kwargs["device"])
 
         # Load the _model from PyTorch Hub
         self._model: nn.Module = self._load_from_hub(model_name, **kwargs)

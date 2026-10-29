@@ -6,7 +6,7 @@ import mlflow
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from scipy.stats import stats
+from scipy import stats
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 
@@ -290,7 +290,7 @@ class SingleRunAnalyse:
 
             # Split data by prediction correctness
             correct_data = self.df[self.df["prediction_correct"]][actual_col].dropna()
-            incorrect_data = self.df[not self.df["prediction_correct"]][
+            incorrect_data = self.df[~self.df["prediction_correct"]][
                 actual_col
             ].dropna()
 
@@ -385,7 +385,7 @@ class SingleRunAnalyse:
 
             # Split by prediction correctness
             correct_data = group_data[group_data["prediction_correct"]]["iou"]
-            incorrect_data = group_data[not group_data["prediction_correct"]]["iou"]
+            incorrect_data = group_data[~group_data["prediction_correct"]]["iou"]
 
             # Calculate statistics for correctly classified
             if len(correct_data) > 0:

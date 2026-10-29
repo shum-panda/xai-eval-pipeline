@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -8,7 +8,7 @@ class DataConfig:
     dataset_path: str = "data/extracted/validation_images"  # Path to dataset images
     annotation_path: str = "data/extracted/bounding_boxes"  # Path to annotations
     label_file: str = (
-        "data/ILSVRC2012_validation_ground_truth.txt"  # Labels for evaluation
+        "data/raw/ILSVRC2012_validation_ground_truth.txt"  # Labels for evaluation
     )
     shuffle: bool = False
     resize: List[int] = field(default_factory=lambda: [224, 224])
@@ -18,7 +18,7 @@ class DataConfig:
     )
     # max_samples: int = 200
     batch_size: int = 32
-    max_batches: int = 1  # int(max_samples / batch_size)
+    max_batches: Optional[int] = 1  # null processes the whole dataset
     num_workers: int = 4
     pin_memory: bool = True
 

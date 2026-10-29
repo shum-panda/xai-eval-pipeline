@@ -2,7 +2,14 @@ import hydra
 from omegaconf import OmegaConf
 
 from src.pipe.control.orchestrator import Orchestrator
+from src.pipe.control.utils.config_dataclasses.config_schema import (
+    check_supported,
+    register_config_schema,
+)
 from src.pipe.control.utils.config_dataclasses.master_config import MasterConfig
+
+# Must happen before @hydra.main composes the config
+register_config_schema()
 
 
 @hydra.main(
@@ -13,10 +20,14 @@ from src.pipe.control.utils.config_dataclasses.master_config import MasterConfig
 def main(cfg: MasterConfig) -> None:
     """
     Main entry point for the XAI pipeline using Hydra configuration.
+
+    Select an experiment with --config-name, e.g.
+    python main.py --config-name config_resnet50_grad_cam
     """
 
-    # 1) Disable struct mode to allow missing fields
-    OmegaConf.set_struct(cfg, False)
+    # 1) The schema already rejected unknown keys and wrong types; reject
+    #    values the pipeline cannot honour yet
+    check_supported(cfg)
 
     # 2) Print loaded config (optional, but very helpful)
     print("Loaded Config:")

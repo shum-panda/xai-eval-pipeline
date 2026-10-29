@@ -7,7 +7,9 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 
 import mlflow
 import pandas as pd
+import torch
 from mlflow import MlflowClient
+from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 from torchvision import transforms  # type: ignore
 from tqdm import tqdm
@@ -18,6 +20,11 @@ from src.pipe.control.utils.dataclasses.xai_explanation_result import (
     XAIExplanationResult,
 )
 from src.pipe.control.utils.error.xai_explanation_error import XAIExplanationError
+from src.pipe.control.utils.provenance import (
+    collect_provenance,
+    resolve_project_path,
+    set_seeds,
+)
 from src.pipe.control.utils.set_up_logger import setup_logger
 from src.pipe.moduls.data.dataclass.xai_input_batch import XAIInputBatch
 from src.pipe.moduls.data.image_net_label_mapper import ImageNetLabelMapper
@@ -89,9 +96,15 @@ class Orchestrator:
         self._model_factory: XAIModelFactory = XAIModelFactory()
         self._xai_factory: XAIFactory = XAIFactory()
 
-        # Load model with seed from experiment config
+        # Seed everything before the model is created
+        set_seeds(config.experiment.seed, config.experiment.deterministic)
+
+        # Load model with seed, weights and device from the config
         self._model: XAIModel = self._model_factory.create(
-            config.model.name, seed=config.experiment.seed
+            config.model.name,
+            seed=config.experiment.seed,
+            pretrained=config.model.pretrained,
+            device=self._resolve_device(),
         )
 
         # Evaluator and Visualizer
@@ -677,7 +690,8 @@ class Orchestrator:
 
         visualizer = Visualiser(show=self._config.visualization.show, save_path=vis_dir)
 
-        max_vis = min(self._config.visualization.max_visualizations, len(results))
+        limit = self._config.visualization.max_visualizations
+        max_vis = len(results) if limit is None else min(limit, len(results))
         self._logger.info(f"Creating {max_vis} visualizations...")
 
         # Use individual metrics if available
@@ -742,6 +756,7 @@ class Orchestrator:
 
         # Log comprehensive configuration parameters
         self._log_comprehensive_config()
+        self._log_provenance()
 
         # Only log model if it's not already registered or if explicitly requested
         self._log_model_conditionally()
@@ -760,8 +775,9 @@ class Orchestrator:
         Sets up the ImageNet DataLoader with configurable parameters.
 
         Args:
-            project_root (Optional[Path]): Root path of the project.
-                If None, it is inferred automatically.
+            project_root (Optional[Path]): Base for the relative data paths from
+                the config (data.dataset_path, annotation_path, label_file).
+                If None, the repository root is used.
             batch_size (int): Batch size for loading the dataset.
             num_workers (int): Number of subprocesses used for data loading.
             pin_memory (bool): Whether to pin memory (recommended for GPU).
@@ -778,14 +794,15 @@ class Orchestrator:
             Uses `create_dataloader()` internally and expects compatibility with
             `ImageNetSample` and `explain_collate_fn`.
         """
+        data_config = self._config.data
         if project_root is None:
-            project_root = Path(__file__).resolve().parents[3]
-
-        image_dir = project_root / "data" / "extracted" / "validation_images"
-        annot_dir = project_root / "data" / "extracted" / "bounding_boxes"
-        label_file = (
-            project_root / "data" / "raw" / "ILSVRC2012_validation_ground_truth.txt"
-        )
+            image_dir = resolve_project_path(data_config.dataset_path)
+            annot_dir = resolve_project_path(data_config.annotation_path)
+            label_file = resolve_project_path(data_config.label_file)
+        else:
+            image_dir = project_root / data_config.dataset_path
+            annot_dir = project_root / data_config.annotation_path
+            label_file = project_root / data_config.label_file
 
         dataloader = create_dataloader(
             image_dir=image_dir,
@@ -902,6 +919,7 @@ class Orchestrator:
         mlflow.log_param("top_k", self._config.experiment.top_k)
         mlflow.log_param("output_dir", self._config.experiment.output_dir)
         mlflow.log_param("seed", self._config.experiment.seed)
+        mlflow.log_param("deterministic", self._config.experiment.deterministic)
 
         # Logging configuration
         mlflow.log_param("logging_level", self._config.logging.level)
@@ -912,6 +930,38 @@ class Orchestrator:
         mlflow.log_param("mlflow_auto_log", self._config.mlflow.auto_log)
         if self._config.mlflow.run_name:
             mlflow.log_param("mlflow_run_name", self._config.mlflow.run_name)
+
+    def _resolve_device(self) -> torch.device:
+        """
+        Determine the device from the hardware config.
+
+        Returns:
+            torch.device: hardware.device if use_cuda is set and CUDA is
+            available, otherwise the CPU.
+        """
+        hardware = self._config.hardware
+        if hardware.use_cuda and torch.cuda.is_available():
+            return torch.device(hardware.device)
+        if hardware.use_cuda:
+            self._logger.warning("use_cuda is set but CUDA is not available, using CPU")
+        return torch.device("cpu")
+
+    def _log_provenance(self) -> None:
+        """
+        Log everything needed to repeat the run: the fully resolved config as
+        artifact and git state, library versions and device as tags.
+        """
+        provenance = collect_provenance()
+        provenance["device"] = str(self._model.device)
+        mlflow.set_tags(provenance)
+        mlflow.log_text(
+            OmegaConf.to_yaml(self._config, resolve=True), "config/resolved_config.yaml"
+        )
+        if provenance["git_dirty"] == "True":
+            self._logger.warning(
+                "Working tree has uncommitted changes: the logged git commit does not "
+                "fully describe the code of this run"
+            )
 
     def _log_model_conditionally(self) -> None:
         """
