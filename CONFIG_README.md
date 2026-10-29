@@ -209,6 +209,9 @@ metric:
       normalization: minmax
 ```
 
+**Auswahl der Metriken:** `names: [iou, point_game]` berechnet nur die genannten
+Metriken; ohne `names` (oder `null`) werden alle eingebauten Metriken berechnet.
+
 **Verfügbare Metriken:**
 - `iou`: Intersection over Union
 - `pixel_precision_recall`: Pixel-basierte Präzision und Recall

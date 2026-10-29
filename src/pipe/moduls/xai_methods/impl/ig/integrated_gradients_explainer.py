@@ -18,6 +18,8 @@ class IntegratedGradientsExplainer(BaseExplainer):
     Explainer class implementing Integrated Gradients using Captum.
     """
 
+    config_class = IntegratedGradientsConfig
+
     @property
     def parameters(self) -> Dict[str, str]:
         return {

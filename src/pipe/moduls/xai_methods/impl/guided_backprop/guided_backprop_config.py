@@ -10,7 +10,8 @@ class GuidedBackpropConfig(BaseXAIConfig):
     Configuration for Guided Backpropagation (currently no tunable parameters).
     """
 
-    def get_defaults(self) -> Dict[str, Any]:
+    @classmethod
+    def get_defaults(cls) -> Dict[str, Any]:
         return {}
 
     def validate(self) -> None:

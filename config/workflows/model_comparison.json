@@ -1,0 +1,185 @@
+{
+  "name": "model_comparison",
+  "nodes": [
+    {
+      "id": "imagenet_val-mvtkp7ym-1",
+      "kind": "dataset",
+      "type": "imagenet_val",
+      "params": {
+        "data.dataset_path": "data/extracted/validation_images",
+        "data.annotation_path": "data/extracted/bounding_boxes",
+        "data.label_file": "data/raw/ILSVRC2012_validation_ground_truth.txt",
+        "data.resize": [
+          224,
+          224
+        ],
+        "data.batch_size": 32,
+        "data.max_batches": 1,
+        "data.num_workers": 4,
+        "data.shuffle": false,
+        "data.pin_memory": true
+      },
+      "position": {
+        "x": 40,
+        "y": 200
+      }
+    },
+    {
+      "id": "resnet18-mvtkp7ym-2",
+      "kind": "model",
+      "type": "resnet18",
+      "params": {
+        "pretrained": true
+      },
+      "position": {
+        "x": 320,
+        "y": 70
+      }
+    },
+    {
+      "id": "resnet34-mvtkp7ym-3",
+      "kind": "model",
+      "type": "resnet34",
+      "params": {
+        "pretrained": true
+      },
+      "position": {
+        "x": 320,
+        "y": 200
+      }
+    },
+    {
+      "id": "resnet50-mvtkp7ym-4",
+      "kind": "model",
+      "type": "resnet50",
+      "params": {
+        "pretrained": true
+      },
+      "position": {
+        "x": 320,
+        "y": 330
+      }
+    },
+    {
+      "id": "grad_cam-mvtkp7ym-5",
+      "kind": "xai",
+      "type": "grad_cam",
+      "params": {
+        "target_layer": -1,
+        "relu_attributions": true,
+        "interpolate_mode": "bilinear"
+      },
+      "position": {
+        "x": 600,
+        "y": 200
+      }
+    },
+    {
+      "id": "iou-mvtkp7ym-6",
+      "kind": "metric",
+      "type": "iou",
+      "params": {
+        "threshold": 0.3,
+        "normalization": "minmax"
+      },
+      "position": {
+        "x": 880,
+        "y": 70
+      }
+    },
+    {
+      "id": "pixel_precision_recall-mvtkp7ym-7",
+      "kind": "metric",
+      "type": "pixel_precision_recall",
+      "params": {
+        "threshold": 0.3,
+        "normalization": "minmax"
+      },
+      "position": {
+        "x": 880,
+        "y": 200
+      }
+    },
+    {
+      "id": "point_game-mvtkp7ym-8",
+      "kind": "metric",
+      "type": "point_game",
+      "params": {},
+      "position": {
+        "x": 880,
+        "y": 330
+      }
+    },
+    {
+      "id": "experiment-mvtkp7ym-9",
+      "kind": "experiment",
+      "type": "experiment",
+      "params": {
+        "experiment.seed": 42,
+        "experiment.deterministic": false,
+        "experiment.top_k": 10,
+        "hardware.use_cuda": true,
+        "hardware.device": "cuda:0",
+        "mlflow.experiment_name": "xai_evaluation",
+        "mlflow.tracking_uri": "sqlite:///mlflow.db",
+        "visualization.save": true,
+        "visualization.max_visualizations": 50,
+        "logging.level": "INFO"
+      },
+      "position": {
+        "x": 1160,
+        "y": 200
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "imagenet_val-mvtkp7ym-1",
+      "target": "resnet18-mvtkp7ym-2"
+    },
+    {
+      "source": "imagenet_val-mvtkp7ym-1",
+      "target": "resnet34-mvtkp7ym-3"
+    },
+    {
+      "source": "imagenet_val-mvtkp7ym-1",
+      "target": "resnet50-mvtkp7ym-4"
+    },
+    {
+      "source": "resnet18-mvtkp7ym-2",
+      "target": "grad_cam-mvtkp7ym-5"
+    },
+    {
+      "source": "resnet34-mvtkp7ym-3",
+      "target": "grad_cam-mvtkp7ym-5"
+    },
+    {
+      "source": "resnet50-mvtkp7ym-4",
+      "target": "grad_cam-mvtkp7ym-5"
+    },
+    {
+      "source": "grad_cam-mvtkp7ym-5",
+      "target": "iou-mvtkp7ym-6"
+    },
+    {
+      "source": "grad_cam-mvtkp7ym-5",
+      "target": "pixel_precision_recall-mvtkp7ym-7"
+    },
+    {
+      "source": "grad_cam-mvtkp7ym-5",
+      "target": "point_game-mvtkp7ym-8"
+    },
+    {
+      "source": "iou-mvtkp7ym-6",
+      "target": "experiment-mvtkp7ym-9"
+    },
+    {
+      "source": "pixel_precision_recall-mvtkp7ym-7",
+      "target": "experiment-mvtkp7ym-9"
+    },
+    {
+      "source": "point_game-mvtkp7ym-8",
+      "target": "experiment-mvtkp7ym-9"
+    }
+  ]
+}

@@ -12,7 +12,8 @@ class ScoreCAMConfig(BaseXAIConfig):
 
     target_layer: Union[str, int] = None
 
-    def get_defaults(self) -> Dict[str, Any]:
+    @classmethod
+    def get_defaults(cls) -> Dict[str, Any]:
         """
         Returns default configuration values.
 

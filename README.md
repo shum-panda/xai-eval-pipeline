@@ -93,39 +93,91 @@ add new raw archives.
 
 ## Configuration
 
-Pipeline behavior is controlled via YAML config files located in `configs/`.
+Every experiment is one YAML file in `config/experiments/`. The YAML is the single
+source of truth: everything that affects a run is set there and logged to MLflow.
 
-You can configure:
+Each file starts with the schema reference
 
-- Dataset paths and parameters  
-- Model architectures and checkpoints  
-- Explainer types and hyperparameters  
-- Evaluation metrics  
-- Visualization settings  
-
-To run the pipeline with a specific config:
-
-```bash
-  poetry run python main.py --config configs/example.yaml
+```yaml
+defaults:
+  - base_config   # schema: src/pipe/control/utils/config_dataclasses
+  - _self_
 ```
 
-You can override individual parameters via CLI or Hydra syntax if needed.
+so Hydra validates the file against the config dataclasses before a run starts:
+unknown keys (typos), wrong types and options the pipeline does not support yet
+fail with a clear message instead of being ignored. See `CONFIG_README.md` for all
+options.
+
+Run an experiment:
+
+```bash
+poetry run python main.py --config-name config_resnet50_grad_cam
+```
+
+Override single values on the command line with Hydra syntax:
+
+```bash
+poetry run python main.py --config-name config_resnet50_grad_cam data.max_batches=5
+```
+
+### Reproducibility
+
+For every run the pipeline logs to MLflow:
+
+- the fully resolved config (`config/resolved_config.yaml` artifact)
+- git commit, branch and whether the working tree had uncommitted changes
+- Python, PyTorch, torchvision and CUDA versions, platform and device
+
+Seeds for Python, NumPy and PyTorch come from `experiment.seed`;
+`experiment.deterministic: true` additionally enforces deterministic PyTorch
+algorithms (slower).
 
 ---
 
 ## Usage
 
-### Full pipeline run
+### Single run
 
 ```bash
-  poetry run python main.py
+poetry run python main.py --config-name config_test_quick
 ```
 
-### Running specific modules
+### Several runs
 
-You can also run stages like explanation generation or evaluation independently by adjusting your config or using subcommands.
+`mulitrun_main.py` runs a list of configs one after another and creates the
+comparison plots afterwards.
 
-*Add usage patterns or command options as needed.*
+### Pipeline UI (node editor)
+
+A browser UI to build experiments visually, similar to n8n: drag building blocks
+onto a canvas and connect them from left to right
+
+```
+data -> model(s) -> XAI method(s) -> metric(s) -> experiment
+```
+
+Every connected model/method pair becomes one run, so several models on one
+method (or several methods on one model) give the comparisons the pipeline is
+built for. The building blocks are read from the registries, so a newly
+registered model, XAI method or metric appears in the UI automatically.
+
+The UI only edits configs: “Check” validates the graph against the same schema
+as a hand-written YAML, “YAML” shows the generated files, and “Run” writes them to
+`config/generated/<workflow>/` and starts `main.py` with each of them. Every run
+can therefore be repeated without the UI. Workflows are saved as JSON in
+`config/workflows/`.
+
+```bash
+# once: build the frontend (Node.js 20+)
+cd ui && npm install && npm run build && cd ..
+
+# start backend and UI, then open http://127.0.0.1:8000
+poetry run python -m src.ui.server
+```
+
+For frontend development run `npm run dev` in `ui/` (Vite on port 5173, proxies
+`/api` to the backend).
 
 ---
 
@@ -155,13 +207,16 @@ You can extend:
 
 ## Testing
 
-The project uses `pytest` for testing. To run all tests:
-
 ```bash
-  poetry run pytest tests/
+poetry run pytest
 ```
 
-*Test structure and coverage notes can be added here.*
+- `tests/unit/`: fast tests without ImageNet or GPU (metrics, data loading,
+  all XAI methods on a tiny CNN, config schema, provenance, UI backend)
+- `tests/integration/`: evaluator on whole batches
+- `tests/archive/`: outdated tests for old APIs, not collected
+
+The CI runs ruff, pytest and mypy on every push.
 
 ---
 

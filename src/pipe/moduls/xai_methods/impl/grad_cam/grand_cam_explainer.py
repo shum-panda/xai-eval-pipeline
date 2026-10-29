@@ -18,6 +18,8 @@ class GradCamExplainer(BaseExplainer):
     Explainer class implementing GradCAM using Captum's LayerGradCam.
     """
 
+    config_class = GradCAMConfig
+
     def __init__(
         self, model: XAIModel, use_defaults: bool = True, **kwargs: object
     ) -> None:

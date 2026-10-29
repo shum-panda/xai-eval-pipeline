@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Type
 
 import torch
 from torch import Tensor
@@ -22,6 +22,11 @@ class BaseExplainer(XAIInterface, ABC):
     - setup with validated parameters
     - explanation generation
     """
+
+    #: Config dataclass describing the parameters of this method. Set by each
+    #: implementation so tools can list parameters and defaults without
+    #: instantiating the explainer.
+    config_class: Optional[Type[BaseXAIConfig]] = None
 
     def __init__(self, model: XAIModel, use_defaults: bool, **kwargs: Any) -> None:
         """

@@ -1,8 +1,9 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from torch import Tensor
 
 from src.pipe.moduls.evaluation.base.heatmap_normalization import (
+    HEATMAP_NORMALIZATIONS,
     get_normalization,
     normalize_heatmap,
 )
@@ -44,6 +45,14 @@ class PixelPrecisionRecall(MetricBase):
 
         self.threshold: float = threshold
         self.normalization: str = get_normalization(kwargs)
+
+    @classmethod
+    def get_defaults(cls) -> Dict[str, Any]:
+        return {"threshold": 0.3, "normalization": "minmax"}
+
+    @classmethod
+    def get_options(cls) -> Dict[str, List[Any]]:
+        return {"normalization": list(HEATMAP_NORMALIZATIONS)}
 
     def calculate(self, heatmap: Tensor, ground_truth: Tensor) -> Dict[str, float]:
         """

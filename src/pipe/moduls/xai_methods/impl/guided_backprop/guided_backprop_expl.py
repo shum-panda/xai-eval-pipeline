@@ -18,6 +18,8 @@ class GuidedBackpropExplainer(BaseExplainer):
     Explainer for Guided Backpropagation using Captum.
     """
 
+    config_class = GuidedBackpropConfig
+
     @property
     def parameters(self) -> Dict[str, str]:
         return {}

@@ -50,6 +50,10 @@ class GradCAMConfig(BaseXAIConfig):
         return ["target_layer", "relu_attributions", "interpolate_mode"]
 
     @classmethod
+    def get_options(cls) -> Dict[str, List[Any]]:
+        return {"interpolate_mode": list(cls.get_valid_interpolate_modes())}
+
+    @classmethod
     def get_valid_interpolate_modes(cls) -> List[str]:
         """
         Provides the list of valid interpolation modes for resizing attributions.

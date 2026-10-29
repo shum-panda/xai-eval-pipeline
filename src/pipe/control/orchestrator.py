@@ -109,7 +109,9 @@ class Orchestrator:
 
         # Evaluator and Visualizer
         self._logger.debug(config.metric.kwargs)
-        self._evaluator: XAIEvaluator = XAIEvaluator(metric_kwargs=config.metric.kwargs)
+        self._evaluator: XAIEvaluator = XAIEvaluator(
+            metric_names=config.metric.names, metric_kwargs=config.metric.kwargs
+        )
         self._visualiser: Visualiser = Visualiser(
             show=self._config.visualization.show,
             save_path=Path(self._config.experiment.output_dir),

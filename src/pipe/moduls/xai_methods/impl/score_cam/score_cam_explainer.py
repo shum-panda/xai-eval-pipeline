@@ -18,6 +18,8 @@ class ScoreCamExplainer(BaseExplainer):
     Explainer using a simplified ScoreCAM implementation.
     """
 
+    config_class = ScoreCAMConfig
+
     def __init__(
         self, model: XAIModel, use_defaults: bool = True, **kwargs: object
     ) -> None:
